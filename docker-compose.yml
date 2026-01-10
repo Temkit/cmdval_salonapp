@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: salonapp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: salonapp
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-salonapp_secret}
+      POSTGRES_DB: salonapp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salonapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: salonapp-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://salonapp:${DB_PASSWORD:-salonapp_secret}@db:5432/salonapp
+      SECRET_KEY: ${SECRET_KEY:-change-this-to-a-very-long-random-string}
+      DEBUG: "false"
+      CORS_ORIGINS: '["http://localhost:3000", "http://localhost", "https://${DOMAIN:-localhost}"]'
+      PHOTOS_PATH: /app/data/photos
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    volumes:
+      - photos_data:/app/data/photos
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: salonapp-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    container_name: salonapp-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - certbot_data:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  postgres_data:
+  photos_data:
+  certbot_data:
