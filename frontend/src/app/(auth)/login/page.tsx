@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,30 +37,39 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold">SalonApp</CardTitle>
-          <CardDescription>
-            Connectez-vous pour accéder à l'application
-          </CardDescription>
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto h-16 w-16 rounded-2xl bg-primary flex items-center justify-center mb-4">
+            <span className="text-primary-foreground font-bold text-2xl">SA</span>
+          </div>
+          <CardTitle className="text-3xl font-bold">SalonApp</CardTitle>
+          <p className="text-muted-foreground mt-2">
+            Connectez-vous pour continuer
+          </p>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="pt-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="username">Nom d'utilisateur</Label>
+              <Label htmlFor="username" className="text-base">
+                Nom d'utilisateur
+              </Label>
               <Input
                 id="username"
                 type="text"
-                placeholder="Entrez votre nom d'utilisateur"
+                placeholder="Entrez votre identifiant"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 autoFocus
+                autoComplete="username"
+                className="h-14 text-lg px-4"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
+              <Label htmlFor="password" className="text-base">
+                Mot de passe
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -67,10 +77,23 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
+                className="h-14 text-lg px-4"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Connexion..." : "Se connecter"}
+            <Button
+              type="submit"
+              className="w-full h-14 text-lg mt-4"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                "Connexion..."
+              ) : (
+                <>
+                  <LogIn className="h-5 w-5 mr-2" />
+                  Se connecter
+                </>
+              )}
             </Button>
           </form>
         </CardContent>

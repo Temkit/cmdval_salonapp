@@ -4,30 +4,38 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Zap, Camera, Upload, X } from "lucide-react";
+import { ArrowLeft, Zap, Camera, Upload, X, Clock, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { ButtonGroup, ZoneCard, NumberStepper } from "@/components/ui/button-group";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 
 const LASER_TYPES = [
-  "Alexandrite",
-  "Diode",
-  "Nd:YAG",
-  "IPL",
-  "Ruby",
+  { value: "Alexandrite", label: "Alexandrite" },
+  { value: "Diode", label: "Diode" },
+  { value: "Nd:YAG", label: "Nd:YAG" },
+  { value: "IPL", label: "IPL" },
 ];
+
+const TOLERANCE_OPTIONS = [
+  { value: "Excellente", label: "Excellente" },
+  { value: "Bonne", label: "Bonne" },
+  { value: "Moyenne", label: "Moyenne" },
+  { value: "Difficile", label: "Difficile" },
+];
+
+const EFFETS_OPTIONS = [
+  { value: "RAS", label: "RAS" },
+  { value: "Érythème léger", label: "Érythème" },
+  { value: "Œdème périfolliculaire", label: "Œdème" },
+  { value: "Rougeur modérée", label: "Rougeur" },
+];
+
+const FLUENCE_PRESETS = [15, 20, 25, 30, 35, 40];
+const SPOT_PRESETS = [8, 10, 12, 15, 18];
+const DUREE_PRESETS = [15, 20, 30, 45, 60];
 
 export default function NewSessionPage({
   params,
@@ -56,6 +64,7 @@ export default function NewSessionPage({
 
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
@@ -160,8 +169,8 @@ export default function NewSessionPage({
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+      <div className="space-y-4">
+        <div className="h-12 w-48 bg-muted animate-pulse rounded" />
         <div className="h-96 bg-muted animate-pulse rounded-lg" />
       </div>
     );
@@ -183,240 +192,242 @@ export default function NewSessionPage({
   ) || [];
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-4 pb-8">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Link href={`/patients/${id}`}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-12 w-12">
+            <ArrowLeft className="h-6 w-6" />
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Nouvelle séance</h1>
+          <h1 className="text-2xl font-bold">Nouvelle séance</h1>
           <p className="text-muted-foreground">
-            {patient.prenom} {patient.nom} - {patient.code_carte}
+            {patient.prenom} {patient.nom}
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Zone Selection */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Zone Selection - Card based */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
               <Zap className="h-5 w-5" />
-              Zone et paramètres laser
+              Zone de traitement
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {activeZones.length > 0 ? (
+              <div className="grid gap-3">
+                {activeZones.map((zone: any) => (
+                  <ZoneCard
+                    key={zone.id}
+                    zone={zone}
+                    selected={formData.patient_zone_id === zone.id}
+                    onSelect={() => handleChange("patient_zone_id", zone.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 border-2 border-dashed rounded-lg text-center">
+                <p className="text-muted-foreground mb-3">
+                  Aucune zone active disponible
+                </p>
+                <Link href={`/patients/${id}`}>
+                  <Button variant="outline">Ajouter une zone</Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Laser Type - Button Group */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Type de laser</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ButtonGroup
+              options={LASER_TYPES}
+              value={formData.type_laser}
+              onChange={(v) => handleChange("type_laser", v)}
+              columns={4}
+              size="lg"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Quick Parameters */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Settings2 className="h-5 w-5" />
+              Paramètres
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Zone */}
+            {/* Fluence with presets */}
             <div className="space-y-2">
-              <Label htmlFor="zone">Zone de traitement *</Label>
-              {activeZones.length > 0 ? (
-                <Select
-                  value={formData.patient_zone_id}
-                  onValueChange={(v) => handleChange("patient_zone_id", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une zone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeZones.map((zone: any) => (
-                      <SelectItem key={zone.id} value={zone.id}>
-                        <span className="flex items-center gap-2">
-                          {zone.zone_nom}
-                          <Badge variant="outline" className="ml-2">
-                            {zone.seances_effectuees}/{zone.seances_prevues}
-                          </Badge>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="p-4 border rounded-lg bg-muted/50 text-center">
-                  <p className="text-muted-foreground mb-2">
-                    Aucune zone active disponible
-                  </p>
-                  <Link href={`/patients/${id}`}>
-                    <Button variant="link" size="sm">
-                      Ajouter une zone
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              <Label className="text-base">Fluence (J/cm²)</Label>
+              <div className="flex flex-wrap gap-2">
+                {FLUENCE_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleChange("fluence", preset.toString())}
+                    className={`
+                      min-h-[52px] min-w-[52px] px-4 rounded-xl border-2 font-semibold text-lg transition-all active:scale-95
+                      ${formData.fluence === preset.toString()
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:border-primary/50"
+                      }
+                    `}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Laser Type */}
+            {/* Spot Size with presets */}
             <div className="space-y-2">
-              <Label htmlFor="type_laser">Type de laser *</Label>
-              <Select
-                value={formData.type_laser}
-                onValueChange={(v) => handleChange("type_laser", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner le laser" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LASER_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-base">Spot (mm)</Label>
+              <div className="flex flex-wrap gap-2">
+                {SPOT_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleChange("spot_size", preset.toString())}
+                    className={`
+                      min-h-[52px] min-w-[52px] px-4 rounded-xl border-2 font-semibold text-lg transition-all active:scale-95
+                      ${formData.spot_size === preset.toString()
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:border-primary/50"
+                      }
+                    `}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Laser Parameters Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fluence">Fluence (J/cm²)</Label>
-                <Input
-                  id="fluence"
-                  type="number"
-                  step="0.1"
-                  value={formData.fluence}
-                  onChange={(e) => handleChange("fluence", e.target.value)}
-                  placeholder="Ex: 25.0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="frequence">Fréquence (Hz)</Label>
-                <Input
-                  id="frequence"
-                  type="number"
-                  step="0.1"
-                  value={formData.frequence}
-                  onChange={(e) => handleChange("frequence", e.target.value)}
-                  placeholder="Ex: 10.0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="duree_impulsion">Durée d'impulsion (ms)</Label>
-                <Input
-                  id="duree_impulsion"
-                  type="number"
-                  step="0.1"
-                  value={formData.duree_impulsion}
-                  onChange={(e) => handleChange("duree_impulsion", e.target.value)}
-                  placeholder="Ex: 30.0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="spot_size">Taille du spot (mm)</Label>
-                <Input
-                  id="spot_size"
-                  type="number"
-                  step="0.1"
-                  value={formData.spot_size}
-                  onChange={(e) => handleChange("spot_size", e.target.value)}
-                  placeholder="Ex: 18.0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="duree_minutes">Durée totale (min)</Label>
-                <Input
-                  id="duree_minutes"
-                  type="number"
-                  value={formData.duree_minutes}
-                  onChange={(e) => handleChange("duree_minutes", e.target.value)}
-                  placeholder="Ex: 30"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="energie_totale">Énergie totale (J)</Label>
-                <Input
-                  id="energie_totale"
-                  type="number"
-                  step="0.1"
-                  value={formData.energie_totale}
-                  onChange={(e) => handleChange("energie_totale", e.target.value)}
-                  placeholder="Ex: 1500.0"
-                />
+            {/* Duration with presets */}
+            <div className="space-y-2">
+              <Label className="text-base flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Durée (min)
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {DUREE_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleChange("duree_minutes", preset.toString())}
+                    className={`
+                      min-h-[52px] min-w-[52px] px-4 rounded-xl border-2 font-semibold text-lg transition-all active:scale-95
+                      ${formData.duree_minutes === preset.toString()
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:border-primary/50"
+                      }
+                    `}
+                  >
+                    {preset}
+                  </button>
+                ))}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Observations */}
+        {/* Advanced parameters toggle */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="w-full py-3 text-center text-muted-foreground border-2 border-dashed rounded-lg hover:border-primary/50 hover:text-foreground transition-colors"
+        >
+          {showAdvanced ? "Masquer" : "Afficher"} les paramètres avancés
+        </button>
+
+        {showAdvanced && (
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-base">Fréquence (Hz)</Label>
+                  <NumberStepper
+                    value={formData.frequence}
+                    onChange={(v) => handleChange("frequence", v)}
+                    min={1}
+                    max={20}
+                    step={1}
+                    presets={[1, 2, 3, 5, 10]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-base">Impulsion (ms)</Label>
+                  <NumberStepper
+                    value={formData.duree_impulsion}
+                    onChange={(v) => handleChange("duree_impulsion", v)}
+                    min={1}
+                    max={100}
+                    step={5}
+                    presets={[10, 20, 30, 50]}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tolerance - Button Group */}
         <Card>
-          <CardHeader>
-            <CardTitle>Observations</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Tolérance</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="tolerance">Tolérance du patient</Label>
-              <Select
-                value={formData.tolerance}
-                onValueChange={(v) => handleChange("tolerance", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Évaluer la tolérance" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Excellente">Excellente</SelectItem>
-                  <SelectItem value="Bonne">Bonne</SelectItem>
-                  <SelectItem value="Moyenne">Moyenne</SelectItem>
-                  <SelectItem value="Difficile">Difficile</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <CardContent>
+            <ButtonGroup
+              options={TOLERANCE_OPTIONS}
+              value={formData.tolerance}
+              onChange={(v) => handleChange("tolerance", v)}
+              columns={4}
+              size="md"
+            />
+          </CardContent>
+        </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="effets_immediats">Effets immédiats</Label>
-              <Textarea
-                id="effets_immediats"
-                value={formData.effets_immediats}
-                onChange={(e) => handleChange("effets_immediats", e.target.value)}
-                placeholder="Érythème, œdème périfolliculaire..."
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="observations">Observations générales</Label>
-              <Textarea
-                id="observations"
-                value={formData.observations}
-                onChange={(e) => handleChange("observations", e.target.value)}
-                placeholder="Notes sur le déroulement de la séance..."
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="recommandations">Recommandations</Label>
-              <Textarea
-                id="recommandations"
-                value={formData.recommandations}
-                onChange={(e) => handleChange("recommandations", e.target.value)}
-                placeholder="Consignes post-traitement..."
-                rows={2}
-              />
-            </div>
+        {/* Immediate Effects - Button Group */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Effets immédiats</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ButtonGroup
+              options={EFFETS_OPTIONS}
+              value={formData.effets_immediats}
+              onChange={(v) => handleChange("effets_immediats", v)}
+              columns={4}
+              size="md"
+            />
           </CardContent>
         </Card>
 
         {/* Photos */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              Photos (optionnel)
+              Photos
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {/* Upload Zone */}
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Cliquez ou glissez des photos ici
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Maximum 5 photos, 10 Mo chacune
-                  </p>
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl cursor-pointer hover:bg-muted/50 transition-colors active:scale-[0.99]">
+                <div className="flex items-center gap-3">
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-muted-foreground">Ajouter des photos</span>
                 </div>
                 <input
                   type="file"
@@ -429,18 +440,18 @@ export default function NewSessionPage({
 
               {/* Previews */}
               {previews.length > 0 && (
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-4 gap-3">
                   {previews.map((preview, index) => (
-                    <div key={index} className="relative group">
+                    <div key={index} className="relative">
                       <img
                         src={preview}
                         alt={`Photo ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg"
+                        className="w-full h-20 object-cover rounded-lg"
                       />
                       <button
                         type="button"
                         onClick={() => removePhoto(index)}
-                        className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 p-1.5 bg-destructive text-destructive-foreground rounded-full shadow-lg"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -452,18 +463,35 @@ export default function NewSessionPage({
           </CardContent>
         </Card>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <Link href={`/patients/${id}`}>
-            <Button variant="outline" type="button">
+        {/* Notes - Only if needed */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Notes (optionnel)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              value={formData.observations}
+              onChange={(e) => handleChange("observations", e.target.value)}
+              rows={2}
+              className="w-full rounded-lg border-2 border-border p-4 text-lg resize-none focus:border-primary focus:outline-none"
+              placeholder="Observations..."
+            />
+          </CardContent>
+        </Card>
+
+        {/* Actions - Fixed at bottom */}
+        <div className="sticky bottom-4 flex gap-3 pt-4">
+          <Link href={`/patients/${id}`} className="flex-1">
+            <Button variant="outline" type="button" className="w-full h-14 text-lg">
               Annuler
             </Button>
           </Link>
           <Button
             type="submit"
             disabled={mutation.isPending || activeZones.length === 0}
+            className="flex-1 h-14 text-lg"
           >
-            {mutation.isPending ? "Enregistrement..." : "Enregistrer la séance"}
+            {mutation.isPending ? "Enregistrement..." : "Enregistrer"}
           </Button>
         </div>
       </form>

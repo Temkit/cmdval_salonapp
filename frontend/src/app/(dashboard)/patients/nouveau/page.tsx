@@ -3,22 +3,29 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, User, Phone, Mail, MapPin, ScanLine } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+
+const SEXE_OPTIONS = [
+  { value: "F", label: "Femme" },
+  { value: "M", label: "Homme" },
+];
+
+const PHOTOTYPE_OPTIONS = [
+  { value: "I", label: "I", description: "Très claire" },
+  { value: "II", label: "II", description: "Claire" },
+  { value: "III", label: "III", description: "Intermédiaire" },
+  { value: "IV", label: "IV", description: "Mate" },
+  { value: "V", label: "V", description: "Foncée" },
+  { value: "VI", label: "VI", description: "Très foncée" },
+];
 
 export default function NewPatientPage() {
   const router = useRouter();
@@ -37,6 +44,8 @@ export default function NewPatientPage() {
     phototype: "",
     notes: "",
   });
+
+  const [showOptional, setShowOptional] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.createPatient(data),
@@ -73,170 +82,227 @@ export default function NewPatientPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-4 pb-8">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Link href="/patients">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-12 w-12">
+            <ArrowLeft className="h-6 w-6" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold">Nouveau patient</h1>
-          <p className="text-muted-foreground">
-            Créez un nouveau dossier patient
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold">Nouveau patient</h1>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Code carte - Priority field */}
         <Card>
-          <CardHeader>
-            <CardTitle>Informations du patient</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Code carte */}
+          <CardContent className="pt-6">
             <div className="space-y-2">
-              <Label htmlFor="code_carte">Code carte *</Label>
+              <Label className="text-base font-medium flex items-center gap-2">
+                <ScanLine className="h-5 w-5" />
+                Code carte
+              </Label>
               <Input
-                id="code_carte"
                 value={formData.code_carte}
                 onChange={(e) => handleChange("code_carte", e.target.value)}
-                placeholder="Scannez ou entrez le code carte"
+                placeholder="Scannez ou tapez le code"
+                className="h-14 text-lg"
                 required
+                autoFocus
               />
-            </div>
-
-            {/* Nom et Prénom */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="prenom">Prénom *</Label>
-                <Input
-                  id="prenom"
-                  value={formData.prenom}
-                  onChange={(e) => handleChange("prenom", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nom">Nom *</Label>
-                <Input
-                  id="nom"
-                  value={formData.nom}
-                  onChange={(e) => handleChange("nom", e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Date de naissance et Sexe */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="date_naissance">Date de naissance</Label>
-                <Input
-                  id="date_naissance"
-                  type="date"
-                  value={formData.date_naissance}
-                  onChange={(e) => handleChange("date_naissance", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sexe">Sexe</Label>
-                <Select
-                  value={formData.sexe}
-                  onValueChange={(value) => handleChange("sexe", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="F">Femme</SelectItem>
-                    <SelectItem value="M">Homme</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Téléphone et Email */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="telephone">Téléphone</Label>
-                <Input
-                  id="telephone"
-                  type="tel"
-                  value={formData.telephone}
-                  onChange={(e) => handleChange("telephone", e.target.value)}
-                  placeholder="06 XX XX XX XX"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange("email", e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Adresse */}
-            <div className="space-y-2">
-              <Label htmlFor="adresse">Adresse</Label>
-              <Textarea
-                id="adresse"
-                value={formData.adresse}
-                onChange={(e) => handleChange("adresse", e.target.value)}
-                rows={2}
-              />
-            </div>
-
-            {/* Phototype */}
-            <div className="space-y-2">
-              <Label htmlFor="phototype">Phototype (Fitzpatrick)</Label>
-              <Select
-                value={formData.phototype}
-                onValueChange={(value) => handleChange("phototype", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner le phototype" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="I">I - Très claire</SelectItem>
-                  <SelectItem value="II">II - Claire</SelectItem>
-                  <SelectItem value="III">III - Intermédiaire</SelectItem>
-                  <SelectItem value="IV">IV - Mate</SelectItem>
-                  <SelectItem value="V">V - Foncée</SelectItem>
-                  <SelectItem value="VI">VI - Très foncée</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleChange("notes", e.target.value)}
-                rows={3}
-                placeholder="Notes additionnelles..."
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4">
-              <Link href="/patients">
-                <Button variant="outline" type="button">
-                  Annuler
-                </Button>
-              </Link>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Création..." : "Créer le patient"}
-              </Button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Identity */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Identité
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-base">Prénom</Label>
+                <Input
+                  value={formData.prenom}
+                  onChange={(e) => handleChange("prenom", e.target.value)}
+                  className="h-14 text-lg"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-base">Nom</Label>
+                <Input
+                  value={formData.nom}
+                  onChange={(e) => handleChange("nom", e.target.value)}
+                  className="h-14 text-lg"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-base">Sexe</Label>
+              <ButtonGroup
+                options={SEXE_OPTIONS}
+                value={formData.sexe}
+                onChange={(v) => handleChange("sexe", v)}
+                size="lg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-base">Date de naissance</Label>
+              <Input
+                type="date"
+                value={formData.date_naissance}
+                onChange={(e) => handleChange("date_naissance", e.target.value)}
+                className="h-14 text-lg"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Contact */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              Contact
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-base">Téléphone</Label>
+              <Input
+                type="tel"
+                value={formData.telephone}
+                onChange={(e) => handleChange("telephone", e.target.value)}
+                placeholder="06 XX XX XX XX"
+                className="h-14 text-lg"
+                inputMode="tel"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Phototype - Visual selection */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Phototype (Fitzpatrick)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-6 gap-2">
+              {PHOTOTYPE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleChange("phototype", option.value)}
+                  className={`
+                    flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all active:scale-95
+                    ${formData.phototype === option.value
+                      ? "border-primary bg-primary/10 shadow-sm"
+                      : "border-border hover:border-primary/50"
+                    }
+                  `}
+                >
+                  <div
+                    className="w-10 h-10 rounded-full mb-2 border"
+                    style={{
+                      backgroundColor: {
+                        I: "#FFE4D6",
+                        II: "#F5D6C6",
+                        III: "#DEB887",
+                        IV: "#C4A47B",
+                        V: "#8B6914",
+                        VI: "#4A3000",
+                      }[option.value],
+                    }}
+                  />
+                  <span className="font-bold text-lg">{option.label}</span>
+                  <span className="text-[10px] text-muted-foreground text-center leading-tight">
+                    {option.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Optional fields toggle */}
+        <button
+          type="button"
+          onClick={() => setShowOptional(!showOptional)}
+          className="w-full py-3 text-center text-muted-foreground border-2 border-dashed rounded-lg hover:border-primary/50 hover:text-foreground transition-colors"
+        >
+          {showOptional ? "Masquer" : "Afficher"} les champs optionnels
+        </button>
+
+        {/* Optional fields */}
+        {showOptional && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Informations complémentaires
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-base flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Email
+                </Label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  className="h-14 text-lg"
+                  inputMode="email"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-base">Adresse</Label>
+                <Input
+                  value={formData.adresse}
+                  onChange={(e) => handleChange("adresse", e.target.value)}
+                  className="h-14 text-lg"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-base">Notes</Label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => handleChange("notes", e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border-2 border-border p-4 text-lg resize-none focus:border-primary focus:outline-none"
+                  placeholder="Notes additionnelles..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Actions - Fixed at bottom */}
+        <div className="sticky bottom-4 flex gap-3 pt-4">
+          <Link href="/patients" className="flex-1">
+            <Button variant="outline" type="button" className="w-full h-14 text-lg">
+              Annuler
+            </Button>
+          </Link>
+          <Button
+            type="submit"
+            disabled={mutation.isPending}
+            className="flex-1 h-14 text-lg"
+          >
+            {mutation.isPending ? "Création..." : "Créer"}
+          </Button>
+        </div>
       </form>
     </div>
   );
