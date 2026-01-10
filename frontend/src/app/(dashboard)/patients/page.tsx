@@ -48,7 +48,7 @@ export default function PatientsPage() {
     <div className="min-h-screen flex flex-col pb-24">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b px-4 py-4 safe-area-top">
-        <div className="max-w-lg mx-auto space-y-3">
+        <div className="max-w-2xl mx-auto space-y-3">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold">Patients</h1>
             <span className="text-sm text-muted-foreground">
@@ -78,7 +78,7 @@ export default function PatientsPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 max-w-lg mx-auto w-full">
+      <div className="flex-1 p-4 max-w-2xl mx-auto w-full">
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (
@@ -199,7 +199,7 @@ export default function PatientsPage() {
 
       {/* Fixed Bottom Action - THUMB ZONE */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t p-4 safe-area-bottom">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-2xl mx-auto">
           <Button
             size="lg"
             className="w-full h-14 text-lg font-semibold rounded-xl"

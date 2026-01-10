@@ -98,12 +98,12 @@ export default function NewSessionPage({
     return (
       <div className="min-h-screen flex flex-col">
         <div className="sticky top-0 z-40 bg-background border-b px-4 py-3 safe-area-top">
-          <div className="flex items-center gap-3 max-w-lg mx-auto">
+          <div className="flex items-center gap-3 max-w-2xl mx-auto">
             <div className="h-10 w-10 skeleton rounded-xl" />
             <div className="h-6 w-32 skeleton" />
           </div>
         </div>
-        <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
+        <div className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
           <div className="h-32 skeleton rounded-2xl" />
           <div className="h-24 skeleton rounded-2xl" />
           <div className="h-24 skeleton rounded-2xl" />
@@ -131,7 +131,7 @@ export default function NewSessionPage({
     <div className="min-h-screen flex flex-col pb-32">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b px-4 py-3 safe-area-top">
-        <div className="flex items-center gap-3 max-w-lg mx-auto">
+        <div className="flex items-center gap-3 max-w-2xl mx-auto">
           <Button variant="ghost" size="icon" asChild>
             <Link href={`/patients/${id}`}>
               <ArrowLeft className="h-5 w-5" />
@@ -147,7 +147,7 @@ export default function NewSessionPage({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
+      <div className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
         {/* Zone Selection */}
         <div>
           <h2 className="font-semibold mb-3 flex items-center gap-2">
@@ -264,7 +264,7 @@ export default function NewSessionPage({
 
       {/* Bottom Action - THUMB ZONE */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t p-4 safe-area-bottom">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-2xl mx-auto">
           <Button
             size="lg"
             className="w-full h-16 text-lg font-semibold rounded-2xl"

@@ -181,7 +181,7 @@ export default function NewPatientWizard() {
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background border-b px-4 py-3 safe-area-top">
-        <div className="flex items-center justify-between max-w-lg mx-auto">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Button
             variant="ghost"
             size="icon"
@@ -227,7 +227,7 @@ export default function NewPatientWizard() {
         </div>
 
         {/* Progress bar */}
-        <div className="h-1 bg-muted mt-3 rounded-full overflow-hidden max-w-lg mx-auto">
+        <div className="h-1 bg-muted mt-3 rounded-full overflow-hidden max-w-2xl mx-auto">
           <div
             className="h-full bg-primary transition-all duration-300"
             style={{ width: `${progress}%` }}
@@ -239,7 +239,7 @@ export default function NewPatientWizard() {
       <div className="flex-1 flex flex-col">
         {/* Step 1: Identity */}
         {currentStep === 0 && (
-          <div className="flex-1 flex flex-col p-4 max-w-lg mx-auto w-full">
+          <div className="flex-1 flex flex-col p-4 max-w-2xl mx-auto w-full">
             <div className="flex-1 flex flex-col justify-center">
               <h1 className="text-2xl font-bold text-center mb-2">
                 Nouveau patient
@@ -316,7 +316,7 @@ export default function NewPatientWizard() {
 
         {/* Step 3: Zones */}
         {currentStep === 2 && (
-          <div className="flex-1 flex flex-col p-4 max-w-lg mx-auto w-full">
+          <div className="flex-1 flex flex-col p-4 max-w-2xl mx-auto w-full">
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-center mb-2">
                 Zones de traitement
@@ -361,7 +361,7 @@ export default function NewPatientWizard() {
 
         {/* Step 4: Ready */}
         {currentStep === 3 && (
-          <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-lg mx-auto w-full">
+          <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-2xl mx-auto w-full">
             <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6">
               <Check className="h-10 w-10 text-green-600" />
             </div>

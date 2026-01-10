@@ -216,7 +216,7 @@ export default function SeanceActivePage() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-4 max-w-lg mx-auto w-full">
+        <div className="flex-1 p-4 max-w-2xl mx-auto w-full">
           {/* Summary */}
           <Card className="mb-4">
             <CardContent className="p-4">
@@ -262,7 +262,7 @@ export default function SeanceActivePage() {
 
         {/* Bottom Actions */}
         <div className="p-4 border-t safe-area-bottom">
-          <div className="flex gap-3 max-w-lg mx-auto">
+          <div className="flex gap-3 max-w-2xl mx-auto">
             <Button
               variant="outline"
               className="flex-1 h-14"
@@ -372,7 +372,7 @@ export default function SeanceActivePage() {
 
       {/* Bottom Actions - THUMB ZONE */}
       <div className="p-4 border-t safe-area-bottom">
-        <div className="flex gap-3 max-w-lg mx-auto">
+        <div className="flex gap-3 max-w-2xl mx-auto">
           {/* Photo */}
           <Button
             variant="outline"
