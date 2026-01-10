@@ -201,8 +201,8 @@ export default function NewSessionPage({
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Nouvelle séance</h1>
-          <p className="text-muted-foreground">
+          <h1 className="heading-2">Nouvelle séance</h1>
+          <p className="text-secondary">
             {patient.prenom} {patient.nom}
           </p>
         </div>

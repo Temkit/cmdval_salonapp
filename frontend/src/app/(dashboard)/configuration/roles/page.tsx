@@ -17,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 
@@ -177,8 +179,8 @@ export default function RolesConfigPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Rôles</h1>
-            <p className="text-muted-foreground">
+            <h1 className="heading-1">Rôles</h1>
+            <p className="text-secondary">
               Configurer les rôles et permissions
             </p>
           </div>
@@ -196,9 +198,28 @@ export default function RolesConfigPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3" aria-busy="true" aria-label="Chargement des rôles">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
+                <div key={i} className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full skeleton" />
+                      <div className="space-y-2">
+                        <div className="h-5 w-28 skeleton rounded" />
+                        <div className="h-4 w-40 skeleton rounded" />
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <div className="h-8 w-8 skeleton rounded" />
+                      <div className="h-8 w-8 skeleton rounded" />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[1, 2, 3, 4].map((j) => (
+                      <div key={j} className="h-5 w-24 skeleton rounded-full" />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : roles?.roles?.length > 0 ? (
@@ -255,10 +276,15 @@ export default function RolesConfigPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Shield className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Aucun rôle</p>
-            </div>
+            <EmptyState
+              icon={Shield}
+              title="Aucun rôle"
+              description="Créez des rôles pour organiser les permissions des utilisateurs"
+              action={{
+                label: "Créer un rôle",
+                onClick: handleOpenCreate,
+              }}
+            />
           )}
         </CardContent>
       </Card>
@@ -362,29 +388,21 @@ export default function RolesConfigPage() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <Dialog open={!!deleteRoleId} onOpenChange={() => setDeleteRoleId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce rôle ? Les utilisateurs
-              associés perdront leurs permissions.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteRoleId(null)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteRoleId && deleteMutation.mutate(deleteRoleId)}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteRoleId}
+        onOpenChange={() => setDeleteRoleId(null)}
+        title="Supprimer le rôle"
+        description="Les utilisateurs associés perdront les permissions de ce rôle."
+        itemName={
+          deleteRoleId
+            ? roles?.roles?.find((r: any) => r.id === deleteRoleId)?.nom
+            : undefined
+        }
+        confirmLabel="Supprimer"
+        onConfirm={() => deleteRoleId && deleteMutation.mutate(deleteRoleId)}
+        isLoading={deleteMutation.isPending}
+        variant="danger"
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ class PatientBase(AppBaseModel):
     email: EmailStr | None = None
     adresse: str | None = None
     notes: str | None = None
+    phototype: str | None = Field(default=None, pattern=r"^(I|II|III|IV|V|VI)$")
 
 
 class PatientCreate(PatientBase):
@@ -37,6 +38,7 @@ class PatientUpdate(AppBaseModel):
     email: EmailStr | None = None
     adresse: str | None = None
     notes: str | None = None
+    phototype: str | None = Field(default=None, pattern=r"^(I|II|III|IV|V|VI)$")
 
 
 class PatientResponse(PatientBase):

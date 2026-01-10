@@ -88,22 +88,23 @@ class PatientModel(Base):
     )
     nom: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     prenom: Mapped[str] = mapped_column(String(100), nullable=False)
-    date_naissance: Mapped[date] = mapped_column(Date, nullable=False)
-    sexe: Mapped[str] = mapped_column(String(10), nullable=False)
-    telephone: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    date_naissance: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    sexe: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    telephone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     adresse: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     ville: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     code_postal: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    phototype: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    created_by: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("users.id"), nullable=False
+    created_by: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("users.id"), nullable=True
     )
 
     # Relationships

@@ -12,22 +12,25 @@ class Patient:
     code_carte: str
     nom: str
     prenom: str
-    date_naissance: date
-    sexe: str
-    telephone: str
-    created_by: str
+    date_naissance: date | None = None
+    sexe: str | None = None
+    telephone: str | None = None
     email: str | None = None
     adresse: str | None = None
     ville: str | None = None
     code_postal: str | None = None
     notes: str | None = None
+    phototype: str | None = None
+    created_by: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
     @property
-    def age(self) -> int:
+    def age(self) -> int | None:
         """Calculate patient age."""
+        if not self.date_naissance:
+            return None
         today = date.today()
         return (
             today.year

@@ -1,7 +1,8 @@
 """Question domain entity."""
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
+from uuid import uuid4
 
 
 @dataclass
@@ -23,9 +24,11 @@ class Question:
 class QuestionResponse:
     """Domain entity for patient's question response."""
 
-    id: str
     patient_id: str
     question_id: str
-    reponse: Optional[str] = None
+    reponse: Any = None
+    id: str = field(default_factory=lambda: str(uuid4()))
+    question_texte: str = ""
+    question_type: str = "text"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

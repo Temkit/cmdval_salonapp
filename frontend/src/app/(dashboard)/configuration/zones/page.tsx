@@ -17,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 
@@ -144,8 +146,8 @@ export default function ZonesConfigPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Zones</h1>
-            <p className="text-muted-foreground">
+            <h1 className="heading-1">Zones</h1>
+            <p className="text-secondary">
               Définir les zones de traitement
             </p>
           </div>
@@ -163,9 +165,23 @@ export default function ZonesConfigPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Chargement des zones">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="p-4 border rounded-lg space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full skeleton" />
+                      <div className="space-y-2">
+                        <div className="h-5 w-24 skeleton rounded" />
+                        <div className="h-4 w-32 skeleton rounded" />
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <div className="h-8 w-8 skeleton rounded" />
+                      <div className="h-8 w-8 skeleton rounded" />
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           ) : zones?.zones?.length > 0 ? (
@@ -213,10 +229,15 @@ export default function ZonesConfigPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Aucune zone définie</p>
-            </div>
+            <EmptyState
+              icon={Target}
+              title="Aucune zone définie"
+              description="Définissez les zones de traitement disponibles pour vos patients"
+              action={{
+                label: "Créer une zone",
+                onClick: handleOpenCreate,
+              }}
+            />
           )}
         </CardContent>
       </Card>
@@ -301,29 +322,21 @@ export default function ZonesConfigPage() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <Dialog open={!!deleteZoneId} onOpenChange={() => setDeleteZoneId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer cette zone ? Cette action ne
-              supprimera pas les zones déjà assignées aux patients.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteZoneId(null)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteZoneId && deleteMutation.mutate(deleteZoneId)}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteZoneId}
+        onOpenChange={() => setDeleteZoneId(null)}
+        title="Supprimer la zone"
+        description="Les zones déjà assignées aux patients ne seront pas supprimées."
+        itemName={
+          deleteZoneId
+            ? zones?.zones?.find((z: any) => z.id === deleteZoneId)?.nom
+            : undefined
+        }
+        confirmLabel="Supprimer"
+        onConfirm={() => deleteZoneId && deleteMutation.mutate(deleteZoneId)}
+        isLoading={deleteMutation.isPending}
+        variant="danger"
+      />
     </div>
   );
 }

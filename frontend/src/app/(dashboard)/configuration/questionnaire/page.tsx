@@ -26,6 +26,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -209,8 +211,8 @@ export default function QuestionnaireConfigPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Questionnaire</h1>
-            <p className="text-muted-foreground">
+            <h1 className="heading-1">Questionnaire</h1>
+            <p className="text-secondary">
               Personnaliser le questionnaire médical
             </p>
           </div>
@@ -228,9 +230,31 @@ export default function QuestionnaireConfigPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-2" aria-busy="true" aria-label="Chargement des questions">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+                <div key={i} className="flex items-center gap-3 p-4 border rounded-lg">
+                  {/* Reorder buttons skeleton */}
+                  <div className="flex flex-col gap-1">
+                    <div className="h-6 w-6 skeleton rounded" />
+                    <div className="h-6 w-6 skeleton rounded" />
+                  </div>
+                  {/* Content skeleton */}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-6 skeleton rounded" />
+                      <div className="h-5 w-48 skeleton rounded" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-16 skeleton rounded-full" />
+                      <div className="h-4 w-20 skeleton rounded" />
+                    </div>
+                  </div>
+                  {/* Actions skeleton */}
+                  <div className="flex gap-1">
+                    <div className="h-8 w-8 skeleton rounded" />
+                    <div className="h-8 w-8 skeleton rounded" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : sortedQuestions.length > 0 ? (
@@ -300,10 +324,15 @@ export default function QuestionnaireConfigPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Aucune question</p>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="Aucune question"
+              description="Ajoutez des questions pour créer le questionnaire médical des patients"
+              action={{
+                label: "Ajouter une question",
+                onClick: handleOpenCreate,
+              }}
+            />
           )}
         </CardContent>
       </Card>
@@ -421,35 +450,22 @@ export default function QuestionnaireConfigPage() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <Dialog
+      <ConfirmDialog
         open={!!deleteQuestionId}
         onOpenChange={() => setDeleteQuestionId(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer cette question ? Les réponses
-              existantes seront conservées mais cette question ne sera plus
-              affichée.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteQuestionId(null)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() =>
-                deleteQuestionId && deleteMutation.mutate(deleteQuestionId)
-              }
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Supprimer la question"
+        description="Les réponses existantes seront conservées mais cette question ne sera plus affichée."
+        itemName={
+          deleteQuestionId
+            ? questions?.questions?.find((q: any) => q.id === deleteQuestionId)?.texte?.slice(0, 50) +
+              (questions?.questions?.find((q: any) => q.id === deleteQuestionId)?.texte?.length > 50 ? "..." : "")
+            : undefined
+        }
+        confirmLabel="Supprimer"
+        onConfirm={() => deleteQuestionId && deleteMutation.mutate(deleteQuestionId)}
+        isLoading={deleteMutation.isPending}
+        variant="danger"
+      />
     </div>
   );
 }

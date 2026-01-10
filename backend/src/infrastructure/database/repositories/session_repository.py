@@ -86,7 +86,7 @@ class SessionRepository(SessionRepositoryInterface):
         result = await self.session.execute(
             base_query.options(
                 joinedload(SessionModel.patient_zone).joinedload(
-                    PatientZoneModel.zone_definition
+                    PatientZoneModel.zone
                 ),
                 joinedload(SessionModel.praticien),
                 joinedload(SessionModel.photos),
@@ -132,7 +132,7 @@ class SessionRepository(SessionRepositoryInterface):
         result = await self.session.execute(
             base_query.options(
                 joinedload(SessionModel.patient_zone).joinedload(
-                    PatientZoneModel.zone_definition
+                    PatientZoneModel.zone
                 ),
                 joinedload(SessionModel.praticien),
                 joinedload(SessionModel.photos),

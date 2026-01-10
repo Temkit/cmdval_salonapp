@@ -88,8 +88,8 @@ class DuplicateUsernameError(DuplicateError):
 class DuplicateZoneError(DuplicateError):
     """Patient already has this zone."""
 
-    def __init__(self) -> None:
-        super().__init__("Ce patient a déjà un forfait pour cette zone")
+    def __init__(self, message: str | None = None) -> None:
+        super().__init__(message or "Ce patient a déjà un forfait pour cette zone")
 
 
 # Business Rule Errors

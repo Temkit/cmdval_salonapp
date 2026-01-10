@@ -17,6 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -175,8 +178,8 @@ export default function UsersConfigPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Utilisateurs</h1>
-            <p className="text-muted-foreground">
+            <h1 className="heading-1">Utilisateurs</h1>
+            <p className="text-secondary">
               Gérer les comptes utilisateurs
             </p>
           </div>
@@ -194,9 +197,25 @@ export default function UsersConfigPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-2" aria-busy="true" aria-label="Chargement des utilisateurs">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+                <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full skeleton" />
+                    <div className="space-y-2">
+                      <div className="h-5 w-32 skeleton rounded" />
+                      <div className="h-4 w-40 skeleton rounded" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="h-5 w-20 skeleton rounded-full" />
+                    <div className="h-5 w-14 skeleton rounded-full" />
+                    <div className="flex gap-1">
+                      <div className="h-8 w-8 skeleton rounded" />
+                      <div className="h-8 w-8 skeleton rounded" />
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           ) : users?.users?.length > 0 ? (
@@ -243,10 +262,15 @@ export default function UsersConfigPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Aucun utilisateur</p>
-            </div>
+            <EmptyState
+              icon={User}
+              title="Aucun utilisateur"
+              description="Créez votre premier utilisateur pour commencer"
+              action={{
+                label: "Créer un utilisateur",
+                onClick: handleOpenCreate,
+              }}
+            />
           )}
         </CardContent>
       </Card>
@@ -354,29 +378,23 @@ export default function UsersConfigPage() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action
-              est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteUserId(null)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteUserId && deleteMutation.mutate(deleteUserId)}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteUserId}
+        onOpenChange={() => setDeleteUserId(null)}
+        title="Supprimer l'utilisateur"
+        description="Cette action est irréversible. L'utilisateur perdra l'accès à l'application."
+        itemName={
+          deleteUserId
+            ? users?.users?.find((u: any) => u.id === deleteUserId)?.prenom +
+              " " +
+              users?.users?.find((u: any) => u.id === deleteUserId)?.nom
+            : undefined
+        }
+        confirmLabel="Supprimer"
+        onConfirm={() => deleteUserId && deleteMutation.mutate(deleteUserId)}
+        isLoading={deleteMutation.isPending}
+        variant="danger"
+      />
     </div>
   );
 }

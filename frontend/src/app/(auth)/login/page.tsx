@@ -43,8 +43,8 @@ export default function LoginPage() {
           <div className="mx-auto h-16 w-16 rounded-2xl bg-primary flex items-center justify-center mb-4">
             <span className="text-primary-foreground font-bold text-2xl">SA</span>
           </div>
-          <CardTitle className="text-3xl font-bold">SalonApp</CardTitle>
-          <p className="text-muted-foreground mt-2">
+          <CardTitle className="heading-2">SalonApp</CardTitle>
+          <p className="text-secondary mt-2">
             Connectez-vous pour continuer
           </p>
         </CardHeader>

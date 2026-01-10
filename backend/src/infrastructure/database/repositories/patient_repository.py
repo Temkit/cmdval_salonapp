@@ -172,6 +172,7 @@ class PatientRepository(PatientRepositoryInterface):
             ville=model.ville,
             code_postal=model.code_postal,
             notes=model.notes,
+            phototype=model.phototype,
             created_by=model.created_by,
             created_at=model.created_at,
             updated_at=model.updated_at,

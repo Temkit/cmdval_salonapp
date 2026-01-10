@@ -67,6 +67,7 @@ async def list_patients(
                 email=p.email,
                 adresse=p.adresse,
                 notes=p.notes,
+                phototype=p.phototype,
                 age=p.age,
                 created_at=p.created_at,
                 updated_at=p.updated_at,
@@ -98,6 +99,7 @@ async def create_patient(
             email=request.email,
             adresse=request.adresse,
             notes=request.notes,
+            phototype=request.phototype,
         )
         return PatientResponse(
             id=patient.id,
@@ -110,6 +112,7 @@ async def create_patient(
             email=patient.email,
             adresse=patient.adresse,
             notes=patient.notes,
+            phototype=patient.phototype,
             age=patient.age,
             created_at=patient.created_at,
             updated_at=patient.updated_at,
@@ -141,6 +144,7 @@ async def get_patient_by_card(
             email=patient.email,
             adresse=patient.adresse,
             notes=patient.notes,
+            phototype=patient.phototype,
             age=patient.age,
             created_at=patient.created_at,
             updated_at=patient.updated_at,
@@ -179,6 +183,7 @@ async def get_patient(
             email=patient.email,
             adresse=patient.adresse,
             notes=patient.notes,
+            phototype=patient.phototype,
             age=patient.age,
             created_at=patient.created_at,
             updated_at=patient.updated_at,
@@ -211,6 +216,7 @@ async def update_patient(
             email=request.email,
             adresse=request.adresse,
             notes=request.notes,
+            phototype=request.phototype,
         )
         return PatientResponse(
             id=patient.id,
@@ -223,6 +229,7 @@ async def update_patient(
             email=patient.email,
             adresse=patient.adresse,
             notes=patient.notes,
+            phototype=patient.phototype,
             age=patient.age,
             created_at=patient.created_at,
             updated_at=patient.updated_at,

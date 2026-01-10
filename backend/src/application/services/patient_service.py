@@ -42,6 +42,7 @@ class PatientService:
             email=email,
             adresse=adresse,
             notes=notes,
+            phototype=phototype,
         )
 
         return await self.patient_repository.create(patient)
@@ -111,6 +112,8 @@ class PatientService:
             patient.adresse = adresse
         if notes is not None:
             patient.notes = notes
+        if phototype is not None:
+            patient.phototype = phototype
 
         return await self.patient_repository.update(patient)
 

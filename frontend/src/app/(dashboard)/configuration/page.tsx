@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Users, Shield, FileText, Target } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, Shield, FileText, Target, ChevronRight, Settings } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const configSections = [
   {
@@ -10,56 +11,87 @@ const configSections = [
     description: "Gérer les comptes utilisateurs et leurs accès",
     href: "/configuration/utilisateurs",
     icon: Users,
+    color: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
   },
   {
-    title: "Rôles",
-    description: "Configurer les rôles et permissions",
+    title: "Rôles & Permissions",
+    description: "Configurer les rôles et leurs permissions d'accès",
     href: "/configuration/roles",
     icon: Shield,
+    color: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400",
   },
   {
     title: "Questionnaire",
-    description: "Personnaliser le questionnaire médical",
+    description: "Personnaliser les questions du questionnaire médical",
     href: "/configuration/questionnaire",
     icon: FileText,
+    color: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
   },
   {
-    title: "Zones",
-    description: "Définir les zones de traitement",
+    title: "Zones de traitement",
+    description: "Définir les zones disponibles pour les traitements",
     href: "/configuration/zones",
     icon: Target,
+    color: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
   },
 ];
 
 export default function ConfigurationPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Configuration</h1>
-        <p className="text-muted-foreground">
+        <h1 className="heading-1">Configuration</h1>
+        <p className="text-secondary mt-1">
           Paramètres et configuration du système
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4">
         {configSections.map((section) => (
-          <Link key={section.href} href={section.href}>
-            <Card className="h-full hover:bg-muted/50 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <section.icon className="h-6 w-6 text-primary" />
+          <Card key={section.href} interactive>
+            <Link href={section.href}>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "h-12 w-12 rounded-xl flex items-center justify-center shrink-0",
+                    section.color
+                  )}>
+                    <section.icon className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base">{section.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                      {section.description}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                 </div>
-                <div>
-                  <CardTitle>{section.title}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {section.description}
-                  </p>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
+              </CardContent>
+            </Link>
+          </Card>
         ))}
       </div>
+
+      {/* App Info */}
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center shrink-0">
+              <span className="text-primary-foreground font-bold text-lg">SA</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold">SalonApp</h3>
+              <p className="text-sm text-muted-foreground">
+                Gestion de salon d'épilation laser
+              </p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-sm font-medium">v1.0.0</p>
+              <p className="text-xs text-muted-foreground">Build 2024.01</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
