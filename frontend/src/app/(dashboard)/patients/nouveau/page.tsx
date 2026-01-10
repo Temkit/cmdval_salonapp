@@ -1,107 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, User, Phone, ScanLine, Palette } from "lucide-react";
-import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  User,
+  FileText,
+  Target,
+  Check,
+  ChevronRight,
+  Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormField, FormTextarea } from "@/components/ui/form-field";
-import { MultiStepForm, StepContent } from "@/components/ui/multi-step-form";
-import { ButtonGroup } from "@/components/ui/button-group";
-import { DatePicker } from "@/components/ui/date-picker";
+import { Card, CardContent } from "@/components/ui/card";
+import { FormField } from "@/components/ui/form-field";
 import { useToast } from "@/hooks/use-toast";
-import { useFormValidation } from "@/hooks/use-form-validation";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { haptics } from "@/lib/haptics";
+import { QuestionnaireFlow, Question, QuestionAnswer } from "@/components/features/questionnaire";
+import { BodyMap, Zone } from "@/components/features/zones";
 
+// Wizard steps
 const STEPS = [
-  { id: "carte", title: "Carte", description: "Code carte du patient" },
-  { id: "identite", title: "Identité", description: "Informations personnelles" },
-  { id: "contact", title: "Contact", description: "Coordonnées" },
-  { id: "medical", title: "Médical", description: "Informations médicales" },
+  { id: "identity", label: "Identité", icon: User },
+  { id: "questionnaire", label: "Questionnaire", icon: FileText },
+  { id: "zones", label: "Zones", icon: Target },
+  { id: "ready", label: "Prêt", icon: Check },
 ];
 
-const SEXE_OPTIONS = [
-  { value: "F", label: "Femme" },
-  { value: "M", label: "Homme" },
-];
-
-const PHOTOTYPE_OPTIONS = [
-  { value: "I", label: "I", description: "Très claire" },
-  { value: "II", label: "II", description: "Claire" },
-  { value: "III", label: "III", description: "Intermédiaire" },
-  { value: "IV", label: "IV", description: "Mate" },
-  { value: "V", label: "V", description: "Foncée" },
-  { value: "VI", label: "VI", description: "Très foncée" },
-];
-
-const PHOTOTYPE_COLORS: Record<string, string> = {
-  I: "#FFE4D6",
-  II: "#F5D6C6",
-  III: "#DEB887",
-  IV: "#C4A47B",
-  V: "#8B6914",
-  VI: "#4A3000",
-};
-
-interface FormData {
-  code_carte: string;
-  nom: string;
-  prenom: string;
-  date_naissance: string;
-  sexe: string;
-  telephone: string;
-  email: string;
-  adresse: string;
-  phototype: string;
-  notes: string;
-}
-
-export default function NewPatientPage() {
+export default function NewPatientWizard() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
+  const [patientId, setPatientId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<FormData>({
-    code_carte: "",
-    nom: "",
-    prenom: "",
-    date_naissance: "",
-    sexe: "",
-    telephone: "",
-    email: "",
-    adresse: "",
-    phototype: "",
-    notes: "",
+  // Form data
+  const [nom, setNom] = useState("");
+  const [prenom, setPrenom] = useState("");
+  const [questionnaireAnswers, setQuestionnaireAnswers] = useState<QuestionAnswer[]>([]);
+  const [selectedZones, setSelectedZones] = useState<string[]>([]);
+
+  // Fetch questions for questionnaire
+  const { data: questions = [] } = useQuery({
+    queryKey: ["questionnaire-questions"],
+    queryFn: () => api.getQuestions(),
   });
 
-  // Validation schema
-  const validation = useFormValidation<FormData>({
-    code_carte: { rules: { required: true, minLength: 3 }, message: "Code carte requis (min 3 caractères)" },
-    nom: { rules: { required: true, minLength: 2 }, message: "Nom requis" },
-    prenom: { rules: { required: true, minLength: 2 }, message: "Prénom requis" },
-    date_naissance: { rules: {} },
-    sexe: { rules: {} },
-    telephone: { rules: { phone: true }, message: "Numéro invalide" },
-    email: { rules: { email: true }, message: "Email invalide" },
-    adresse: { rules: {} },
-    phototype: { rules: {} },
-    notes: { rules: {} },
+  // Fetch zone definitions
+  const { data: zoneDefinitions = [] } = useQuery({
+    queryKey: ["zone-definitions"],
+    queryFn: () => api.getZoneDefinitions(),
   });
 
-  const mutation = useMutation({
-    mutationFn: (data: any) => api.createPatient(data),
-    onSuccess: (data: any) => {
+  // Create patient mutation
+  const createPatientMutation = useMutation({
+    mutationFn: (data: { nom: string; prenom: string }) => api.createPatient(data),
+    onSuccess: (data) => {
+      setPatientId(data.id);
       queryClient.invalidateQueries({ queryKey: ["patients"] });
-      toast({
-        title: "Patient créé",
-        description: "Le patient a été créé avec succès.",
-      });
-      router.push(`/patients/${data.id}`);
+      haptics.success();
+      // Auto-advance to questionnaire
+      setCurrentStep(1);
     },
     onError: (error: any) => {
+      haptics.error();
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -110,269 +77,331 @@ export default function NewPatientPage() {
     },
   });
 
-  const handleChange = (field: keyof FormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    // Validate on change after field has been touched
-    if (validation.touched[field]) {
-      const error = validation.validateField(field, value);
-      // Update errors state would happen through validateField
-    }
-  };
+  // Save questionnaire mutation
+  const saveQuestionnaireMutation = useMutation({
+    mutationFn: (answers: QuestionAnswer[]) =>
+      api.saveQuestionnaireResponses(patientId!, answers),
+    onSuccess: () => {
+      haptics.success();
+      setCurrentStep(2);
+    },
+    onError: () => {
+      // Continue anyway - questionnaire is not critical
+      setCurrentStep(2);
+    },
+  });
 
-  const handleBlur = (field: keyof FormData) => {
-    validation.setFieldTouched(field);
-    validation.validateField(field, formData[field]);
-  };
+  // Add zones mutation
+  const addZonesMutation = useMutation({
+    mutationFn: async (zoneIds: string[]) => {
+      // Add each zone to patient
+      for (const zoneId of zoneIds) {
+        await api.addPatientZone(patientId!, { zone_id: zoneId, seances_prevues: 6 });
+      }
+    },
+    onSuccess: () => {
+      haptics.success();
+      queryClient.invalidateQueries({ queryKey: ["patient", patientId] });
+      setCurrentStep(3);
+    },
+    onError: () => {
+      // Continue anyway
+      setCurrentStep(3);
+    },
+  });
 
-  const canProceedToNext = (): boolean => {
-    switch (currentStep) {
-      case 0: // Carte
-        return formData.code_carte.length >= 3;
-      case 1: // Identité
-        return formData.nom.length >= 2 && formData.prenom.length >= 2;
-      case 2: // Contact
-        return true; // Optional step
-      case 3: // Medical
-        return true; // Optional step
-      default:
-        return false;
-    }
-  };
-
-  const handleSubmit = () => {
-    if (!validation.validateAll(formData)) {
+  // Step 1: Create patient
+  const handleCreatePatient = () => {
+    if (!nom.trim() || !prenom.trim()) {
       toast({
         variant: "destructive",
-        title: "Erreur de validation",
-        description: "Veuillez corriger les erreurs avant de continuer.",
+        title: "Champs requis",
+        description: "Veuillez remplir le nom et le prénom.",
       });
       return;
     }
-
-    // Convert empty strings to null for optional fields
-    const data = {
-      code_carte: formData.code_carte,
-      nom: formData.nom,
-      prenom: formData.prenom,
-      date_naissance: formData.date_naissance || null,
-      sexe: formData.sexe || null,
-      telephone: formData.telephone || null,
-      email: formData.email || null,
-      adresse: formData.adresse || null,
-      phototype: formData.phototype || null,
-      notes: formData.notes || null,
-    };
-    mutation.mutate(data);
+    haptics.medium();
+    createPatientMutation.mutate({ nom: nom.trim(), prenom: prenom.trim() });
   };
 
-  const getFieldState = (field: keyof FormData) => validation.getFieldState(field);
+  // Step 2: Complete questionnaire
+  const handleQuestionnaireComplete = async (answers: QuestionAnswer[]) => {
+    setQuestionnaireAnswers(answers);
+    if (patientId && answers.length > 0) {
+      saveQuestionnaireMutation.mutate(answers);
+    } else {
+      setCurrentStep(2);
+    }
+  };
+
+  // Skip questionnaire
+  const handleSkipQuestionnaire = () => {
+    haptics.light();
+    setCurrentStep(2);
+  };
+
+  // Step 3: Toggle zone selection
+  const handleZoneToggle = (zone: Zone) => {
+    haptics.selection();
+    setSelectedZones((prev) =>
+      prev.includes(zone.id) ? prev.filter((id) => id !== zone.id) : [...prev, zone.id]
+    );
+  };
+
+  // Step 3: Confirm zones
+  const handleConfirmZones = () => {
+    if (selectedZones.length > 0 && patientId) {
+      addZonesMutation.mutate(selectedZones);
+    } else {
+      setCurrentStep(3);
+    }
+  };
+
+  // Skip zones
+  const handleSkipZones = () => {
+    haptics.light();
+    setCurrentStep(3);
+  };
+
+  // Final: Go to patient or start session
+  const handleGoToPatient = () => {
+    haptics.medium();
+    router.push(`/patients/${patientId}`);
+  };
+
+  const handleStartSession = () => {
+    haptics.heavy();
+    router.push(`/patients/${patientId}/seance`);
+  };
+
+  // Progress percentage
+  const progress = ((currentStep + 1) / STEPS.length) * 100;
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/patients">
-          <Button variant="ghost" size="icon" className="h-12 w-12">
-            <ArrowLeft className="h-6 w-6" />
+      <div className="sticky top-0 z-40 bg-background border-b px-4 py-3 safe-area-top">
+        <div className="flex items-center justify-between max-w-lg mx-auto">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              if (currentStep === 0) {
+                router.back();
+              } else {
+                setCurrentStep((s) => s - 1);
+              }
+            }}
+          >
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-        </Link>
-        <h1 className="heading-2">Nouveau patient</h1>
+
+          <div className="flex items-center gap-2">
+            {STEPS.map((step, i) => {
+              const Icon = step.icon;
+              const isActive = i === currentStep;
+              const isComplete = i < currentStep;
+              return (
+                <div
+                  key={step.id}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                    isActive && "bg-primary text-primary-foreground",
+                    isComplete && "bg-primary/20 text-primary",
+                    !isActive && !isComplete && "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {isComplete ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Icon className="h-4 w-4" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="w-10 text-center text-sm text-muted-foreground">
+            {currentStep + 1}/{STEPS.length}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1 bg-muted mt-3 rounded-full overflow-hidden max-w-lg mx-auto">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
       </div>
 
-      <MultiStepForm
-        steps={STEPS}
-        currentStep={currentStep}
-        onStepChange={setCurrentStep}
-        onSubmit={handleSubmit}
-        isSubmitting={mutation.isPending}
-        canProceed={canProceedToNext()}
-        submitLabel="Créer le patient"
-      >
-        {/* Step 1: Code Carte */}
-        <StepContent step={0} currentStep={currentStep}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="heading-4 flex items-center gap-2">
-                <ScanLine className="h-5 w-5" />
-                Code carte
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                label="Code carte"
-                value={formData.code_carte}
-                onChange={(e) => handleChange("code_carte", e.target.value)}
-                onBlur={() => handleBlur("code_carte")}
-                placeholder="Scannez ou tapez le code"
-                required
-                error={getFieldState("code_carte").error}
-                touched={getFieldState("code_carte").touched}
-                showSuccess
-                helperText="Scannez la carte patient ou entrez le code manuellement"
-                autoFocus
-              />
-            </CardContent>
-          </Card>
-        </StepContent>
+      {/* Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Step 1: Identity */}
+        {currentStep === 0 && (
+          <div className="flex-1 flex flex-col p-4 max-w-lg mx-auto w-full">
+            <div className="flex-1 flex flex-col justify-center">
+              <h1 className="text-2xl font-bold text-center mb-2">
+                Nouveau patient
+              </h1>
+              <p className="text-muted-foreground text-center mb-8">
+                Entrez le nom et prénom pour commencer
+              </p>
 
-        {/* Step 2: Identité */}
-        <StepContent step={1} currentStep={currentStep}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="heading-4 flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Identité
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                label="Prénom"
-                value={formData.prenom}
-                onChange={(e) => handleChange("prenom", e.target.value)}
-                onBlur={() => handleBlur("prenom")}
-                required
-                error={getFieldState("prenom").error}
-                touched={getFieldState("prenom").touched}
-                showSuccess
-              />
-
-              <FormField
-                label="Nom"
-                value={formData.nom}
-                onChange={(e) => handleChange("nom", e.target.value)}
-                onBlur={() => handleBlur("nom")}
-                required
-                error={getFieldState("nom").error}
-                touched={getFieldState("nom").touched}
-                showSuccess
-              />
-
-              <div className="space-y-2">
-                <label className="text-base font-medium">
-                  Sexe <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>
-                </label>
-                <ButtonGroup
-                  options={SEXE_OPTIONS}
-                  value={formData.sexe}
-                  onChange={(v) => handleChange("sexe", v)}
-                  size="lg"
+              <div className="space-y-4">
+                <FormField
+                  label="Prénom"
+                  value={prenom}
+                  onChange={(e) => setPrenom(e.target.value)}
+                  placeholder="Prénom du patient"
+                  autoFocus
+                  required
+                />
+                <FormField
+                  label="Nom"
+                  value={nom}
+                  onChange={(e) => setNom(e.target.value)}
+                  placeholder="Nom du patient"
+                  required
                 />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <label className="text-base font-medium">
-                  Date de naissance <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>
-                </label>
-                <DatePicker
-                  value={formData.date_naissance}
-                  onChange={(v) => handleChange("date_naissance", v)}
-                  placeholder="Sélectionner la date de naissance"
-                />
+            {/* Bottom action */}
+            <div className="pt-4 pb-6 safe-area-bottom">
+              <Button
+                size="lg"
+                className="w-full h-14 text-lg"
+                onClick={handleCreatePatient}
+                disabled={!nom.trim() || !prenom.trim() || createPatientMutation.isPending}
+              >
+                {createPatientMutation.isPending ? (
+                  "Création..."
+                ) : (
+                  <>
+                    Continuer
+                    <ChevronRight className="h-5 w-5 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Questionnaire */}
+        {currentStep === 1 && (
+          <>
+            {questions.length > 0 ? (
+              <QuestionnaireFlow
+                questions={questions}
+                patientName={`${prenom} ${nom}`}
+                onComplete={handleQuestionnaireComplete}
+                onClose={handleSkipQuestionnaire}
+              />
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-4">
+                <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                <h2 className="text-xl font-semibold mb-2">Pas de questionnaire</h2>
+                <p className="text-muted-foreground text-center mb-8">
+                  Aucune question configurée pour le moment.
+                </p>
+                <Button onClick={() => setCurrentStep(2)}>
+                  Continuer
+                  <ChevronRight className="h-5 w-5 ml-2" />
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-        </StepContent>
+            )}
+          </>
+        )}
 
-        {/* Step 3: Contact */}
-        <StepContent step={2} currentStep={currentStep}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="heading-4 flex items-center gap-2">
-                <Phone className="h-5 w-5" />
-                Coordonnées
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                label="Téléphone"
-                type="tel"
-                value={formData.telephone}
-                onChange={(e) => handleChange("telephone", e.target.value)}
-                onBlur={() => handleBlur("telephone")}
-                placeholder="06 XX XX XX XX"
-                inputMode="tel"
-                optional
-                error={getFieldState("telephone").error}
-                touched={getFieldState("telephone").touched}
-                showSuccess
+        {/* Step 3: Zones */}
+        {currentStep === 2 && (
+          <div className="flex-1 flex flex-col p-4 max-w-lg mx-auto w-full">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-center mb-2">
+                Zones de traitement
+              </h1>
+              <p className="text-muted-foreground text-center mb-6">
+                Sélectionnez les zones à traiter
+              </p>
+
+              <BodyMap
+                zones={zoneDefinitions}
+                selectedZoneIds={selectedZones}
+                onSelectZone={handleZoneToggle}
+                mode="select"
               />
+            </div>
 
-              <FormField
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                onBlur={() => handleBlur("email")}
-                inputMode="email"
-                optional
-                error={getFieldState("email").error}
-                touched={getFieldState("email").touched}
-                showSuccess
-              />
+            {/* Bottom actions */}
+            <div className="pt-4 pb-6 safe-area-bottom space-y-3">
+              <Button
+                size="lg"
+                className="w-full h-14 text-lg"
+                onClick={handleConfirmZones}
+                disabled={addZonesMutation.isPending}
+              >
+                {addZonesMutation.isPending ? (
+                  "Enregistrement..."
+                ) : selectedZones.length > 0 ? (
+                  <>
+                    Confirmer {selectedZones.length} zone{selectedZones.length > 1 ? "s" : ""}
+                    <ChevronRight className="h-5 w-5 ml-2" />
+                  </>
+                ) : (
+                  <>
+                    Continuer sans zones
+                    <ChevronRight className="h-5 w-5 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
 
-              <FormField
-                label="Adresse"
-                value={formData.adresse}
-                onChange={(e) => handleChange("adresse", e.target.value)}
-                optional
-              />
-            </CardContent>
-          </Card>
-        </StepContent>
+        {/* Step 4: Ready */}
+        {currentStep === 3 && (
+          <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-lg mx-auto w-full">
+            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6">
+              <Check className="h-10 w-10 text-green-600" />
+            </div>
 
-        {/* Step 4: Medical */}
-        <StepContent step={3} currentStep={currentStep}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="heading-4 flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                Informations médicales
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-base font-medium">
-                  Phototype (Fitzpatrick) <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {PHOTOTYPE_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleChange("phototype", option.value)}
-                      className={`
-                        flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all active:scale-95 min-h-[88px]
-                        ${formData.phototype === option.value
-                          ? "border-primary bg-primary/10 shadow-sm"
-                          : "border-border hover:border-primary/50"
-                        }
-                      `}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-full mb-2 border"
-                        style={{ backgroundColor: PHOTOTYPE_COLORS[option.value] }}
-                      />
-                      <span className="font-bold text-lg">{option.label}</span>
-                      <span className="text-[10px] text-muted-foreground text-center leading-tight">
-                        {option.description}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <h1 className="text-2xl font-bold text-center mb-2">
+              Patient créé !
+            </h1>
+            <p className="text-muted-foreground text-center mb-2">
+              {prenom} {nom}
+            </p>
 
-              <FormTextarea
-                label="Notes"
-                value={formData.notes}
-                onChange={(e) => handleChange("notes", e.target.value)}
-                rows={3}
-                optional
-                helperText="Notes additionnelles sur le patient"
-              />
-            </CardContent>
-          </Card>
-        </StepContent>
-      </MultiStepForm>
+            {selectedZones.length > 0 && (
+              <p className="text-sm text-primary mb-8">
+                {selectedZones.length} zone{selectedZones.length > 1 ? "s" : ""} sélectionnée{selectedZones.length > 1 ? "s" : ""}
+              </p>
+            )}
+
+            {/* Bottom actions */}
+            <div className="w-full space-y-3 pt-4 pb-6 safe-area-bottom">
+              <Button
+                size="lg"
+                className="w-full h-14 text-lg"
+                onClick={handleStartSession}
+              >
+                <Zap className="h-5 w-5 mr-2" />
+                Démarrer une séance
+              </Button>
+
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full h-14"
+                onClick={handleGoToPatient}
+              >
+                Voir le dossier patient
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

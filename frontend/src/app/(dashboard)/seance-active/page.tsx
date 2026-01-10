@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Play,
   Pause,
@@ -10,58 +11,52 @@ import {
   Mic,
   Clock,
   User,
-  MapPin,
-  X,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { EndSessionSheet } from "@/components/features/capture";
-
-interface ActiveSession {
-  id: string;
-  patientId: string;
-  patientName: string;
-  zoneName: string;
-  zoneId: string;
-  sessionNumber: number;
-  totalSessions: number;
-  typeLaser: string;
-  parameters: {
-    fluence?: string;
-    spotSize?: string;
-    frequency?: string;
-  };
-  startedAt: Date;
-  notes: string;
-}
-
-// Mock active session - in production this would come from global state/context
-const mockSession: ActiveSession | null = null;
+import { useSessionStore } from "@/stores/session-store";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SeanceActivePage() {
   const router = useRouter();
-  const [session, setSession] = useState<ActiveSession | null>(mockSession);
-  const [isPaused, setIsPaused] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [showEndSheet, setShowEndSheet] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Timer effect
+  // Session store
+  const activeSession = useSessionStore((s) => s.activeSession);
+  const togglePause = useSessionStore((s) => s.togglePause);
+  const addPhoto = useSessionStore((s) => s.addPhoto);
+  const addNote = useSessionStore((s) => s.addNote);
+  const endSession = useSessionStore((s) => s.endSession);
+  const getElapsedSeconds = useSessionStore((s) => s.getElapsedSeconds);
+
+  // Local state for timer display
+  const [displaySeconds, setDisplaySeconds] = useState(0);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [endNotes, setEndNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Timer update effect
   useEffect(() => {
-    if (!session || isPaused) return;
+    if (!activeSession) return;
 
-    const interval = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
-    }, 1000);
+    const updateTimer = () => {
+      setDisplaySeconds(getElapsedSeconds());
+    };
 
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [session, isPaused]);
+  }, [activeSession, getElapsedSeconds]);
 
   // Prevent screen lock during active session
   useEffect(() => {
-    if (!session) return;
+    if (!activeSession) return;
 
     let wakeLock: WakeLockSentinel | null = null;
 
@@ -76,11 +71,8 @@ export default function SeanceActivePage() {
     };
 
     requestWakeLock();
-
-    return () => {
-      wakeLock?.release();
-    };
-  }, [session]);
+    return () => { wakeLock?.release(); };
+  }, [activeSession]);
 
   // Format time
   const formatTime = (seconds: number) => {
@@ -89,45 +81,108 @@ export default function SeanceActivePage() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Toggle pause
-  const togglePause = () => {
+  // Handle pause toggle
+  const handleTogglePause = () => {
     haptics.medium();
-    setIsPaused(!isPaused);
+    togglePause();
   };
 
-  // End session
-  const handleEndSession = () => {
-    haptics.heavy();
-    setShowEndSheet(true);
-  };
-
-  // Confirm end with session data
-  const confirmEnd = async (data: { notes: string; photos: string[]; duration: number }) => {
-    // Save session data - in production, send to API
-    console.log("Session completed:", {
-      sessionId: session?.id,
-      ...data,
-    });
-
-    setSession(null);
-    setShowEndSheet(false);
-    router.push("/");
-  };
-
-  // Take photo
+  // Handle photo capture
   const handleTakePhoto = () => {
     haptics.medium();
-    // Open camera
+    fileInputRef.current?.click();
   };
 
-  // Voice note
-  const handleVoiceNote = () => {
-    haptics.medium();
-    setIsRecording(!isRecording);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      addPhoto(reader.result as string);
+      toast({
+        title: "Photo ajoutée",
+        description: "La photo a été enregistrée.",
+      });
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input
+    e.target.value = "";
+  };
+
+  // Handle end session
+  const handleEndClick = () => {
+    haptics.heavy();
+    setShowEndConfirm(true);
+  };
+
+  const handleConfirmEnd = async () => {
+    if (!activeSession) return;
+
+    setIsSaving(true);
+
+    try {
+      // Get final session data
+      const result = endSession();
+      if (!result) {
+        setIsSaving(false);
+        return;
+      }
+
+      const { session, durationSeconds } = result;
+
+      // Prepare form data for API
+      const formData = new FormData();
+      formData.append("patient_zone_id", session.patientZoneId);
+      formData.append("type_laser", session.typeLaser);
+      formData.append("duree_minutes", Math.ceil(durationSeconds / 60).toString());
+
+      if (session.fluence) formData.append("fluence", session.fluence);
+      if (session.spotSize) formData.append("spot_size", session.spotSize);
+      if (session.frequence) formData.append("frequence", session.frequence);
+      if (session.tolerance) formData.append("tolerance", session.tolerance);
+      if (session.effetsImmediats) formData.append("effets_immediats", session.effetsImmediats);
+
+      // Combine session notes with end notes
+      const allNotes = [session.notes, endNotes].filter(Boolean).join("\n\n");
+      if (allNotes) formData.append("observations", allNotes);
+
+      // Convert base64 photos to files and append
+      for (let i = 0; i < session.photos.length; i++) {
+        const base64 = session.photos[i];
+        const response = await fetch(base64);
+        const blob = await response.blob();
+        formData.append("photos", blob, `photo-${i + 1}.jpg`);
+      }
+
+      // Save to API
+      await api.createSession(session.patientId, formData);
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["patient", session.patientId] });
+      queryClient.invalidateQueries({ queryKey: ["patient-sessions", session.patientId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+
+      toast({
+        title: "Séance terminée",
+        description: `Séance de ${formatTime(durationSeconds)} enregistrée.`,
+      });
+
+      // Navigate back to patient
+      router.push(`/patients/${session.patientId}`);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message || "Impossible d'enregistrer la séance.",
+      });
+      setIsSaving(false);
+    }
   };
 
   // No active session view
-  if (!session) {
+  if (!activeSession) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 pb-24">
         <div className="text-center max-w-md">
@@ -151,25 +206,109 @@ export default function SeanceActivePage() {
     );
   }
 
+  // End confirmation view
+  if (showEndConfirm) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b safe-area-top">
+          <h1 className="text-xl font-bold text-center">Terminer la séance</h1>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 p-4 max-w-lg mx-auto w-full">
+          {/* Summary */}
+          <Card className="mb-4">
+            <CardContent className="p-4">
+              <div className="text-center mb-4">
+                <p className="text-4xl font-mono font-bold text-primary">
+                  {formatTime(displaySeconds)}
+                </p>
+                <p className="text-muted-foreground">Durée de la séance</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-center border-t pt-4">
+                <div>
+                  <p className="font-semibold">{activeSession.patientName}</p>
+                  <p className="text-sm text-muted-foreground">Patient</p>
+                </div>
+                <div>
+                  <p className="font-semibold">{activeSession.zoneName}</p>
+                  <p className="text-sm text-muted-foreground">Zone</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Photos count */}
+          {activeSession.photos.length > 0 && (
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-xl mb-4">
+              <Camera className="h-5 w-5 text-muted-foreground" />
+              <span>{activeSession.photos.length} photo(s) capturée(s)</span>
+            </div>
+          )}
+
+          {/* Notes */}
+          <div className="mb-4">
+            <label className="text-sm font-medium mb-2 block">Notes finales (optionnel)</label>
+            <textarea
+              value={endNotes}
+              onChange={(e) => setEndNotes(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border-2 border-border p-4 text-base resize-none focus:border-primary focus:outline-none"
+              placeholder="Observations, tolérance, recommandations..."
+            />
+          </div>
+        </div>
+
+        {/* Bottom Actions */}
+        <div className="p-4 border-t safe-area-bottom">
+          <div className="flex gap-3 max-w-lg mx-auto">
+            <Button
+              variant="outline"
+              className="flex-1 h-14"
+              onClick={() => setShowEndConfirm(false)}
+              disabled={isSaving}
+            >
+              Continuer
+            </Button>
+            <Button
+              className="flex-1 h-14"
+              onClick={handleConfirmEnd}
+              disabled={isSaving}
+            >
+              {isSaving ? "Enregistrement..." : "Enregistrer"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Active session view
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Hidden file input for photo capture */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b safe-area-top">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <X className="h-6 w-6" />
-        </Button>
+      <div className="flex items-center justify-center p-4 border-b safe-area-top">
         <span
           className={cn(
-            "px-3 py-1 rounded-full text-sm font-medium",
-            isPaused
+            "px-4 py-2 rounded-full text-sm font-semibold",
+            activeSession.isPaused
               ? "bg-yellow-500/20 text-yellow-600"
               : "bg-green-500/20 text-green-600"
           )}
         >
-          {isPaused ? "En pause" : "En cours"}
+          {activeSession.isPaused ? "En pause" : "En cours"}
         </span>
-        <div className="w-10" />
       </div>
 
       {/* Main Content - Glanceable */}
@@ -177,40 +316,40 @@ export default function SeanceActivePage() {
         {/* Timer - Large and readable from distance */}
         <div
           className={cn(
-            "text-8xl font-mono font-bold mb-8 transition-colors",
-            isPaused ? "text-yellow-500" : "text-foreground"
+            "text-7xl sm:text-8xl font-mono font-bold mb-8 transition-colors",
+            activeSession.isPaused ? "text-yellow-500" : "text-foreground"
           )}
         >
-          {formatTime(elapsedSeconds)}
+          {formatTime(displaySeconds)}
         </div>
 
         {/* Patient & Zone Info */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">{session.patientName}</h1>
-          <div className="flex items-center justify-center gap-2 text-xl text-muted-foreground">
-            <MapPin className="h-5 w-5" />
-            <span>{session.zoneName}</span>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">{activeSession.patientName}</h1>
+          <div className="flex items-center justify-center gap-2 text-lg text-muted-foreground">
+            <Target className="h-5 w-5" />
+            <span>{activeSession.zoneName}</span>
             <span className="text-primary font-semibold">
-              ({session.sessionNumber}/{session.totalSessions})
+              ({activeSession.sessionNumber}/{activeSession.totalSessions})
             </span>
           </div>
         </div>
 
         {/* Parameters Card */}
-        <Card className="w-full max-w-md mb-8">
+        <Card className="w-full max-w-sm mb-8">
           <CardContent className="p-4">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-sm text-muted-foreground">Laser</p>
-                <p className="font-semibold">{session.typeLaser}</p>
+                <p className="font-semibold">{activeSession.typeLaser}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Fluence</p>
-                <p className="font-semibold">{session.parameters.fluence || "-"}</p>
+                <p className="font-semibold">{activeSession.fluence || "-"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Spot</p>
-                <p className="font-semibold">{session.parameters.spotSize || "-"}</p>
+                <p className="font-semibold">{activeSession.spotSize || "-"}</p>
               </div>
             </div>
           </CardContent>
@@ -219,61 +358,47 @@ export default function SeanceActivePage() {
         {/* Pause/Resume Button */}
         <Button
           size="lg"
-          variant={isPaused ? "default" : "outline"}
-          className="h-16 w-16 rounded-full"
-          onClick={togglePause}
+          variant={activeSession.isPaused ? "default" : "outline"}
+          className="h-20 w-20 rounded-full"
+          onClick={handleTogglePause}
         >
-          {isPaused ? (
-            <Play className="h-8 w-8" />
+          {activeSession.isPaused ? (
+            <Play className="h-10 w-10" />
           ) : (
-            <Pause className="h-8 w-8" />
+            <Pause className="h-10 w-10" />
           )}
         </Button>
       </div>
 
-      {/* Bottom Actions */}
+      {/* Bottom Actions - THUMB ZONE */}
       <div className="p-4 border-t safe-area-bottom">
-        <div className="flex gap-3 max-w-md mx-auto">
-          {/* Quick Note */}
+        <div className="flex gap-3 max-w-lg mx-auto">
+          {/* Photo */}
           <Button
             variant="outline"
-            className={cn("flex-1 h-14", isRecording && "bg-red-500/20 border-red-500")}
-            onClick={handleVoiceNote}
+            className="flex-1 h-16 rounded-xl relative"
+            onClick={handleTakePhoto}
           >
-            <Mic className={cn("h-5 w-5 mr-2", isRecording && "text-red-500 animate-pulse")} />
-            {isRecording ? "Arrêter" : "Note"}
-          </Button>
-
-          {/* Photo */}
-          <Button variant="outline" className="flex-1 h-14" onClick={handleTakePhoto}>
-            <Camera className="h-5 w-5 mr-2" />
+            <Camera className="h-6 w-6 mr-2" />
             Photo
+            {activeSession.photos.length > 0 && (
+              <span className="absolute -top-2 -right-2 w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs flex items-center justify-center font-semibold">
+                {activeSession.photos.length}
+              </span>
+            )}
           </Button>
 
           {/* End Session */}
           <Button
             variant="destructive"
-            className="flex-1 h-14"
-            onClick={handleEndSession}
+            className="flex-1 h-16 rounded-xl text-lg font-semibold"
+            onClick={handleEndClick}
           >
-            <StopCircle className="h-5 w-5 mr-2" />
+            <StopCircle className="h-6 w-6 mr-2" />
             Terminer
           </Button>
         </div>
       </div>
-
-      {/* End Session Sheet */}
-      {showEndSheet && session && (
-        <EndSessionSheet
-          patientName={session.patientName}
-          zoneName={session.zoneName}
-          sessionNumber={session.sessionNumber}
-          totalSessions={session.totalSessions}
-          elapsedSeconds={elapsedSeconds}
-          onConfirm={confirmEnd}
-          onCancel={() => setShowEndSheet(false)}
-        />
-      )}
     </div>
   );
 }

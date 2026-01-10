@@ -2,31 +2,27 @@
 
 import { use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   User,
   Phone,
-  Mail,
-  MapPin,
-  Calendar,
-  Plus,
-  FileText,
   Target,
   History,
   CreditCard,
-  ChevronRight,
   Zap,
+  ChevronRight,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
-import { formatDate, formatDateTime, cn } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
+import { haptics } from "@/lib/haptics";
 import { AddZoneDialog } from "@/components/features/patients/add-zone-dialog";
-import { QuestionnaireTab } from "@/components/features/patients/questionnaire-tab";
 
 export default function PatientDetailPage({
   params,
@@ -34,6 +30,7 @@ export default function PatientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
@@ -42,45 +39,34 @@ export default function PatientDetailPage({
 
   const { data: sessions } = useQuery({
     queryKey: ["patient-sessions", id],
-    queryFn: () => api.getPatientSessions(id, { page: 1, size: 10 }),
+    queryFn: () => api.getPatientSessions(id, { page: 1, size: 5 }),
   });
+
+  const handleStartSession = () => {
+    haptics.heavy();
+    router.push(`/patients/${id}/seance`);
+  };
+
+  const handleCall = () => {
+    if (patient?.telephone) {
+      haptics.medium();
+      window.location.href = `tel:${patient.telephone}`;
+    }
+  };
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        {/* Header skeleton */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 skeleton rounded-xl" />
-          <div className="h-8 w-48 skeleton" />
+      <div className="min-h-screen flex flex-col">
+        <div className="sticky top-0 z-40 bg-background border-b px-4 py-3 safe-area-top">
+          <div className="flex items-center gap-3 max-w-lg mx-auto">
+            <div className="h-10 w-10 skeleton rounded-xl" />
+            <div className="h-6 w-32 skeleton" />
+          </div>
         </div>
-        {/* Content skeleton */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full skeleton" />
-              <div className="flex-1 space-y-2">
-                <div className="h-6 w-48 skeleton" />
-                <div className="h-4 w-32 skeleton" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <div className="h-12 skeleton rounded-xl" />
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-5 skeleton" />
-              ))}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-5 skeleton" />
-              ))}
-            </CardContent>
-          </Card>
+        <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
+          <div className="h-24 skeleton rounded-2xl" />
+          <div className="h-32 skeleton rounded-2xl" />
+          <div className="h-48 skeleton rounded-2xl" />
         </div>
       </div>
     );
@@ -88,232 +74,103 @@ export default function PatientDetailPage({
 
   if (!patient) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-          <User className="h-8 w-8 text-muted-foreground" />
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
+          <User className="h-10 w-10 text-muted-foreground" />
         </div>
-        <p className="text-lg font-medium">Patient non trouvé</p>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xl font-semibold">Patient non trouvé</p>
+        <p className="text-muted-foreground text-center mt-1 mb-6">
           Ce patient n'existe pas ou a été supprimé
         </p>
-        <Button asChild className="mt-4">
+        <Button asChild size="lg">
           <Link href="/patients">Retour à la liste</Link>
         </Button>
       </div>
     );
   }
 
+  const totalZones = patient.zones?.length || 0;
+  const completedZones = patient.zones?.filter((z: any) => z.progression >= 1).length || 0;
+
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="min-h-screen flex flex-col pb-32">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon-sm">
-          <Link href="/patients">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <h1 className="heading-2 truncate">Dossier patient</h1>
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b px-4 py-3 safe-area-top">
+        <div className="flex items-center gap-3 max-w-lg mx-auto">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/patients">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <span className="font-semibold">Dossier patient</span>
+        </div>
       </div>
 
-      {/* Patient Card */}
-      <Card>
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            {/* Avatar */}
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-2xl font-bold text-primary">
-                {patient.prenom?.[0]}
-                {patient.nom?.[0]}
-              </span>
-            </div>
+      {/* Content */}
+      <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
+        {/* Patient Identity Card */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6">
+              <div className="flex items-center gap-4">
+                {/* Avatar */}
+                <div className="h-16 w-16 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0">
+                  <span className="text-2xl font-bold text-primary">
+                    {patient.prenom?.[0]}{patient.nom?.[0]}
+                  </span>
+                </div>
 
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold truncate">
-                {patient.prenom} {patient.nom}
-              </h2>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                {patient.code_carte && (
-                  <Badge variant="secondary" className="gap-1">
-                    <CreditCard className="h-3 w-3" />
-                    {patient.code_carte}
-                  </Badge>
-                )}
-                {patient.age && (
-                  <Badge variant="outline">{patient.age} ans</Badge>
-                )}
-                {patient.sexe && (
-                  <Badge variant="outline">
-                    {patient.sexe === "F" ? "Femme" : "Homme"}
-                  </Badge>
-                )}
-                {patient.phototype && (
-                  <Badge variant="outline">Type {patient.phototype}</Badge>
+                {/* Name & Card */}
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl font-bold truncate">
+                    {patient.prenom} {patient.nom}
+                  </h1>
+                  {patient.code_carte && (
+                    <div className="flex items-center gap-1.5 mt-1 text-muted-foreground">
+                      <CreditCard className="h-4 w-4" />
+                      <span className="text-sm font-medium">{patient.code_carte}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Call */}
+                {patient.telephone && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 h-12 w-12 rounded-xl"
+                    onClick={handleCall}
+                  >
+                    <Phone className="h-5 w-5" />
+                  </Button>
                 )}
               </div>
             </div>
 
-            {/* Action Button */}
-            <Button asChild size="lg" className="w-full sm:w-auto shrink-0">
-              <Link href={`/patients/${id}/seance`}>
-                <Zap className="h-5 w-5 mr-2" />
-                Nouvelle séance
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 divide-x border-t">
+              <div className="p-3 text-center">
+                <p className="text-2xl font-bold text-primary">{totalZones}</p>
+                <p className="text-xs text-muted-foreground">Zones</p>
+              </div>
+              <div className="p-3 text-center">
+                <p className="text-2xl font-bold text-primary">
+                  {sessions?.total || 0}
+                </p>
+                <p className="text-xs text-muted-foreground">Séances</p>
+              </div>
+              <div className="p-3 text-center">
+                <p className="text-2xl font-bold text-green-600">{completedZones}</p>
+                <p className="text-xs text-muted-foreground">Terminées</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Tabs - optimized for tablet click navigation */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="w-full flex-wrap sm:flex-nowrap justify-start">
-          <TabsTrigger value="overview" className="gap-2 flex-1 sm:flex-none">
-            <User className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Aperçu</span>
-          </TabsTrigger>
-          <TabsTrigger value="zones" className="gap-2 flex-1 sm:flex-none">
-            <Target className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Zones</span>
-          </TabsTrigger>
-          <TabsTrigger value="questionnaire" className="gap-2 flex-1 sm:flex-none">
-            <FileText className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Questionnaire</span>
-          </TabsTrigger>
-          <TabsTrigger value="sessions" className="gap-2 flex-1 sm:flex-none">
-            <History className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Séances</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Contact Info */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Coordonnées</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {patient.telephone && (
-                  <a
-                    href={`tel:${patient.telephone}`}
-                    className="flex items-center gap-3 p-3 -mx-3 rounded-xl hover:bg-muted transition-colors"
-                  >
-                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <Phone className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground">Téléphone</p>
-                      <p className="font-medium truncate">{patient.telephone}</p>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </a>
-                )}
-                {patient.email && (
-                  <a
-                    href={`mailto:${patient.email}`}
-                    className="flex items-center gap-3 p-3 -mx-3 rounded-xl hover:bg-muted transition-colors"
-                  >
-                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <Mail className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p className="font-medium truncate">{patient.email}</p>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </a>
-                )}
-                {patient.adresse && (
-                  <div className="flex items-start gap-3 p-3 -mx-3">
-                    <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                      <MapPin className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground">Adresse</p>
-                      <p className="font-medium">{patient.adresse}</p>
-                    </div>
-                  </div>
-                )}
-                {patient.date_naissance && (
-                  <div className="flex items-center gap-3 p-3 -mx-3">
-                    <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                      <Calendar className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground">Date de naissance</p>
-                      <p className="font-medium">{formatDate(patient.date_naissance)}</p>
-                    </div>
-                  </div>
-                )}
-                {!patient.telephone && !patient.email && !patient.adresse && !patient.date_naissance && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Aucune coordonnée renseignée
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Medical Info */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Informations médicales</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 -mx-3 rounded-xl bg-muted/50">
-                  <span className="text-muted-foreground">Questionnaire</span>
-                  <Badge
-                    variant={patient.questionnaire_complete ? "success" : "warning"}
-                    dot
-                  >
-                    {patient.questionnaire_complete ? "Complet" : "Incomplet"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 -mx-3 rounded-xl bg-muted/50">
-                  <span className="text-muted-foreground">Phototype</span>
-                  <span className="font-medium">{patient.phototype || "Non renseigné"}</span>
-                </div>
-                {patient.notes && (
-                  <div className="p-3 -mx-3 rounded-xl border">
-                    <p className="text-sm text-muted-foreground mb-1">Notes</p>
-                    <p className="text-sm whitespace-pre-wrap">{patient.notes}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Zones Progress */}
-          {patient.zones?.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Progression des zones</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {patient.zones.map((zone: any) => (
-                    <div key={zone.id} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">{zone.zone_nom}</span>
-                        <span className="text-muted-foreground">
-                          {zone.seances_effectuees} / {zone.seances_prevues}
-                        </span>
-                      </div>
-                      <Progress value={zone.progression * 100} className="h-2.5" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Zones Tab */}
-        <TabsContent value="zones" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {patient.zones?.length || 0} zone{(patient.zones?.length || 0) !== 1 ? "s" : ""} configurée{(patient.zones?.length || 0) !== 1 ? "s" : ""}
-            </p>
+        {/* Zones Progress */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">Zones de traitement</h2>
             <AddZoneDialog patientId={id} existingZones={patient.zones || []} />
           </div>
 
@@ -322,127 +179,108 @@ export default function PatientDetailPage({
               {patient.zones.map((zone: any) => (
                 <Card key={zone.id}>
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Target className="h-6 w-6 text-primary" />
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Target className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{zone.zone_nom}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-medium truncate">{zone.zone_nom}</p>
+                          <span className="text-sm font-semibold text-primary">
+                            {Math.round(zone.progression * 100)}%
+                          </span>
+                        </div>
+                        <Progress value={zone.progression * 100} className="h-2" />
+                        <p className="text-xs text-muted-foreground mt-1">
                           {zone.seances_effectuees} / {zone.seances_prevues} séances
                         </p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-2xl font-bold text-primary">
-                          {Math.round(zone.progression * 100)}%
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {zone.seances_restantes} restante{zone.seances_restantes > 1 ? "s" : ""}
-                        </p>
-                      </div>
                     </div>
-                    <Progress value={zone.progression * 100} className="h-2 mt-3" />
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : (
             <Card>
-              <CardContent className="py-12">
-                <div className="empty-state">
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Target className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <p className="font-medium text-lg">Aucune zone configurée</p>
-                  <p className="text-sm mt-1">
-                    Ajoutez des zones de traitement pour ce patient
-                  </p>
-                  <div className="mt-4">
-                    <AddZoneDialog patientId={id} existingZones={[]} />
-                  </div>
-                </div>
+              <CardContent className="py-8 text-center">
+                <Target className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="font-medium">Aucune zone</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ajoutez des zones pour suivre les traitements
+                </p>
               </CardContent>
             </Card>
           )}
-        </TabsContent>
+        </div>
 
-        {/* Questionnaire Tab */}
-        <TabsContent value="questionnaire">
-          <QuestionnaireTab patientId={id} />
-        </TabsContent>
-
-        {/* Sessions Tab */}
-        <TabsContent value="sessions" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {sessions?.total || 0} séance{(sessions?.total || 0) !== 1 ? "s" : ""} enregistrée{(sessions?.total || 0) !== 1 ? "s" : ""}
-            </p>
-            <Button asChild>
-              <Link href={`/patients/${id}/seance`}>
-                <Plus className="h-5 w-5 mr-2" />
-                Nouvelle séance
-              </Link>
-            </Button>
+        {/* Recent Sessions */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">Dernières séances</h2>
+            {sessions?.total > 5 && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground">
+                Voir tout
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
           </div>
 
           {sessions?.sessions?.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {sessions.sessions.map((session: any) => (
-                <Card key={session.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Zap className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{session.zone_nom}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="secondary" size="sm">
-                            {session.type_laser}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground truncate">
-                            par {session.praticien_nom}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-medium">
-                          {formatDate(session.date_seance)}
-                        </p>
-                        {session.duree_minutes && (
-                          <p className="text-sm text-muted-foreground">
-                            {session.duree_minutes} min
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div
+                  key={session.id}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-muted/50"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Zap className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{session.zone_nom}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {session.praticien_nom}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-medium">
+                      {formatDate(session.date_seance)}
+                    </p>
+                    {session.duree_minutes && (
+                      <p className="text-xs text-muted-foreground">
+                        {session.duree_minutes} min
+                      </p>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
             <Card>
-              <CardContent className="py-12">
-                <div className="empty-state">
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <History className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <p className="font-medium text-lg">Aucune séance enregistrée</p>
-                  <p className="text-sm mt-1">
-                    Commencez par créer une première séance
-                  </p>
-                  <Button asChild className="mt-4">
-                    <Link href={`/patients/${id}/seance`}>
-                      <Plus className="h-5 w-5 mr-2" />
-                      Nouvelle séance
-                    </Link>
-                  </Button>
-                </div>
+              <CardContent className="py-8 text-center">
+                <History className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="font-medium">Aucune séance</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Commencez le premier traitement
+                </p>
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
+
+      {/* Bottom Action - THUMB ZONE */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t p-4 safe-area-bottom">
+        <div className="max-w-lg mx-auto">
+          <Button
+            size="lg"
+            className="w-full h-16 text-lg font-semibold rounded-2xl"
+            onClick={handleStartSession}
+          >
+            <Zap className="h-6 w-6 mr-3" />
+            Démarrer une séance
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
