@@ -8,7 +8,9 @@ import {
   Activity,
   Clock,
   ChevronRight,
+  Calendar,
   TrendingUp,
+  ScanLine,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,20 +19,8 @@ import { SearchHeader } from "@/components/layout/search-header";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 import { api } from "@/lib/api";
-import { formatDistanceToNow, isValid } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-
-// Safe date formatter
-function safeFormatDistance(dateStr: string | null | undefined): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  if (!isValid(date)) return "";
-  try {
-    return formatDistanceToNow(date, { addSuffix: true, locale: fr });
-  } catch {
-    return "";
-  }
-}
 
 interface QuickAction {
   id: string;
@@ -53,11 +43,11 @@ const QUICK_ACTIONS: QuickAction[] = [
     bgColor: "bg-green-500/10",
   },
   {
-    id: "patients",
-    label: "Patients",
-    description: "Liste des patients",
-    icon: Users,
-    href: "/patients",
+    id: "scanner",
+    label: "Scanner Carte",
+    description: "Identifier par carte",
+    icon: ScanLine,
+    href: "/scanner",
     color: "text-blue-600",
     bgColor: "bg-blue-500/10",
   },
@@ -71,11 +61,11 @@ const QUICK_ACTIONS: QuickAction[] = [
     bgColor: "bg-orange-500/10",
   },
   {
-    id: "analytics",
-    label: "Analytiques",
-    description: "Voir les stats",
-    icon: TrendingUp,
-    href: "/analytiques",
+    id: "schedule",
+    label: "Aujourd'hui",
+    description: "Voir les RDV",
+    icon: Calendar,
+    href: "/agenda",
     color: "text-purple-600",
     bgColor: "bg-purple-500/10",
   },
@@ -273,7 +263,10 @@ export default function HomePage() {
 
                   {/* Time */}
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {safeFormatDistance(patient.updated_at)}
+                    {formatDistanceToNow(new Date(patient.updated_at), {
+                      addSuffix: true,
+                      locale: fr,
+                    })}
                   </span>
                 </button>
               ))}
@@ -325,7 +318,10 @@ export default function HomePage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{item.description}</p>
                       <p className="text-sm text-muted-foreground">
-                        {safeFormatDistance(item.timestamp)}
+                        {formatDistanceToNow(new Date(item.timestamp), {
+                          addSuffix: true,
+                          locale: fr,
+                        })}
                       </p>
                     </div>
                   </div>

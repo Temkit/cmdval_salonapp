@@ -213,6 +213,25 @@
     padding-right: env(safe-area-inset-right);
   }
 
+  /* Combined safe areas */
+  .safe-area-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-area-x {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Bottom nav spacing */
+  .pb-bottom-nav {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+
   /* Active state for touch */
   .active-scale {
     transition: transform var(--transition-fast) ease-out;

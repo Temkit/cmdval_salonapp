@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
-import { Sidebar, MobileNav, MobileMenuButton } from "@/components/layout/sidebar";
+import { Sidebar } from "@/components/layout/sidebar";
+import { BottomNav } from "@/components/layout/bottom-nav";
 import { SkipLink } from "@/components/ui/skip-link";
+import { Spinner } from "@/components/ui/spinner";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 export default function DashboardLayout({
   children,
@@ -12,9 +15,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, refreshUser, user } = useAuthStore();
+  const { isAuthenticated, refreshUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -32,10 +35,11 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center animate-pulse">
-            <span className="text-primary-foreground font-bold text-lg">SA</span>
+          <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center">
+            <span className="text-primary-foreground font-bold text-xl">SA</span>
           </div>
-          <div className="text-muted-foreground animate-pulse">Chargement...</div>
+          <Spinner size="lg" />
+          <p className="text-muted-foreground text-sm">Chargement...</p>
         </div>
       </div>
     );
@@ -50,43 +54,24 @@ export default function DashboardLayout({
       {/* Skip link for accessibility */}
       <SkipLink href="#main-content" />
 
-      <div className="min-h-screen bg-muted/30 lg:flex">
-        {/* Sidebar */}
-        <Sidebar
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+      <div className="min-h-screen bg-muted/30 flex">
+        {/* Desktop Sidebar - only render on desktop */}
+        {isDesktop && <Sidebar isOpen={true} onClose={() => {}} />}
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col min-h-screen">
-          {/* Mobile header */}
-          <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-card border-b lg:hidden">
-          <div className="flex items-center gap-3">
-            <MobileMenuButton onClick={() => setSidebarOpen(true)} />
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">SA</span>
-              </div>
-              <span className="font-semibold">SalonApp</span>
-            </div>
-          </div>
-          <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
-            <span className="text-sm font-medium">
-              {user?.prenom?.[0]}
-              {user?.nom?.[0]}
-            </span>
-          </div>
-        </header>
+        <div className={isDesktop ? "flex-1 min-h-screen" : "flex-1 min-h-screen pb-20"}>
+          <main
+            id="main-content"
+            className="min-h-screen px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6"
+            tabIndex={-1}
+          >
+            {children}
+          </main>
+        </div>
 
-        {/* Page content */}
-        <main id="main-content" className="flex-1 p-4 sm:p-6 pb-24 lg:pb-6" tabIndex={-1}>
-          {children}
-        </main>
+        {/* Mobile/Tablet bottom navigation - only render on non-desktop */}
+        {!isDesktop && <BottomNav />}
       </div>
-
-      {/* Mobile bottom navigation */}
-      <MobileNav />
-    </div>
     </>
   );
 }
