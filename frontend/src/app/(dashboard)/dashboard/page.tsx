@@ -13,7 +13,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { SearchHeader } from "@/components/layout/search-header";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 import { api } from "@/lib/api";
@@ -96,33 +95,13 @@ export default function HomePage() {
     queryFn: () => api.getRecentActivity(),
   });
 
-  // Fetch recent patients
-  const { data: recentPatients, isLoading: patientsLoading } = useQuery({
-    queryKey: ["patients", "recent"],
-    queryFn: () => api.getPatients({ size: 8 }),
-  });
-
   const handleQuickAction = (action: QuickAction) => {
     haptics.medium();
     router.push(action.href);
   };
 
-  const handlePatientClick = (patientId: string) => {
-    haptics.selection();
-    router.push(`/patients/${patientId}`);
-  };
-
   return (
-    <div className="min-h-screen pb-24 md:pb-8">
-      {/* Header with Search */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border/50 px-4 py-4 safe-area-top">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold mb-4">Bonjour 👋</h1>
-          <SearchHeader />
-        </div>
-      </div>
-
-      <div className="px-4 py-6 space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
@@ -224,63 +203,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Recent Patients */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Patients récents</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/patients")}
-              className="text-muted-foreground"
-            >
-              Voir tous
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-
-          {patientsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Spinner size="lg" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {recentPatients?.patients?.slice(0, 8).map((patient: any) => (
-                <button
-                  key={patient.id}
-                  onClick={() => handlePatientClick(patient.id)}
-                  className={cn(
-                    "flex items-center gap-4 p-4 rounded-xl bg-card border",
-                    "hover:border-primary/30 hover:shadow-sm active:scale-[0.98] transition-all",
-                    "text-left w-full"
-                  )}
-                >
-                  {/* Avatar */}
-                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary font-semibold text-base flex-shrink-0">
-                    {patient.prenom?.[0]}
-                    {patient.nom?.[0]}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">
-                      {patient.prenom} {patient.nom}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {patient.code_carte}
-                    </p>
-                  </div>
-
-                  {/* Time */}
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {safeFormatDistance(patient.updated_at)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
         {/* Recent Activity */}
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -300,10 +222,10 @@ export default function HomePage() {
             <div className="flex items-center justify-center py-12">
               <Spinner size="lg" />
             </div>
-          ) : (
+          ) : activity?.activities?.filter((a: any) => a.description)?.length > 0 ? (
             <Card>
               <CardContent className="p-0 divide-y">
-                {activity?.activities?.slice(0, 5).map((item: any, i: number) => (
+                {activity.activities.filter((a: any) => a.description).slice(0, 5).map((item: any, i: number) => (
                   <div
                     key={i}
                     className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
@@ -332,9 +254,14 @@ export default function HomePage() {
                 ))}
               </CardContent>
             </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Aucune activité récente
+              </CardContent>
+            </Card>
           )}
         </section>
-      </div>
     </div>
   );
 }

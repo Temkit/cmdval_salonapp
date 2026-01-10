@@ -54,15 +54,15 @@ export default function DashboardLayout({
       {/* Skip link for accessibility */}
       <SkipLink href="#main-content" />
 
-      <div className="min-h-screen bg-muted/30 flex">
+      <div className="h-screen bg-muted/30 flex overflow-hidden">
         {/* Desktop Sidebar - only render on desktop */}
         {isDesktop && <Sidebar isOpen={true} onClose={() => {}} />}
 
-        {/* Main content area */}
-        <div className={isDesktop ? "flex-1 min-h-screen" : "flex-1 min-h-screen pb-20"}>
+        {/* Main content area - scrollable */}
+        <div className={isDesktop ? "flex-1 flex flex-col h-screen" : "flex-1 flex flex-col h-screen pb-20"}>
           <main
             id="main-content"
-            className="min-h-screen px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6"
+            className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6"
             tabIndex={-1}
           >
             {children}

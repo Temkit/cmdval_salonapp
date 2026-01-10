@@ -96,11 +96,166 @@ export default function AnalyticsPage() {
         />
         <StatCard
           title="Séances ce mois"
-          value={statsLoading ? "..." : stats?.sessions_month || 0}
+          value={statsLoading ? "..." : stats?.sessions_this_month || 0}
           description="Ce mois-ci"
           icon={<TrendingUp className="h-5 w-5" />}
         />
       </div>
+
+      {/* Quick Stats - Moved to top */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Taux de complétion</p>
+                <p className="text-2xl font-bold">
+                  {stats?.questionnaire_completion_rate
+                    ? `${Math.round(stats.questionnaire_completion_rate)}%`
+                    : "N/A"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-sm text-muted-foreground mb-3">Zones populaires</p>
+            {(byZone?.data?.length ?? 0) > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {byZone?.data?.slice(0, 4).map((zone: any, index: number) => (
+                  <Badge
+                    key={zone.zone_id}
+                    variant={index === 0 ? "default" : "secondary"}
+                  >
+                    {zone.zone_nom}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Aucune donnée</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                <Award className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">Top praticien</p>
+                {byPraticien?.data?.[0] ? (
+                  <>
+                    <p className="font-bold truncate">
+                      {byPraticien?.data?.[0]?.praticien_nom}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {byPraticien?.data?.[0]?.count} séances
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Aucune donnée</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sessions over Time - Bar Chart */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Évolution des séances
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {periodLoading ? (
+            <div className="h-48 skeleton" />
+          ) : (byPeriod?.data?.length ?? 0) > 0 ? (
+            <div className="space-y-4">
+              {/* Bar chart with Y-axis */}
+              <div className="flex gap-2">
+                {/* Y-axis labels */}
+                <div className="flex flex-col justify-between text-xs text-muted-foreground pr-2 py-1" style={{ height: "160px" }}>
+                  <span>{maxPeriodCount}</span>
+                  <span>{Math.round(maxPeriodCount / 2)}</span>
+                  <span>0</span>
+                </div>
+                {/* Bars */}
+                <div className="flex-1 flex items-end gap-1 sm:gap-2 border-l border-b border-border pl-2" style={{ height: "160px" }}>
+                  {byPeriod?.data?.slice(-12).map((item: any, index: number) => {
+                    const heightPercent = maxPeriodCount > 0 ? (item.count / maxPeriodCount) * 100 : 0;
+                    const barHeight = Math.max(heightPercent, item.count > 0 ? 8 : 2);
+                    return (
+                      <div
+                        key={index}
+                        className="flex-1 flex flex-col items-center h-full"
+                      >
+                        {/* Bar container - takes remaining space */}
+                        <div className="flex-1 w-full flex items-end">
+                          <div
+                            className={cn(
+                              "w-full bg-primary rounded-t-lg transition-all duration-300",
+                              "hover:bg-primary/80 relative group"
+                            )}
+                            style={{
+                              height: `${barHeight}%`,
+                            }}
+                          >
+                            {/* Tooltip on hover */}
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                              {item.count} séance{item.count > 1 ? "s" : ""}
+                            </div>
+                          </div>
+                        </div>
+                        {/* Date label */}
+                        <span className="text-[10px] text-muted-foreground text-center w-full truncate mt-1">
+                          {formatPeriodLabel(item.period, period)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* X-axis label */}
+              <div className="text-center text-xs text-muted-foreground">
+                {period === "week" ? "Jours" : period === "month" ? "Jours du mois" : period === "quarter" ? "Semaines" : "Mois"}
+              </div>
+              {/* Summary */}
+              <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground pt-2 border-t">
+                <span className="flex items-center gap-1">
+                  <span className="font-medium text-foreground">
+                    {byPeriod?.data?.reduce((sum: number, item: any) => sum + item.count, 0) ?? 0}
+                  </span>
+                  total
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="font-medium text-foreground">
+                    {Math.round(
+                      (byPeriod?.data?.reduce((sum: number, item: any) => sum + item.count, 0) ?? 0) /
+                        (byPeriod?.data?.length || 1)
+                    )}
+                  </span>
+                  moyenne
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="empty-state py-12">
+              <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
+              <p>Aucune donnée disponible pour cette période</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -196,142 +351,6 @@ export default function AnalyticsPage() {
                 <p className="text-sm">Aucune donnée disponible</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Sessions over Time */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Évolution des séances
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {periodLoading ? (
-            <div className="h-48 skeleton" />
-          ) : (byPeriod?.data?.length ?? 0) > 0 ? (
-            <div className="space-y-4">
-              {/* Bar chart */}
-              <div className="flex items-end justify-between h-40 gap-1 sm:gap-2 px-1">
-                {byPeriod?.data?.slice(-12).map((item: any, index: number) => {
-                  const height = maxPeriodCount > 0 ? (item.count / maxPeriodCount) * 100 : 0;
-                  return (
-                    <div
-                      key={index}
-                      className="flex-1 flex flex-col items-center gap-1"
-                    >
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {item.count > 0 ? item.count : ""}
-                      </span>
-                      <div
-                        className={cn(
-                          "w-full bg-primary rounded-t-lg transition-all duration-300",
-                          "hover:bg-primary/80"
-                        )}
-                        style={{
-                          height: `${Math.max(height, item.count > 0 ? 8 : 0)}%`,
-                          minHeight: item.count > 0 ? "8px" : "2px",
-                        }}
-                      />
-                      <span className="text-[10px] text-muted-foreground text-center w-full truncate">
-                        {formatPeriodLabel(item.period, period)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Summary */}
-              <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground pt-2 border-t">
-                <span className="flex items-center gap-1">
-                  <span className="font-medium text-foreground">
-                    {byPeriod?.data?.reduce((sum: number, item: any) => sum + item.count, 0) ?? 0}
-                  </span>
-                  total
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="font-medium text-foreground">
-                    {Math.round(
-                      (byPeriod?.data?.reduce((sum: number, item: any) => sum + item.count, 0) ?? 0) /
-                        (byPeriod?.data?.length || 1)
-                    )}
-                  </span>
-                  moyenne
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="empty-state py-12">
-              <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
-              <p>Aucune donnée disponible pour cette période</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Additional Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Taux de complétion</p>
-                <p className="text-2xl font-bold">
-                  {stats?.questionnaire_completion_rate
-                    ? `${Math.round(stats.questionnaire_completion_rate)}%`
-                    : "N/A"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <p className="text-sm text-muted-foreground mb-3">Zones populaires</p>
-            {(byZone?.data?.length ?? 0) > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {byZone?.data?.slice(0, 4).map((zone: any, index: number) => (
-                  <Badge
-                    key={zone.zone_id}
-                    variant={index === 0 ? "default" : "secondary"}
-                  >
-                    {zone.zone_nom}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Aucune donnée</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                <Award className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm text-muted-foreground">Top praticien</p>
-                {byPraticien?.data?.[0] ? (
-                  <>
-                    <p className="font-bold truncate">
-                      {byPraticien?.data?.[0]?.praticien_nom}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {byPraticien?.data?.[0]?.count} séances
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Aucune donnée</p>
-                )}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

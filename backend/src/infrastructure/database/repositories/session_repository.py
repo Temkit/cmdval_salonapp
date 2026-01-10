@@ -60,6 +60,7 @@ class SessionRepository(SessionRepositoryInterface):
                     PatientZoneModel.zone
                 ),
                 joinedload(SessionModel.praticien),
+                joinedload(SessionModel.patient),
                 joinedload(SessionModel.photos),
             )
             .where(SessionModel.id == session_id)
@@ -89,6 +90,7 @@ class SessionRepository(SessionRepositoryInterface):
                     PatientZoneModel.zone
                 ),
                 joinedload(SessionModel.praticien),
+                joinedload(SessionModel.patient),
                 joinedload(SessionModel.photos),
             )
             .order_by(SessionModel.date_seance.desc())
@@ -135,6 +137,7 @@ class SessionRepository(SessionRepositoryInterface):
                     PatientZoneModel.zone
                 ),
                 joinedload(SessionModel.praticien),
+                joinedload(SessionModel.patient),
                 joinedload(SessionModel.photos),
             )
             .order_by(SessionModel.date_seance.desc())
@@ -300,6 +303,12 @@ class SessionRepository(SessionRepositoryInterface):
         if model.praticien:
             praticien_nom = f"{model.praticien.prenom} {model.praticien.nom}"
 
+        patient_nom = ""
+        patient_prenom = ""
+        if model.patient:
+            patient_nom = model.patient.nom or ""
+            patient_prenom = model.patient.prenom or ""
+
         return Session(
             id=model.id,
             patient_id=model.patient_id,
@@ -307,6 +316,8 @@ class SessionRepository(SessionRepositoryInterface):
             praticien_id=model.praticien_id,
             zone_nom=zone_nom,
             praticien_nom=praticien_nom,
+            patient_nom=patient_nom,
+            patient_prenom=patient_prenom,
             date_seance=model.date_seance,
             type_laser=model.type_laser,
             parametres=model.parametres,

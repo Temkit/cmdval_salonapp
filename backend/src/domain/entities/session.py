@@ -36,6 +36,8 @@ class Session:
     parametres: dict
     zone_nom: str = ""
     praticien_nom: str = ""
+    patient_nom: str = ""
+    patient_prenom: str = ""
     notes: str | None = None
     duree_minutes: int | None = None
     photos: list[SessionPhoto] = field(default_factory=list)

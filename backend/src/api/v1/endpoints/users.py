@@ -28,12 +28,12 @@ async def list_users(
         users=[
             UserResponse(
                 id=u.id,
-                username=u.username,
+                email=u.username,  # username stored as email
                 nom=u.nom,
                 prenom=u.prenom,
                 role_id=u.role_id,
                 role_nom=u.role_name,
-                is_active=u.is_active,
+                actif=u.is_active,
                 created_at=u.created_at,
                 updated_at=u.updated_at,
             )
@@ -51,7 +51,7 @@ async def create_user(
     """Create a new user."""
     try:
         user = await user_service.create_user(
-            username=request.username,
+            email=request.email,
             password=request.password,
             nom=request.nom,
             prenom=request.prenom,
@@ -59,19 +59,19 @@ async def create_user(
         )
         return UserResponse(
             id=user.id,
-            username=user.username,
+            email=user.username,
             nom=user.nom,
             prenom=user.prenom,
             role_id=user.role_id,
             role_nom=user.role_name,
-            is_active=user.is_active,
+            actif=user.is_active,
             created_at=user.created_at,
             updated_at=user.updated_at,
         )
     except DuplicateUsernameError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
+            detail="Cet email est déjà utilisé",
         )
     except RoleNotFoundError as e:
         raise HTTPException(
@@ -91,12 +91,12 @@ async def get_user(
         user = await user_service.get_user(user_id)
         return UserResponse(
             id=user.id,
-            username=user.username,
+            email=user.username,
             nom=user.nom,
             prenom=user.prenom,
             role_id=user.role_id,
             role_nom=user.role_name,
-            is_active=user.is_active,
+            actif=user.is_active,
             created_at=user.created_at,
             updated_at=user.updated_at,
         )
@@ -118,7 +118,7 @@ async def update_user(
     try:
         user = await user_service.update_user(
             user_id=user_id,
-            username=request.username,
+            email=request.email,
             nom=request.nom,
             prenom=request.prenom,
             role_id=request.role_id,
@@ -127,12 +127,12 @@ async def update_user(
         )
         return UserResponse(
             id=user.id,
-            username=user.username,
+            email=user.username,
             nom=user.nom,
             prenom=user.prenom,
             role_id=user.role_id,
             role_nom=user.role_name,
-            is_active=user.is_active,
+            actif=user.is_active,
             created_at=user.created_at,
             updated_at=user.updated_at,
         )
@@ -144,7 +144,7 @@ async def update_user(
     except DuplicateUsernameError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
+            detail="Cet email est déjà utilisé",
         )
     except RoleNotFoundError as e:
         raise HTTPException(

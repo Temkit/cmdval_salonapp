@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Pencil, Trash2, User, Check, X } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, User, Check, X, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,7 @@ export default function UsersConfigPage() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [formData, setFormData] = useState<UserForm>(initialFormState);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
@@ -167,6 +168,11 @@ export default function UsersConfigPage() {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  // Filter users based on role
+  const filteredUsers = users?.users?.filter(
+    (user: any) => roleFilter === "all" || user.role_id === roleFilter
+  ) || [];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -192,8 +198,32 @@ export default function UsersConfigPage() {
 
       {/* Users List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Liste des utilisateurs</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-3">
+            <CardTitle>Liste des utilisateurs</CardTitle>
+            {!isLoading && (
+              <Badge variant="secondary">
+                {filteredUsers.length}
+                {roleFilter !== "all" && ` / ${users?.users?.length || 0}`}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrer par rôle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les rôles</SelectItem>
+                {roles?.roles?.map((role: any) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -218,9 +248,9 @@ export default function UsersConfigPage() {
                 </div>
               ))}
             </div>
-          ) : users?.users?.length > 0 ? (
+          ) : filteredUsers.length > 0 ? (
             <div className="space-y-2">
-              {users.users.map((user: any) => (
+              {filteredUsers.map((user: any) => (
                 <div
                   key={user.id}
                   className="flex items-center justify-between p-4 border rounded-lg"
@@ -261,6 +291,16 @@ export default function UsersConfigPage() {
                 </div>
               ))}
             </div>
+          ) : users?.users?.length > 0 && roleFilter !== "all" ? (
+            <EmptyState
+              icon={Filter}
+              title="Aucun résultat"
+              description="Aucun utilisateur ne correspond à ce filtre"
+              action={{
+                label: "Réinitialiser le filtre",
+                onClick: () => setRoleFilter("all"),
+              }}
+            />
           ) : (
             <EmptyState
               icon={User}

@@ -4,6 +4,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export interface ActiveSession {
+  // Practitioner info
+  praticienId: string;
+  praticienName: string;
   // Patient info
   patientId: string;
   patientName: string;
@@ -33,125 +36,186 @@ export interface ActiveSession {
 }
 
 interface SessionState {
-  activeSession: ActiveSession | null;
+  // Hydration state for SSR
+  _hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
 
-  // Start a new session
-  startSession: (session: Omit<ActiveSession, "startedAt" | "totalPausedTime" | "isPaused" | "notes" | "photos" | "voiceNotes">) => void;
+  // Sessions keyed by practitioner ID
+  activeSessions: Record<string, ActiveSession>;
+
+  // Start a new session for a practitioner
+  startSession: (
+    praticienId: string,
+    praticienName: string,
+    session: Omit<ActiveSession, "praticienId" | "praticienName" | "startedAt" | "totalPausedTime" | "isPaused" | "notes" | "photos" | "voiceNotes">
+  ) => void;
+
+  // Get session for a practitioner
+  getSession: (praticienId: string) => ActiveSession | null;
+
+  // Get all active sessions
+  getAllSessions: () => ActiveSession[];
+
+  // Get session by patient ID (to check if patient has active session)
+  getSessionByPatient: (patientId: string) => ActiveSession | null;
 
   // Pause/resume
-  togglePause: () => void;
+  togglePause: (praticienId: string) => void;
 
   // Add notes/photos
-  addNote: (note: string) => void;
-  addPhoto: (photo: string) => void;
-  addVoiceNote: (voiceNote: string) => void;
+  addNote: (praticienId: string, note: string) => void;
+  addPhoto: (praticienId: string, photo: string) => void;
+  addVoiceNote: (praticienId: string, voiceNote: string) => void;
 
   // End session and get data
-  endSession: () => { session: ActiveSession; durationSeconds: number } | null;
+  endSession: (praticienId: string) => { session: ActiveSession; durationSeconds: number } | null;
 
   // Clear without saving
-  clearSession: () => void;
+  clearSession: (praticienId: string) => void;
 
-  // Get elapsed time
-  getElapsedSeconds: () => number;
+  // Get elapsed time for a practitioner
+  getElapsedSeconds: (praticienId: string) => number;
 }
 
 export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
-      activeSession: null,
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
 
-      startSession: (sessionData) => {
-        set({
-          activeSession: {
-            ...sessionData,
-            startedAt: Date.now(),
-            totalPausedTime: 0,
-            isPaused: false,
-            notes: "",
-            photos: [],
-            voiceNotes: [],
+      activeSessions: {},
+
+      startSession: (praticienId, praticienName, sessionData) => {
+        set((state) => ({
+          activeSessions: {
+            ...state.activeSessions,
+            [praticienId]: {
+              ...sessionData,
+              praticienId,
+              praticienName,
+              startedAt: Date.now(),
+              totalPausedTime: 0,
+              isPaused: false,
+              notes: "",
+              photos: [],
+              voiceNotes: [],
+            },
           },
-        });
+        }));
       },
 
-      togglePause: () => {
-        const session = get().activeSession;
+      getSession: (praticienId) => {
+        return get().activeSessions[praticienId] || null;
+      },
+
+      getAllSessions: () => {
+        return Object.values(get().activeSessions);
+      },
+
+      getSessionByPatient: (patientId) => {
+        const sessions = Object.values(get().activeSessions);
+        return sessions.find((s) => s.patientId === patientId) || null;
+      },
+
+      togglePause: (praticienId) => {
+        const session = get().activeSessions[praticienId];
         if (!session) return;
 
         if (session.isPaused && session.pausedAt) {
           // Resuming - add paused duration to total
           const pauseDuration = Date.now() - session.pausedAt;
-          set({
-            activeSession: {
-              ...session,
-              isPaused: false,
-              pausedAt: undefined,
-              totalPausedTime: session.totalPausedTime + pauseDuration,
+          set((state) => ({
+            activeSessions: {
+              ...state.activeSessions,
+              [praticienId]: {
+                ...session,
+                isPaused: false,
+                pausedAt: undefined,
+                totalPausedTime: session.totalPausedTime + pauseDuration,
+              },
             },
-          });
+          }));
         } else {
           // Pausing
-          set({
-            activeSession: {
-              ...session,
-              isPaused: true,
-              pausedAt: Date.now(),
+          set((state) => ({
+            activeSessions: {
+              ...state.activeSessions,
+              [praticienId]: {
+                ...session,
+                isPaused: true,
+                pausedAt: Date.now(),
+              },
             },
-          });
+          }));
         }
       },
 
-      addNote: (note) => {
-        const session = get().activeSession;
+      addNote: (praticienId, note) => {
+        const session = get().activeSessions[praticienId];
         if (!session) return;
-        set({
-          activeSession: {
-            ...session,
-            notes: session.notes ? `${session.notes}\n${note}` : note,
+        set((state) => ({
+          activeSessions: {
+            ...state.activeSessions,
+            [praticienId]: {
+              ...session,
+              notes: session.notes ? `${session.notes}\n${note}` : note,
+            },
           },
-        });
+        }));
       },
 
-      addPhoto: (photo) => {
-        const session = get().activeSession;
+      addPhoto: (praticienId, photo) => {
+        const session = get().activeSessions[praticienId];
         if (!session) return;
-        set({
-          activeSession: {
-            ...session,
-            photos: [...session.photos, photo],
+        set((state) => ({
+          activeSessions: {
+            ...state.activeSessions,
+            [praticienId]: {
+              ...session,
+              photos: [...session.photos, photo],
+            },
           },
-        });
+        }));
       },
 
-      addVoiceNote: (voiceNote) => {
-        const session = get().activeSession;
+      addVoiceNote: (praticienId, voiceNote) => {
+        const session = get().activeSessions[praticienId];
         if (!session) return;
-        set({
-          activeSession: {
-            ...session,
-            voiceNotes: [...session.voiceNotes, voiceNote],
+        set((state) => ({
+          activeSessions: {
+            ...state.activeSessions,
+            [praticienId]: {
+              ...session,
+              voiceNotes: [...session.voiceNotes, voiceNote],
+            },
           },
-        });
+        }));
       },
 
-      endSession: () => {
-        const session = get().activeSession;
+      endSession: (praticienId) => {
+        const session = get().activeSessions[praticienId];
         if (!session) return null;
 
-        const durationSeconds = get().getElapsedSeconds();
+        const durationSeconds = get().getElapsedSeconds(praticienId);
         const result = { session, durationSeconds };
 
-        set({ activeSession: null });
+        set((state) => {
+          const { [praticienId]: _, ...rest } = state.activeSessions;
+          return { activeSessions: rest };
+        });
+
         return result;
       },
 
-      clearSession: () => {
-        set({ activeSession: null });
+      clearSession: (praticienId) => {
+        set((state) => {
+          const { [praticienId]: _, ...rest } = state.activeSessions;
+          return { activeSessions: rest };
+        });
       },
 
-      getElapsedSeconds: () => {
-        const session = get().activeSession;
+      getElapsedSeconds: (praticienId) => {
+        const session = get().activeSessions[praticienId];
         if (!session) return 0;
 
         let elapsed = Date.now() - session.startedAt - session.totalPausedTime;
@@ -165,7 +229,10 @@ export const useSessionStore = create<SessionState>()(
       },
     }),
     {
-      name: "session-storage",
+      name: "sessions-storage",
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

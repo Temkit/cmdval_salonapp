@@ -69,6 +69,8 @@ class RecentActivityItem(AppBaseModel):
     zone_nom: str
     praticien_nom: str
     date: datetime
+    description: str
+    timestamp: datetime
 
 
 class RecentActivityResponse(AppBaseModel):

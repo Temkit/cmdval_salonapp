@@ -64,11 +64,13 @@ class DashboardService:
             {
                 "id": s.id,
                 "type": "session",
-                "patient_nom": "",  # Will be populated at API level
-                "patient_prenom": "",
-                "zone_nom": s.zone_nom,
-                "praticien_nom": s.praticien_nom,
+                "patient_nom": s.patient_nom or "",
+                "patient_prenom": s.patient_prenom or "",
+                "zone_nom": s.zone_nom or "",
+                "praticien_nom": s.praticien_nom or "",
                 "date": s.created_at,
+                "description": f"Séance {s.zone_nom or 'traitement'} - {s.patient_prenom or ''} {s.patient_nom or ''}".strip(),
+                "timestamp": s.created_at,
             }
             for s in sessions
         ]

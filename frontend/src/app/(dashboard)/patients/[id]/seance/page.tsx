@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Zap, Settings2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Zap, Settings2, ChevronRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,15 @@ import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { haptics } from "@/lib/haptics";
 import { useSessionStore } from "@/stores/session-store";
+import { useAuthStore } from "@/stores/auth-store";
+import { AddZoneDialog } from "@/components/features/patients/add-zone-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const LASER_TYPES = [
   { value: "Alexandrite", label: "Alexandrite" },
@@ -32,21 +41,36 @@ export default function NewSessionPage({
   const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
+  const user = useAuthStore((s) => s.user);
   const startSession = useSessionStore((s) => s.startSession);
-  const activeSession = useSessionStore((s) => s.activeSession);
+  const getSession = useSessionStore((s) => s.getSession);
+
+  const isAdmin = user?.role_nom === "Admin";
 
   const [selectedZone, setSelectedZone] = useState<any>(null);
   const [typeLaser, setTypeLaser] = useState("");
   const [fluence, setFluence] = useState("");
   const [spotSize, setSpotSize] = useState("");
+  const [selectedPraticien, setSelectedPraticien] = useState<string>("");
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
     queryFn: () => api.getPatient(id),
   });
 
-  // Redirect if there's already an active session
-  if (activeSession) {
+  // Fetch practitioners for admin to assign sessions
+  const { data: usersData } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api.getUsers(),
+    enabled: isAdmin,
+  });
+
+  const practitioners = usersData?.users || [];
+
+  // For non-admin: redirect if they already have an active session
+  // Admin can create multiple sessions (for different practitioners)
+  const activeSession = user ? getSession(user.id) : null;
+  if (!isAdmin && activeSession) {
     router.push("/seance-active");
     return null;
   }
@@ -75,20 +99,66 @@ export default function NewSessionPage({
       return;
     }
 
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Vous devez être connecté pour démarrer une séance.",
+      });
+      return;
+    }
+
+    // For admin: must select a practitioner
+    if (isAdmin && !selectedPraticien) {
+      toast({
+        variant: "destructive",
+        title: "Praticien requis",
+        description: "Veuillez sélectionner un praticien pour cette séance.",
+      });
+      return;
+    }
+
+    // Get the practitioner info
+    let praticienId = user.id;
+    let praticienName = `${user.prenom} ${user.nom}`;
+
+    if (isAdmin && selectedPraticien) {
+      const selectedUser = practitioners.find((p: any) => p.id === selectedPraticien);
+      if (selectedUser) {
+        praticienId = selectedUser.id;
+        praticienName = `${selectedUser.prenom} ${selectedUser.nom}`;
+      }
+    }
+
+    // Check if this practitioner already has an active session
+    const existingSession = getSession(praticienId);
+    if (existingSession) {
+      toast({
+        variant: "destructive",
+        title: "Séance en cours",
+        description: `${praticienName} a déjà une séance en cours.`,
+      });
+      return;
+    }
+
     haptics.heavy();
 
-    // Start session in store
-    startSession({
-      patientId: id,
-      patientName: `${patient.prenom} ${patient.nom}`,
-      patientZoneId: selectedZone.id,
-      zoneName: selectedZone.zone_nom,
-      sessionNumber: selectedZone.seances_effectuees + 1,
-      totalSessions: selectedZone.seances_prevues,
-      typeLaser,
-      fluence: fluence || undefined,
-      spotSize: spotSize || undefined,
-    });
+    // Start session in store with practitioner info
+    startSession(
+      praticienId,
+      praticienName,
+      {
+        patientId: id,
+        patientName: `${patient.prenom} ${patient.nom}`,
+        patientZoneId: selectedZone.id,
+        zoneName: selectedZone.zone_nom,
+        sessionNumber: selectedZone.seances_effectuees + 1,
+        totalSessions: selectedZone.seances_prevues,
+        typeLaser,
+        fluence: fluence || undefined,
+        spotSize: spotSize || undefined,
+      }
+    );
 
     // Navigate to active session
     router.push("/seance-active");
@@ -98,12 +168,12 @@ export default function NewSessionPage({
     return (
       <div className="min-h-screen flex flex-col">
         <div className="sticky top-0 z-40 bg-background border-b px-4 py-3 safe-area-top">
-          <div className="flex items-center gap-3 max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 max-w-lg mx-auto">
             <div className="h-10 w-10 skeleton rounded-xl" />
             <div className="h-6 w-32 skeleton" />
           </div>
         </div>
-        <div className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
+        <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
           <div className="h-32 skeleton rounded-2xl" />
           <div className="h-24 skeleton rounded-2xl" />
           <div className="h-24 skeleton rounded-2xl" />
@@ -131,7 +201,7 @@ export default function NewSessionPage({
     <div className="min-h-screen flex flex-col pb-32">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b px-4 py-3 safe-area-top">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+        <div className="flex items-center gap-3 max-w-lg mx-auto">
           <Button variant="ghost" size="icon" asChild>
             <Link href={`/patients/${id}`}>
               <ArrowLeft className="h-5 w-5" />
@@ -147,7 +217,7 @@ export default function NewSessionPage({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
+      <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
         {/* Zone Selection */}
         <div>
           <h2 className="font-semibold mb-3 flex items-center gap-2">
@@ -173,15 +243,41 @@ export default function NewSessionPage({
                 <p className="text-sm text-muted-foreground mt-1">
                   Toutes les zones sont terminées ou aucune zone configurée
                 </p>
-                <Button asChild variant="outline" className="mt-4">
-                  <Link href={`/patients/${id}`}>
-                    Ajouter une zone
-                  </Link>
-                </Button>
+                <div className="mt-4">
+                  <AddZoneDialog
+                    patientId={id}
+                    existingZones={patient.zones?.map((z: any) => ({ zone_definition_id: z.zone_definition_id })) || []}
+                  />
+                </div>
               </CardContent>
             </Card>
           )}
         </div>
+
+        {/* Practitioner Selection (Admin only) */}
+        {isAdmin && (
+          <div>
+            <h2 className="font-semibold mb-3 flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Praticien
+            </h2>
+            <Select value={selectedPraticien} onValueChange={setSelectedPraticien}>
+              <SelectTrigger className="h-14 text-base">
+                <SelectValue placeholder="Sélectionner un praticien" />
+              </SelectTrigger>
+              <SelectContent>
+                {practitioners.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id} className="py-3">
+                    {p.prenom} {p.nom}
+                    {getSession(p.id) && (
+                      <span className="ml-2 text-xs text-yellow-600">(séance en cours)</span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Laser Type */}
         <div>
@@ -264,7 +360,7 @@ export default function NewSessionPage({
 
       {/* Bottom Action - THUMB ZONE */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t p-4 safe-area-bottom">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-lg mx-auto">
           <Button
             size="lg"
             className="w-full h-16 text-lg font-semibold rounded-2xl"
