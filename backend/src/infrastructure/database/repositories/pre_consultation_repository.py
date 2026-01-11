@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from src.domain.entities.pre_consultation import PreConsultation, PreConsultationZone
 from src.infrastructure.database.models import (
+    PatientModel,
     PreConsultationModel,
     PreConsultationZoneModel,
     UserModel,
@@ -27,12 +28,6 @@ class PreConsultationRepository:
         db_pre_consultation = PreConsultationModel(
             id=pre_consultation.id,
             patient_id=pre_consultation.patient_id,
-            temp_nom=pre_consultation.temp_nom,
-            temp_prenom=pre_consultation.temp_prenom,
-            temp_date_naissance=pre_consultation.temp_date_naissance,
-            temp_adresse=pre_consultation.temp_adresse,
-            temp_telephone=pre_consultation.temp_telephone,
-            temp_email=pre_consultation.temp_email,
             sexe=pre_consultation.sexe,
             age=pre_consultation.age,
             statut_marital=pre_consultation.statut_marital,
@@ -115,8 +110,11 @@ class PreConsultationRepository:
     ) -> tuple[list[PreConsultation], int]:
         """Get all pre-consultations with pagination and filters."""
         base_query = select(PreConsultationModel).options(
-            selectinload(PreConsultationModel.zones),
+            selectinload(PreConsultationModel.zones).selectinload(
+                PreConsultationZoneModel.zone
+            ),
             selectinload(PreConsultationModel.creator),
+            selectinload(PreConsultationModel.patient),
         )
 
         # Apply filters
@@ -125,11 +123,16 @@ class PreConsultationRepository:
 
         if search:
             search_term = f"%{search}%"
-            base_query = base_query.where(
+            # Search by patient name or notes (patient may not be linked yet)
+            base_query = base_query.outerjoin(
+                PatientModel,
+                PreConsultationModel.patient_id == PatientModel.id
+            ).where(
                 or_(
-                    PreConsultationModel.temp_nom.ilike(search_term),
-                    PreConsultationModel.temp_prenom.ilike(search_term),
-                    PreConsultationModel.temp_telephone.ilike(search_term),
+                    PatientModel.nom.ilike(search_term),
+                    PatientModel.prenom.ilike(search_term),
+                    PatientModel.telephone.ilike(search_term),
+                    PreConsultationModel.notes.ilike(search_term),
                 )
             )
 
@@ -163,12 +166,6 @@ class PreConsultationRepository:
 
         # Update all fields
         db_pre_consultation.patient_id = pre_consultation.patient_id
-        db_pre_consultation.temp_nom = pre_consultation.temp_nom
-        db_pre_consultation.temp_prenom = pre_consultation.temp_prenom
-        db_pre_consultation.temp_date_naissance = pre_consultation.temp_date_naissance
-        db_pre_consultation.temp_adresse = pre_consultation.temp_adresse
-        db_pre_consultation.temp_telephone = pre_consultation.temp_telephone
-        db_pre_consultation.temp_email = pre_consultation.temp_email
         db_pre_consultation.sexe = pre_consultation.sexe
         db_pre_consultation.age = pre_consultation.age
         db_pre_consultation.statut_marital = pre_consultation.statut_marital
@@ -303,12 +300,6 @@ class PreConsultationRepository:
         return PreConsultation(
             id=model.id,
             patient_id=model.patient_id,
-            temp_nom=model.temp_nom,
-            temp_prenom=model.temp_prenom,
-            temp_date_naissance=model.temp_date_naissance,
-            temp_adresse=model.temp_adresse,
-            temp_telephone=model.temp_telephone,
-            temp_email=model.temp_email,
             sexe=model.sexe,
             age=model.age,
             statut_marital=model.statut_marital,
