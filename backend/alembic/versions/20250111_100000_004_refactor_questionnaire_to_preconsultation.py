@@ -34,7 +34,7 @@ def upgrade() -> None:
 
     # 2. Update question_responses table to link to pre_consultation instead of patient
     # First, drop the old foreign key constraint and column
-    op.drop_constraint("uq_patient_question", "question_responses", type_="unique")
+    op.drop_constraint("uq_patient_question_response", "question_responses", type_="unique")
     op.drop_constraint(
         "question_responses_patient_id_fkey", "question_responses", type_="foreignkey"
     )
@@ -90,7 +90,7 @@ def downgrade() -> None:
         ),
     )
     op.create_unique_constraint(
-        "uq_patient_question", "question_responses", ["patient_id", "question_id"]
+        "uq_patient_question_response", "question_responses", ["patient_id", "question_id"]
     )
 
     # Restore temp_* columns in pre_consultations

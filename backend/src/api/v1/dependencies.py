@@ -102,6 +102,20 @@ def get_session_repository(
     return SessionRepository(session)
 
 
+def get_pre_consultation_repository(
+    session: Annotated[AsyncSession, Depends(get_db)]
+) -> PreConsultationRepository:
+    """Get pre-consultation repository."""
+    return PreConsultationRepository(session)
+
+
+def get_side_effect_repository(
+    session: Annotated[AsyncSession, Depends(get_db)]
+) -> SideEffectRepository:
+    """Get side effect repository."""
+    return SideEffectRepository(session)
+
+
 # Service dependencies
 def get_auth_service(
     user_repo: Annotated[UserRepository, Depends(get_user_repository)],
@@ -182,20 +196,6 @@ def get_dashboard_service(
 ) -> DashboardService:
     """Get dashboard service."""
     return DashboardService(patient_repo, session_repo)
-
-
-def get_pre_consultation_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
-) -> PreConsultationRepository:
-    """Get pre-consultation repository."""
-    return PreConsultationRepository(session)
-
-
-def get_side_effect_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
-) -> SideEffectRepository:
-    """Get side effect repository."""
-    return SideEffectRepository(session)
 
 
 def get_pre_consultation_service(

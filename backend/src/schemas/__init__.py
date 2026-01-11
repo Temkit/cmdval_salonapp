@@ -27,8 +27,8 @@ from src.schemas.patient import (
     PatientUpdate,
 )
 from src.schemas.questionnaire import (
-    PatientQuestionnaireResponse,
-    PatientQuestionnaireUpdate,
+    PreConsultationQuestionnaireResponse,
+    PreConsultationQuestionnaireUpdate,
     QuestionCreate,
     QuestionListResponse,
     QuestionOrderUpdate,
@@ -115,8 +115,8 @@ __all__ = [
     "QuestionOrderUpdate",
     "QuestionResponseCreate",
     "QuestionResponseItem",
-    "PatientQuestionnaireResponse",
-    "PatientQuestionnaireUpdate",
+    "PreConsultationQuestionnaireResponse",
+    "PreConsultationQuestionnaireUpdate",
     # Session
     "SessionCreate",
     "SessionResponse",
