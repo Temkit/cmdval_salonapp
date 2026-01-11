@@ -15,7 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.database.connection import Base
@@ -30,7 +30,7 @@ class RoleModel(Base):
     __tablename__ = "roles"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     permissions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
@@ -52,7 +52,7 @@ class UserModel(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     username: Mapped[str] = mapped_column(
         String(50), unique=True, nullable=False, index=True
@@ -61,7 +61,7 @@ class UserModel(Base):
     nom: Mapped[str] = mapped_column(String(100), nullable=False)
     prenom: Mapped[str] = mapped_column(String(100), nullable=False)
     role_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("roles.id"), nullable=False
+        String(36), ForeignKey("roles.id"), nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -81,7 +81,7 @@ class PatientModel(Base):
     __tablename__ = "patients"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     code_carte: Mapped[str] = mapped_column(
         String(50), unique=True, nullable=False, index=True
@@ -104,7 +104,7 @@ class PatientModel(Base):
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
     created_by: Mapped[Optional[str]] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("users.id"), nullable=True
+        String(36), ForeignKey("users.id"), nullable=True
     )
 
     # Relationships
@@ -125,7 +125,7 @@ class ZoneDefinitionModel(Base):
     __tablename__ = "zone_definitions"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     code: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
     nom: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -151,15 +151,15 @@ class PatientZoneModel(Base):
     )
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     patient_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False),
+        String(36),
         ForeignKey("patients.id", ondelete="CASCADE"),
         nullable=False,
     )
     zone_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("zone_definitions.id"), nullable=False
+        String(36), ForeignKey("zone_definitions.id"), nullable=False
     )
     seances_total: Mapped[int] = mapped_column(Integer, nullable=False)
     seances_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -187,7 +187,7 @@ class QuestionModel(Base):
     __tablename__ = "questions"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     ordre: Mapped[int] = mapped_column(Integer, nullable=False)
     texte: Mapped[str] = mapped_column(Text, nullable=False)
@@ -216,15 +216,15 @@ class QuestionResponseModel(Base):
     )
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     patient_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False),
+        String(36),
         ForeignKey("patients.id", ondelete="CASCADE"),
         nullable=False,
     )
     question_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("questions.id"), nullable=False
+        String(36), ForeignKey("questions.id"), nullable=False
     )
     reponse: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -247,18 +247,18 @@ class SessionModel(Base):
     __tablename__ = "sessions"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     patient_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False),
+        String(36),
         ForeignKey("patients.id", ondelete="CASCADE"),
         nullable=False,
     )
     patient_zone_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("patient_zones.id"), nullable=False
+        String(36), ForeignKey("patient_zones.id"), nullable=False
     )
     praticien_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("users.id"), nullable=False
+        String(36), ForeignKey("users.id"), nullable=False
     )
     type_laser: Mapped[str] = mapped_column(String(50), nullable=False)
     parametres: Mapped[dict] = mapped_column(JSON, nullable=False)
@@ -286,10 +286,10 @@ class SessionPhotoModel(Base):
     __tablename__ = "session_photos"
 
     id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid4())
     )
     session_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False),
+        String(36),
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
