@@ -38,7 +38,6 @@ export interface Patient {
 
 export interface PatientDetail extends Patient {
   zones: PatientZone[];
-  questionnaire_complete: boolean;
 }
 
 export interface ZoneDefinition {
@@ -129,4 +128,74 @@ export interface PaginatedResponse<T> {
   page: number;
   size: number;
   pages: number;
+}
+
+export interface PreConsultationZone {
+  id: string;
+  pre_consultation_id: string;
+  zone_id: string;
+  zone_nom?: string;
+  is_eligible: boolean;
+  observations: string | null;
+  created_at: string;
+}
+
+export interface PreConsultation {
+  id: string;
+  patient_id: string | null;
+  sexe: "M" | "F";
+  age: number;
+  statut_marital: string | null;
+  is_pregnant: boolean;
+  is_breastfeeding: boolean;
+  pregnancy_planning: boolean;
+  has_previous_laser: boolean;
+  previous_laser_clarity_ii: boolean;
+  previous_laser_sessions: number | null;
+  previous_laser_brand: string | null;
+  hair_removal_methods: string[];
+  medical_history: Record<string, boolean>;
+  dermatological_conditions: string[];
+  has_current_treatments: boolean;
+  current_treatments_details: string | null;
+  recent_peeling: boolean;
+  recent_peeling_date: string | null;
+  phototype: string | null;
+  notes: string | null;
+  status: "draft" | "pending_validation" | "validated" | "rejected" | "patient_created";
+  rejection_reason: string | null;
+  created_by: string | null;
+  created_by_name: string | null;
+  validated_by: string | null;
+  validated_by_name: string | null;
+  validated_at: string | null;
+  created_at: string;
+  updated_at: string;
+  zones: PreConsultationZone[];
+  zones_count?: number;
+  has_contraindications: boolean;
+}
+
+export interface PreConsultationQuestionnaire {
+  pre_consultation_id: string;
+  responses: QuestionResponse[];
+  total_questions: number;
+  answered_questions: number;
+  is_complete: boolean;
+}
+
+export interface Alert {
+  severity: "error" | "warning";
+  message: string;
+  zone_id?: string;
+  zone_nom?: string;
+}
+
+export interface PatientAlerts {
+  patient_id: string;
+  has_alerts: boolean;
+  has_errors: boolean;
+  error_count: number;
+  warning_count: number;
+  alerts: Alert[];
 }

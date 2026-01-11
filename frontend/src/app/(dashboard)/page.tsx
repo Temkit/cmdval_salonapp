@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 import { api } from "@/lib/api";
@@ -103,9 +102,9 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -221,9 +220,19 @@ export default function HomePage() {
           </div>
 
           {activityLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Spinner size="lg" />
-            </div>
+            <Card>
+              <CardContent className="p-0 divide-y">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-4 p-4">
+                    <div className="h-10 w-10 rounded-xl skeleton shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 w-48 skeleton rounded" />
+                      <div className="h-4 w-24 skeleton rounded" />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           ) : activity?.activities?.filter((a: any) => a.description)?.length > 0 ? (
             <Card>
               <CardContent className="p-0 divide-y">
@@ -234,7 +243,7 @@ export default function HomePage() {
                   >
                     <div
                       className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+                        "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
                         item.type === "session"
                           ? "bg-blue-500/10 text-blue-600"
                           : "bg-green-500/10 text-green-600"
@@ -259,7 +268,7 @@ export default function HomePage() {
           ) : (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                Aucune activité récente
+                Aucune activite recente
               </CardContent>
             </Card>
           )}

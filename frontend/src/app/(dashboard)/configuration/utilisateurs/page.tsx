@@ -174,21 +174,19 @@ export default function UsersConfigPage() {
   ) || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <Button asChild variant="ghost" size="icon-sm">
           <Link href="/configuration">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div>
-            <h1 className="heading-1">Utilisateurs</h1>
-            <p className="text-secondary">
-              Gérer les comptes utilisateurs
-            </p>
-          </div>
+        </Button>
+        <div className="flex-1">
+          <h1 className="heading-2">Utilisateurs</h1>
+          <p className="text-sm text-muted-foreground">
+            Gerer les comptes utilisateurs
+          </p>
         </div>
         <Button onClick={handleOpenCreate}>
           <Plus className="h-4 w-4 mr-2" />
@@ -229,9 +227,9 @@ export default function UsersConfigPage() {
           {isLoading ? (
             <div className="space-y-2" aria-busy="true" aria-label="Chargement des utilisateurs">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={i} className="flex items-center justify-between p-4 border rounded-xl">
                   <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full skeleton" />
+                    <div className="h-10 w-10 rounded-xl skeleton" />
                     <div className="space-y-2">
                       <div className="h-5 w-32 skeleton rounded" />
                       <div className="h-4 w-40 skeleton rounded" />
@@ -253,10 +251,10 @@ export default function UsersConfigPage() {
               {filteredUsers.map((user: any) => (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
+                  className="flex items-center justify-between p-4 border rounded-xl"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                       <User className="h-5 w-5 text-primary" />
                     </div>
                     <div>

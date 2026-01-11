@@ -3,6 +3,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface SideEffect {
+  description: string;
+  severity?: "mild" | "moderate" | "severe";
+  photos: string[]; // base64 or URLs
+}
+
 export interface ActiveSession {
   // Practitioner info
   praticienId: string;
@@ -15,12 +21,12 @@ export interface ActiveSession {
   zoneName: string;
   sessionNumber: number;
   totalSessions: number;
-  // Laser parameters
+  // Optiskin laser parameters
   typeLaser: string;
-  fluence?: string;
   spotSize?: string;
-  frequence?: string;
-  dureeImpulsion?: string;
+  fluence?: string;
+  pulseDurationMs?: string;
+  frequencyHz?: string;
   // Session state
   startedAt: number; // timestamp
   pausedAt?: number; // timestamp when paused
@@ -30,9 +36,10 @@ export interface ActiveSession {
   notes: string;
   photos: string[]; // base64 or URLs
   voiceNotes: string[]; // base64 or URLs
+  // Side effects
+  sideEffects: SideEffect[];
   // Additional
   tolerance?: string;
-  effetsImmediats?: string;
 }
 
 interface SessionState {
@@ -66,6 +73,7 @@ interface SessionState {
   addNote: (praticienId: string, note: string) => void;
   addPhoto: (praticienId: string, photo: string) => void;
   addVoiceNote: (praticienId: string, voiceNote: string) => void;
+  addSideEffect: (praticienId: string, sideEffect: SideEffect) => void;
 
   // End session and get data
   endSession: (praticienId: string) => { session: ActiveSession; durationSeconds: number } | null;
@@ -99,6 +107,7 @@ export const useSessionStore = create<SessionState>()(
               notes: "",
               photos: [],
               voiceNotes: [],
+              sideEffects: [],
             },
           },
         }));
@@ -187,6 +196,20 @@ export const useSessionStore = create<SessionState>()(
             [praticienId]: {
               ...session,
               voiceNotes: [...session.voiceNotes, voiceNote],
+            },
+          },
+        }));
+      },
+
+      addSideEffect: (praticienId, sideEffect) => {
+        const session = get().activeSessions[praticienId];
+        if (!session) return;
+        set((state) => ({
+          activeSessions: {
+            ...state.activeSessions,
+            [praticienId]: {
+              ...session,
+              sideEffects: [...session.sideEffects, sideEffect],
             },
           },
         }));

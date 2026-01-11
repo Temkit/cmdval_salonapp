@@ -3,9 +3,10 @@
 from typing import Any
 
 from src.domain.entities.question import Question, QuestionResponse
-from src.domain.exceptions import PatientNotFoundError, QuestionNotFoundError
+from src.domain.exceptions import QuestionNotFoundError
+from src.domain.exceptions import NotFoundError as PreConsultationNotFoundError
 from src.infrastructure.database.repositories import (
-    PatientRepository,
+    PreConsultationRepository,
     QuestionRepository,
     QuestionResponseRepository,
 )
@@ -91,28 +92,28 @@ class QuestionService:
 
 
 class QuestionnaireService:
-    """Service for patient questionnaire operations."""
+    """Service for pre-consultation questionnaire operations."""
 
     def __init__(
         self,
         question_repository: QuestionRepository,
         response_repository: QuestionResponseRepository,
-        patient_repository: PatientRepository,
+        pre_consultation_repository: PreConsultationRepository,
     ):
         self.question_repository = question_repository
         self.response_repository = response_repository
-        self.patient_repository = patient_repository
+        self.pre_consultation_repository = pre_consultation_repository
 
-    async def get_patient_questionnaire(
-        self, patient_id: str
+    async def get_pre_consultation_questionnaire(
+        self, pre_consultation_id: str
     ) -> dict:
-        """Get patient questionnaire with responses."""
-        patient = await self.patient_repository.find_by_id(patient_id)
-        if not patient:
-            raise PatientNotFoundError(patient_id)
+        """Get pre-consultation questionnaire with responses."""
+        pre_consultation = await self.pre_consultation_repository.find_by_id(pre_consultation_id)
+        if not pre_consultation:
+            raise PreConsultationNotFoundError(f"Pre-consultation {pre_consultation_id} not found")
 
         questions = await self.question_repository.find_all(include_inactive=False)
-        responses = await self.response_repository.find_by_patient(patient_id)
+        responses = await self.response_repository.find_by_pre_consultation(pre_consultation_id)
 
         # Map responses by question ID
         response_map = {r.question_id: r for r in responses}
@@ -137,22 +138,22 @@ class QuestionnaireService:
         )
 
         return {
-            "patient_id": patient_id,
+            "pre_consultation_id": pre_consultation_id,
             "responses": response_items,
             "total_questions": len(questions),
             "answered_questions": len(responses),
             "is_complete": answered_required >= required_count,
         }
 
-    async def update_patient_questionnaire(
+    async def update_pre_consultation_questionnaire(
         self,
-        patient_id: str,
+        pre_consultation_id: str,
         responses: list[dict],
     ) -> dict:
-        """Update patient questionnaire responses."""
-        patient = await self.patient_repository.find_by_id(patient_id)
-        if not patient:
-            raise PatientNotFoundError(patient_id)
+        """Update pre-consultation questionnaire responses."""
+        pre_consultation = await self.pre_consultation_repository.find_by_id(pre_consultation_id)
+        if not pre_consultation:
+            raise PreConsultationNotFoundError(f"Pre-consultation {pre_consultation_id} not found")
 
         # Process each response
         for response_data in responses:
@@ -165,18 +166,18 @@ class QuestionnaireService:
                 continue
 
             response = QuestionResponse(
-                patient_id=patient_id,
+                pre_consultation_id=pre_consultation_id,
                 question_id=question_id,
                 reponse=reponse,
             )
             await self.response_repository.upsert(response)
 
-        return await self.get_patient_questionnaire(patient_id)
+        return await self.get_pre_consultation_questionnaire(pre_consultation_id)
 
-    async def is_questionnaire_complete(self, patient_id: str) -> bool:
-        """Check if patient questionnaire is complete."""
+    async def is_questionnaire_complete(self, pre_consultation_id: str) -> bool:
+        """Check if pre-consultation questionnaire is complete."""
         questions = await self.question_repository.find_all(include_inactive=False)
-        responses = await self.response_repository.find_by_patient(patient_id)
+        responses = await self.response_repository.find_by_pre_consultation(pre_consultation_id)
 
         response_ids = {r.question_id for r in responses}
         required_ids = {q.id for q in questions if q.obligatoire}

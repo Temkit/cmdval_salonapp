@@ -25,6 +25,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   isLoading?: boolean;
   variant?: "danger" | "warning" | "default";
+  /** Custom content to display between description and buttons */
+  children?: React.ReactNode;
 }
 
 export function ConfirmDialog({
@@ -38,6 +40,7 @@ export function ConfirmDialog({
   onConfirm,
   isLoading = false,
   variant = "danger",
+  children,
 }: ConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
@@ -72,6 +75,7 @@ export function ConfirmDialog({
             </div>
           </div>
         </DialogHeader>
+        {children && <div className="py-4">{children}</div>}
         <DialogFooter className="mt-4">
           <Button
             type="button"

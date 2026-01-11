@@ -1,3 +1,5 @@
+import type { PreConsultation, PatientAlerts, PreConsultationQuestionnaire } from "@/types";
+
 const API_BASE = "/api/v1";
 
 class ApiError extends Error {
@@ -217,23 +219,24 @@ export const api = {
     return handleResponse(response);
   },
 
-  // Questionnaire
-  async getPatientQuestionnaire(patientId: string) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/questionnaire`, {
+  // Pre-consultation Questionnaire
+  async getPreConsultationQuestionnaire(preConsultationId: string): Promise<PreConsultationQuestionnaire> {
+    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/questionnaire`, {
       headers: getAuthHeaders(),
     });
-    return handleResponse(response);
+    return handleResponse<PreConsultationQuestionnaire>(response);
   },
 
-  async updatePatientQuestionnaire(patientId: string, responses: any[]) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/questionnaire`, {
+  async updatePreConsultationQuestionnaire(preConsultationId: string, responses: any[]): Promise<PreConsultationQuestionnaire> {
+    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/questionnaire`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ responses }),
     });
-    return handleResponse(response);
+    return handleResponse<PreConsultationQuestionnaire>(response);
   },
 
+  // Question Management (Admin)
   async getQuestions() {
     const response = await fetch(`${API_BASE}/questionnaire/questions`, {
       headers: getAuthHeaders(),
@@ -423,6 +426,187 @@ export const api = {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ activities: any[] }>(response);
+  },
+
+  // Pre-consultations
+  async getPreConsultations(params: { page?: number; size?: number; status?: string; search?: string } = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set("page", params.page.toString());
+    if (params.size) searchParams.set("size", params.size.toString());
+    if (params.status) searchParams.set("status", params.status);
+    if (params.search) searchParams.set("search", params.search);
+
+    const response = await fetch(`${API_BASE}/pre-consultations?${searchParams}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{
+      items: any[];
+      total: number;
+      page: number;
+      page_size: number;
+      total_pages: number;
+    }>(response);
+  },
+
+  async getPreConsultation(id: string): Promise<PreConsultation> {
+    const response = await fetch(`${API_BASE}/pre-consultations/${id}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<PreConsultation>(response);
+  },
+
+  async createPreConsultation(data: any) {
+    const response = await fetch(`${API_BASE}/pre-consultations`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updatePreConsultation(id: string, data: any) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${id}`, {
+      method: "PUT",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async deletePreConsultation(id: string) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async addPreConsultationZone(preConsultationId: string, data: any) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updatePreConsultationZone(preConsultationId: string, zoneId: string, data: any) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones/${zoneId}`, {
+      method: "PUT",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async deletePreConsultationZone(preConsultationId: string, zoneId: string) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones/${zoneId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async submitPreConsultation(id: string) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${id}/submit`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async validatePreConsultation(id: string) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${id}/validate`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async rejectPreConsultation(id: string, reason: string) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${id}/reject`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+    return handleResponse(response);
+  },
+
+  async createPatientFromPreConsultation(preConsultationId: string, data: any) {
+    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/create-patient`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async getPendingPreConsultationsCount() {
+    const response = await fetch(`${API_BASE}/pre-consultations/stats/pending-count`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ count: number }>(response);
+  },
+
+  async getPatientPreConsultation(patientId: string): Promise<PreConsultation | null> {
+    try {
+      const response = await fetch(`${API_BASE}/pre-consultations/by-patient/${patientId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (response.status === 404) {
+        return null;
+      }
+      return handleResponse<PreConsultation>(response);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  // Alerts
+  async getPatientAlerts(patientId: string) {
+    const response = await fetch(`${API_BASE}/patients/${patientId}/alerts`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{
+      patient_id: string;
+      alerts: any[];
+      has_alerts: boolean;
+      has_errors: boolean;
+      has_warnings: boolean;
+      error_count: number;
+      warning_count: number;
+    }>(response);
+  },
+
+  async getZoneAlerts(patientId: string, zoneId: string) {
+    const response = await fetch(`${API_BASE}/patients/${patientId}/zones/${zoneId}/alerts`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{
+      patient_id: string;
+      alerts: any[];
+      has_alerts: boolean;
+      has_errors: boolean;
+      has_warnings: boolean;
+      error_count: number;
+      warning_count: number;
+    }>(response);
+  },
+
+  async getAlertsSummary(patientId: string) {
+    const response = await fetch(`${API_BASE}/patients/${patientId}/alerts/summary`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{
+      patient_id: string;
+      has_alerts: boolean;
+      has_errors: boolean;
+      error_count: number;
+      warning_count: number;
+    }>(response);
   },
 };
 

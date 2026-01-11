@@ -9,8 +9,21 @@ class DomainError(Exception):
         super().__init__(message)
 
 
+# Generic Errors
+class NotFoundError(DomainError):
+    """Generic not found error."""
+
+    pass
+
+
+class ValidationError(DomainError):
+    """Validation error."""
+
+    pass
+
+
 # Entity Not Found Errors
-class EntityNotFoundError(DomainError):
+class EntityNotFoundError(NotFoundError):
     """Entity not found in repository."""
 
     pass

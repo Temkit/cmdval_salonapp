@@ -118,7 +118,7 @@ class QuestionResponseRepository:
         """Create or update a question response."""
         result = await self.session.execute(
             select(QuestionResponseModel).where(
-                QuestionResponseModel.patient_id == response.patient_id,
+                QuestionResponseModel.pre_consultation_id == response.pre_consultation_id,
                 QuestionResponseModel.question_id == response.question_id,
             )
         )
@@ -129,7 +129,7 @@ class QuestionResponseRepository:
         else:
             db_response = QuestionResponseModel(
                 id=response.id,
-                patient_id=response.patient_id,
+                pre_consultation_id=response.pre_consultation_id,
                 question_id=response.question_id,
                 reponse=response.reponse,
             )
@@ -148,29 +148,29 @@ class QuestionResponseRepository:
         db_response = result.unique().scalar_one_or_none()
         return self._to_entity(db_response) if db_response else None
 
-    async def find_by_patient(self, patient_id: str) -> list[QuestionResponse]:
-        """Find all responses for a patient."""
+    async def find_by_pre_consultation(self, pre_consultation_id: str) -> list[QuestionResponse]:
+        """Find all responses for a pre-consultation."""
         result = await self.session.execute(
             select(QuestionResponseModel)
             .options(joinedload(QuestionResponseModel.question))
-            .where(QuestionResponseModel.patient_id == patient_id)
+            .where(QuestionResponseModel.pre_consultation_id == pre_consultation_id)
         )
         return [self._to_entity(r) for r in result.unique().scalars()]
 
-    async def count_by_patient(self, patient_id: str) -> int:
-        """Count responses for a patient."""
+    async def count_by_pre_consultation(self, pre_consultation_id: str) -> int:
+        """Count responses for a pre-consultation."""
         result = await self.session.execute(
             select(func.count(QuestionResponseModel.id)).where(
-                QuestionResponseModel.patient_id == patient_id
+                QuestionResponseModel.pre_consultation_id == pre_consultation_id
             )
         )
         return result.scalar() or 0
 
-    async def delete_by_patient(self, patient_id: str) -> int:
-        """Delete all responses for a patient."""
+    async def delete_by_pre_consultation(self, pre_consultation_id: str) -> int:
+        """Delete all responses for a pre-consultation."""
         result = await self.session.execute(
             select(QuestionResponseModel).where(
-                QuestionResponseModel.patient_id == patient_id
+                QuestionResponseModel.pre_consultation_id == pre_consultation_id
             )
         )
         responses = result.scalars().all()
@@ -184,7 +184,7 @@ class QuestionResponseRepository:
         """Convert model to entity."""
         return QuestionResponse(
             id=model.id,
-            patient_id=model.patient_id,
+            pre_consultation_id=model.pre_consultation_id,
             question_id=model.question_id,
             question_texte=model.question.texte if model.question else "",
             question_type=model.question.type_reponse if model.question else "text",

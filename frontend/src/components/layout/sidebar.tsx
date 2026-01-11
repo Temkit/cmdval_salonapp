@@ -10,6 +10,7 @@ import {
   BarChart3,
   Menu,
   X,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 
 const navigation = [
   { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
+  { name: "Pre-consultations", href: "/pre-consultations", icon: ClipboardList, permission: "pre_consultations.view" },
   { name: "Patients", href: "/patients", icon: Users, permission: "patients.view" },
   { name: "Analytiques", href: "/analytiques", icon: BarChart3, permission: "dashboard.view" },
   { name: "Configuration", href: "/configuration", icon: Settings, permission: "config.questionnaire" },

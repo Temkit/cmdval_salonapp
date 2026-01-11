@@ -136,22 +136,20 @@ async def seed_database():
         zones = await create_zone_definitions(session)
         print(f"Created {len(zones)} zone definitions")
 
-        # 5. Create questions
+        # 5. Create questions (for reference/configuration only)
         questions = await create_questions(session)
         print(f"Created {len(questions)} questions")
 
-        # 6. Create sample patients
-        patients = await create_sample_patients(session, 10, admin_user.id)
-        print(f"Created {len(patients)} sample patients")
-
-        # 7. Create patient zones and sessions
-        await create_patient_zones_and_sessions(
-            session, patients, zones, [praticien], admin_user.id
-        )
-        print("Created patient zones and sessions")
+        # NOTE: No demo patients created
+        # Patients must be created through the pre-consultation workflow:
+        # 1. Pre-consultation (medecin)
+        # 2. Validation (medecin)
+        # 3. Create patient (receptionniste)
+        # 4. Sessions (praticien)
 
         await session.commit()
         print("Database seeded successfully!")
+        print("Note: No demo patients created. Use pre-consultation workflow to create patients.")
 
 
 async def create_roles(session: AsyncSession) -> dict[str, str]:

@@ -22,9 +22,9 @@ class Question:
 
 @dataclass
 class QuestionResponse:
-    """Domain entity for patient's question response."""
+    """Domain entity for pre-consultation question response."""
 
-    patient_id: str
+    pre_consultation_id: str
     question_id: str
     reponse: Any = None
     id: str = field(default_factory=lambda: str(uuid4()))

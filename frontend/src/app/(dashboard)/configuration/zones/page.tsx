@@ -136,21 +136,19 @@ export default function ZonesConfigPage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <Button asChild variant="ghost" size="icon-sm">
           <Link href="/configuration">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div>
-            <h1 className="heading-1">Zones</h1>
-            <p className="text-secondary">
-              Définir les zones de traitement
-            </p>
-          </div>
+        </Button>
+        <div className="flex-1">
+          <h1 className="heading-2">Zones</h1>
+          <p className="text-sm text-muted-foreground">
+            Definir les zones de traitement
+          </p>
         </div>
         <Button onClick={handleOpenCreate}>
           <Plus className="h-4 w-4 mr-2" />
@@ -160,17 +158,17 @@ export default function ZonesConfigPage() {
 
       {/* Zones List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Zones de traitement</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Zones de traitement</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Chargement des zones">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="p-4 border rounded-lg space-y-2">
+                <div key={i} className="p-4 border rounded-xl space-y-2">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full skeleton" />
+                      <div className="h-10 w-10 rounded-xl skeleton" />
                       <div className="space-y-2">
                         <div className="h-5 w-24 skeleton rounded" />
                         <div className="h-4 w-32 skeleton rounded" />
@@ -189,17 +187,17 @@ export default function ZonesConfigPage() {
               {zones.zones.map((zone: any) => (
                 <div
                   key={zone.id}
-                  className="p-4 border rounded-lg space-y-2"
+                  className="p-4 border rounded-xl space-y-2"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                         <Target className="h-5 w-5 text-primary" />
                       </div>
                       <div>
                         <p className="font-medium">{zone.nom}</p>
                         <p className="text-sm text-muted-foreground">
-                          {zone.seances_recommandees} séances recommandées
+                          {zone.seances_recommandees} seances recommandees
                         </p>
                       </div>
                     </div>

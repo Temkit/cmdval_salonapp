@@ -61,7 +61,6 @@ class PatientDetailResponse(PatientResponse):
     """Patient detail response with zones."""
 
     zones: list["PatientZoneResponse"] = []
-    questionnaire_complete: bool = False
 
 
 # Import here to avoid circular imports

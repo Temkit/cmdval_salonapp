@@ -18,14 +18,18 @@ from src.application.services import (
     UserService,
     ZoneDefinitionService,
 )
+from src.application.services.alert_service import AlertService
+from src.application.services.pre_consultation_service import PreConsultationService
 from src.infrastructure.database.connection import get_session
 from src.infrastructure.database.repositories import (
     PatientRepository,
     PatientZoneRepository,
+    PreConsultationRepository,
     QuestionRepository,
     QuestionResponseRepository,
     RoleRepository,
     SessionRepository,
+    SideEffectRepository,
     UserRepository,
     ZoneDefinitionRepository,
 )
@@ -156,10 +160,10 @@ def get_question_service(
 def get_questionnaire_service(
     question_repo: Annotated[QuestionRepository, Depends(get_question_repository)],
     response_repo: Annotated[QuestionResponseRepository, Depends(get_question_response_repository)],
-    patient_repo: Annotated[PatientRepository, Depends(get_patient_repository)],
+    pre_consultation_repo: Annotated[PreConsultationRepository, Depends(get_pre_consultation_repository)],
 ) -> QuestionnaireService:
     """Get questionnaire service."""
-    return QuestionnaireService(question_repo, response_repo, patient_repo)
+    return QuestionnaireService(question_repo, response_repo, pre_consultation_repo)
 
 
 def get_session_service(
@@ -178,6 +182,45 @@ def get_dashboard_service(
 ) -> DashboardService:
     """Get dashboard service."""
     return DashboardService(patient_repo, session_repo)
+
+
+def get_pre_consultation_repository(
+    session: Annotated[AsyncSession, Depends(get_db)]
+) -> PreConsultationRepository:
+    """Get pre-consultation repository."""
+    return PreConsultationRepository(session)
+
+
+def get_side_effect_repository(
+    session: Annotated[AsyncSession, Depends(get_db)]
+) -> SideEffectRepository:
+    """Get side effect repository."""
+    return SideEffectRepository(session)
+
+
+def get_pre_consultation_service(
+    pre_consultation_repo: Annotated[
+        PreConsultationRepository, Depends(get_pre_consultation_repository)
+    ],
+    patient_repo: Annotated[PatientRepository, Depends(get_patient_repository)],
+    zone_repo: Annotated[ZoneDefinitionRepository, Depends(get_zone_definition_repository)],
+    patient_zone_repo: Annotated[PatientZoneRepository, Depends(get_patient_zone_repository)],
+) -> PreConsultationService:
+    """Get pre-consultation service."""
+    return PreConsultationService(
+        pre_consultation_repo, patient_repo, zone_repo, patient_zone_repo
+    )
+
+
+def get_alert_service(
+    pre_consultation_repo: Annotated[
+        PreConsultationRepository, Depends(get_pre_consultation_repository)
+    ],
+    session_repo: Annotated[SessionRepository, Depends(get_session_repository)],
+    side_effect_repo: Annotated[SideEffectRepository, Depends(get_side_effect_repository)],
+) -> AlertService:
+    """Get alert service."""
+    return AlertService(pre_consultation_repo, session_repo, side_effect_repo)
 
 
 # Authentication dependency

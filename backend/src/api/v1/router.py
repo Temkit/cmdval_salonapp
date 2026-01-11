@@ -3,9 +3,11 @@
 from fastapi import APIRouter
 
 from src.api.v1.endpoints import (
+    alerts,
     auth,
     dashboard,
     patients,
+    pre_consultations,
     questionnaire,
     roles,
     sessions,
@@ -24,3 +26,5 @@ router.include_router(zones.router)
 router.include_router(questionnaire.router)
 router.include_router(sessions.router)
 router.include_router(dashboard.router)
+router.include_router(pre_consultations.router)
+router.include_router(alerts.router)

@@ -8,10 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from src.api.v1.dependencies import (
     get_patient_service,
     get_patient_zone_service,
-    get_questionnaire_service,
     require_permission,
 )
-from src.application.services import PatientService, PatientZoneService, QuestionnaireService
+from src.application.services import PatientService, PatientZoneService
 from src.domain.exceptions import (
     DuplicateCardCodeError,
     DuplicateZoneError,
@@ -25,10 +24,6 @@ from src.schemas.patient import (
     PatientListResponse,
     PatientResponse,
     PatientUpdate,
-)
-from src.schemas.questionnaire import (
-    PatientQuestionnaireResponse,
-    PatientQuestionnaireUpdate,
 )
 from src.schemas.zone import (
     PatientZoneCreate,
@@ -87,41 +82,21 @@ async def create_patient(
     _: Annotated[dict, Depends(require_permission("patients.edit"))],
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ):
-    """Create a new patient."""
-    try:
-        patient = await patient_service.create_patient(
-            code_carte=request.code_carte,
-            nom=request.nom,
-            prenom=request.prenom,
-            date_naissance=request.date_naissance,
-            sexe=request.sexe,
-            telephone=request.telephone,
-            email=request.email,
-            adresse=request.adresse,
-            notes=request.notes,
-            phototype=request.phototype,
-        )
-        return PatientResponse(
-            id=patient.id,
-            code_carte=patient.code_carte,
-            nom=patient.nom,
-            prenom=patient.prenom,
-            date_naissance=patient.date_naissance,
-            sexe=patient.sexe,
-            telephone=patient.telephone,
-            email=patient.email,
-            adresse=patient.adresse,
-            notes=patient.notes,
-            phototype=patient.phototype,
-            age=patient.age,
-            created_at=patient.created_at,
-            updated_at=patient.updated_at,
-        )
-    except DuplicateCardCodeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+    """
+    Create a new patient.
+
+    NOTE: Direct patient creation is disabled. Patients must be created through
+    the pre-consultation workflow:
+    1. Create pre-consultation (medical evaluation)
+    2. Submit for validation
+    3. Validate pre-consultation
+    4. Create patient from validated pre-consultation via POST /pre-consultations/{id}/create-patient
+    """
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="La creation directe de patient est desactivee. Utilisez le workflow de pre-consultation: "
+               "1) Creer une pre-consultation, 2) La valider, 3) Creer le patient depuis la pre-consultation validee.",
+    )
 
 
 @router.get("/by-card/{code}", response_model=PatientResponse)
@@ -162,15 +137,11 @@ async def get_patient(
     _: Annotated[dict, Depends(require_permission("patients.view"))],
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
     patient_zone_service: Annotated[PatientZoneService, Depends(get_patient_zone_service)],
-    questionnaire_service: Annotated[QuestionnaireService, Depends(get_questionnaire_service)],
 ):
     """Get patient details with zones."""
     try:
         patient = await patient_service.get_patient(patient_id)
         zones = await patient_zone_service.get_patient_zones(patient_id)
-        questionnaire_complete = await questionnaire_service.is_questionnaire_complete(
-            patient_id
-        )
 
         return PatientDetailResponse(
             id=patient.id,
@@ -188,7 +159,6 @@ async def get_patient(
             created_at=patient.created_at,
             updated_at=patient.updated_at,
             zones=[PatientZoneResponse.from_entity(z) for z in zones],
-            questionnaire_complete=questionnaire_complete,
         )
     except PatientNotFoundError as e:
         raise HTTPException(
@@ -356,40 +326,5 @@ async def delete_patient_zone(
         )
 
 
-# Patient questionnaire
-@router.get("/{patient_id}/questionnaire", response_model=PatientQuestionnaireResponse)
-async def get_patient_questionnaire(
-    patient_id: str,
-    _: Annotated[dict, Depends(require_permission("patients.questionnaire.view"))],
-    questionnaire_service: Annotated[QuestionnaireService, Depends(get_questionnaire_service)],
-):
-    """Get patient questionnaire responses."""
-    try:
-        result = await questionnaire_service.get_patient_questionnaire(patient_id)
-        return PatientQuestionnaireResponse(**result)
-    except PatientNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
-
-
-@router.put("/{patient_id}/questionnaire", response_model=PatientQuestionnaireResponse)
-async def update_patient_questionnaire(
-    patient_id: str,
-    request: PatientQuestionnaireUpdate,
-    _: Annotated[dict, Depends(require_permission("patients.questionnaire.edit"))],
-    questionnaire_service: Annotated[QuestionnaireService, Depends(get_questionnaire_service)],
-):
-    """Update patient questionnaire responses."""
-    try:
-        result = await questionnaire_service.update_patient_questionnaire(
-            patient_id=patient_id,
-            responses=[r.model_dump() for r in request.responses],
-        )
-        return PatientQuestionnaireResponse(**result)
-    except PatientNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+# Note: Questionnaire endpoints moved to pre-consultations
+# Questionnaire is now part of the pre-consultation workflow, not patient records

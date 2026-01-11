@@ -90,17 +90,17 @@ class QuestionResponseItem(AppBaseModel):
     updated_at: datetime
 
 
-class PatientQuestionnaireResponse(AppBaseModel):
-    """Patient questionnaire response schema."""
+class PreConsultationQuestionnaireResponse(AppBaseModel):
+    """Pre-consultation questionnaire response schema."""
 
-    patient_id: str
+    pre_consultation_id: str
     responses: list[QuestionResponseItem]
     total_questions: int
     answered_questions: int
     is_complete: bool
 
 
-class PatientQuestionnaireUpdate(AppBaseModel):
-    """Patient questionnaire update schema."""
+class PreConsultationQuestionnaireUpdate(AppBaseModel):
+    """Pre-consultation questionnaire update schema."""
 
     responses: list[QuestionResponseCreate]

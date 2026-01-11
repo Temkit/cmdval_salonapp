@@ -201,21 +201,19 @@ export default function QuestionnaireConfigPage() {
   ) || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <Button asChild variant="ghost" size="icon-sm">
           <Link href="/configuration">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div>
-            <h1 className="heading-1">Questionnaire</h1>
-            <p className="text-secondary">
-              Personnaliser le questionnaire médical
-            </p>
-          </div>
+        </Button>
+        <div className="flex-1">
+          <h1 className="heading-2">Questionnaire</h1>
+          <p className="text-sm text-muted-foreground">
+            Personnaliser le questionnaire medical
+          </p>
         </div>
         <Button onClick={handleOpenCreate}>
           <Plus className="h-4 w-4 mr-2" />
@@ -232,7 +230,7 @@ export default function QuestionnaireConfigPage() {
           {isLoading ? (
             <div className="space-y-2" aria-busy="true" aria-label="Chargement des questions">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-4 border rounded-lg">
+                <div key={i} className="flex items-center gap-3 p-4 border rounded-xl">
                   {/* Reorder buttons skeleton */}
                   <div className="flex flex-col gap-1">
                     <div className="h-6 w-6 skeleton rounded" />
@@ -262,7 +260,7 @@ export default function QuestionnaireConfigPage() {
               {sortedQuestions.map((question: any, index: number) => (
                 <div
                   key={question.id}
-                  className="flex items-center gap-3 p-4 border rounded-lg"
+                  className="flex items-center gap-3 p-4 border rounded-xl"
                 >
                   <div className="flex flex-col gap-1">
                     <button

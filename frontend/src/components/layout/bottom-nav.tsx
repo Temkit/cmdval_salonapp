@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Users, Activity, Settings, BarChart3 } from "lucide-react";
+import { Home, Users, ClipboardList, Settings, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 
@@ -27,10 +27,10 @@ const NAV_ITEMS: NavItem[] = [
     match: /^\/patients/,
   },
   {
-    href: "/seance-active",
-    label: "Séance",
-    icon: Activity,
-    match: /^\/seance-active/,
+    href: "/pre-consultations",
+    label: "Pre-consult",
+    icon: ClipboardList,
+    match: /^\/pre-consultations/,
   },
   {
     href: "/analytiques",

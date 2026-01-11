@@ -35,7 +35,8 @@ import {
 import { api } from "@/lib/api";
 import { formatDate, formatDateTime, cn } from "@/lib/utils";
 import { AddZoneDialog } from "@/components/features/patients/add-zone-dialog";
-import { QuestionnaireTab } from "@/components/features/patients/questionnaire-tab";
+import { PreConsultationTab } from "@/components/features/patients/pre-consultation-tab";
+import { AlertBanner } from "@/components/features/alerts/alert-banner";
 import { useSessionStore } from "@/stores/session-store";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -138,6 +139,9 @@ export default function PatientDetailPage({
         <h1 className="heading-2 truncate">Dossier patient</h1>
       </div>
 
+      {/* Alert Banner */}
+      <AlertBanner patientId={id} />
+
       {/* Patient Card */}
       <Card>
         <CardContent className="p-4 sm:p-6">
@@ -228,9 +232,9 @@ export default function PatientDetailPage({
             <Target className="h-4 w-4 shrink-0" />
             <span className="hidden md:inline">Zones</span>
           </TabsTrigger>
-          <TabsTrigger value="questionnaire" className="gap-2 flex-1 sm:flex-none">
+          <TabsTrigger value="preconsultation" className="gap-2 flex-1 sm:flex-none">
             <FileText className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Questionnaire</span>
+            <span className="hidden md:inline">Pre-consultation</span>
           </TabsTrigger>
           <TabsTrigger value="sessions" className="gap-2 flex-1 sm:flex-none">
             <History className="h-4 w-4 shrink-0" />
@@ -310,21 +314,16 @@ export default function PatientDetailPage({
             {/* Medical Info */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Informations médicales</CardTitle>
+                <CardTitle className="text-base">Informations medicales</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-3 -mx-3 rounded-xl bg-muted/50">
-                  <span className="text-muted-foreground">Questionnaire</span>
-                  <Badge
-                    variant={patient.questionnaire_complete ? "success" : "warning"}
-                    dot
-                  >
-                    {patient.questionnaire_complete ? "Complet" : "Incomplet"}
-                  </Badge>
+                  <span className="text-muted-foreground">Phototype</span>
+                  <span className="font-medium">{patient.phototype || "Non renseigne"}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 -mx-3 rounded-xl bg-muted/50">
-                  <span className="text-muted-foreground">Phototype</span>
-                  <span className="font-medium">{patient.phototype || "Non renseigné"}</span>
+                  <span className="text-muted-foreground">Sexe</span>
+                  <span className="font-medium">{patient.sexe === "F" ? "Femme" : patient.sexe === "M" ? "Homme" : "Non renseigne"}</span>
                 </div>
                 {patient.notes && (
                   <div className="p-3 -mx-3 rounded-xl border">
@@ -332,6 +331,11 @@ export default function PatientDetailPage({
                     <p className="text-sm whitespace-pre-wrap">{patient.notes}</p>
                   </div>
                 )}
+                <div className="pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Voir l'onglet Pre-consultation pour les details medicaux complets.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -419,9 +423,9 @@ export default function PatientDetailPage({
           )}
         </TabsContent>
 
-        {/* Questionnaire Tab */}
-        <TabsContent value="questionnaire">
-          <QuestionnaireTab patientId={id} />
+        {/* Pre-consultation Tab */}
+        <TabsContent value="preconsultation">
+          <PreConsultationTab patientId={id} />
         </TabsContent>
 
         {/* Sessions Tab */}

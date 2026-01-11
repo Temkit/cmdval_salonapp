@@ -1,13 +1,23 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Zap, Settings2, ChevronRight, User } from "lucide-react";
+import {
+  ArrowLeft,
+  Zap,
+  Settings2,
+  ChevronRight,
+  User,
+  AlertTriangle,
+  Clock,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { ButtonGroup, ZoneCard } from "@/components/ui/button-group";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
@@ -22,16 +32,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
+// Optiskin specific parameters
 const LASER_TYPES = [
   { value: "Alexandrite", label: "Alexandrite" },
-  { value: "Diode", label: "Diode" },
-  { value: "Nd:YAG", label: "Nd:YAG" },
-  { value: "IPL", label: "IPL" },
+  { value: "Yag", label: "Yag" },
 ];
 
-const FLUENCE_PRESETS = [15, 20, 25, 30, 35, 40];
-const SPOT_PRESETS = [8, 10, 12, 15, 18];
+const SPOT_SIZES = [12, 15, 16, 18, 20, 22, 25];
+const PULSE_DURATIONS_MS = [1, 2, 3, 5, 10];
+
+interface ZoneAlert {
+  type: string;
+  severity: "error" | "warning";
+  message: string;
+  zone_id?: string;
+  zone_nom?: string;
+  details?: Record<string, any>;
+}
 
 export default function NewSessionPage({
   params,
@@ -49,13 +68,23 @@ export default function NewSessionPage({
 
   const [selectedZone, setSelectedZone] = useState<any>(null);
   const [typeLaser, setTypeLaser] = useState("");
+  const [spotSize, setSpotSize] = useState<number | null>(null);
   const [fluence, setFluence] = useState("");
-  const [spotSize, setSpotSize] = useState("");
+  const [pulseDuration, setPulseDuration] = useState<number | null>(null);
+  const [frequencyHz, setFrequencyHz] = useState("");
   const [selectedPraticien, setSelectedPraticien] = useState<string>("");
+  const [zoneAlerts, setZoneAlerts] = useState<ZoneAlert[]>([]);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
     queryFn: () => api.getPatient(id),
+  });
+
+  // Fetch patient alerts
+  const { data: alertsData } = useQuery({
+    queryKey: ["patient-alerts", id],
+    queryFn: () => api.getPatientAlerts(id),
+    enabled: !!id,
   });
 
   // Fetch practitioners for admin to assign sessions
@@ -67,8 +96,21 @@ export default function NewSessionPage({
 
   const practitioners = usersData?.users || [];
 
+  // Update zone alerts when zone is selected
+  useEffect(() => {
+    if (selectedZone && alertsData?.alerts) {
+      const alerts = alertsData.alerts.filter(
+        (a: ZoneAlert) =>
+          a.zone_id === selectedZone.zone_definition_id ||
+          a.type === "contraindication"
+      );
+      setZoneAlerts(alerts);
+    } else {
+      setZoneAlerts([]);
+    }
+  }, [selectedZone, alertsData]);
+
   // For non-admin: redirect if they already have an active session
-  // Admin can create multiple sessions (for different practitioners)
   const activeSession = user ? getSession(user.id) : null;
   if (!isAdmin && activeSession) {
     router.push("/seance-active");
@@ -81,11 +123,21 @@ export default function NewSessionPage({
   };
 
   const handleStartSession = () => {
+    // Check for pre-consultation first
+    if (hasNoPreConsultation) {
+      toast({
+        variant: "destructive",
+        title: "Pre-consultation requise",
+        description: "Ce patient doit avoir une pre-consultation validee avant de commencer une seance.",
+      });
+      return;
+    }
+
     if (!selectedZone) {
       toast({
         variant: "destructive",
         title: "Zone requise",
-        description: "Veuillez sélectionner une zone de traitement.",
+        description: "Veuillez selectionner une zone de traitement.",
       });
       return;
     }
@@ -94,7 +146,34 @@ export default function NewSessionPage({
       toast({
         variant: "destructive",
         title: "Laser requis",
-        description: "Veuillez sélectionner un type de laser.",
+        description: "Veuillez selectionner un type de laser.",
+      });
+      return;
+    }
+
+    if (!spotSize) {
+      toast({
+        variant: "destructive",
+        title: "Spot requis",
+        description: "Veuillez selectionner une taille de spot.",
+      });
+      return;
+    }
+
+    if (!fluence) {
+      toast({
+        variant: "destructive",
+        title: "Fluence requise",
+        description: "Veuillez saisir la fluence.",
+      });
+      return;
+    }
+
+    if (!pulseDuration) {
+      toast({
+        variant: "destructive",
+        title: "Temps requis",
+        description: "Veuillez selectionner le temps MS.",
       });
       return;
     }
@@ -103,7 +182,19 @@ export default function NewSessionPage({
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Vous devez être connecté pour démarrer une séance.",
+        description: "Vous devez etre connecte pour demarrer une seance.",
+      });
+      return;
+    }
+
+    // Check for blocking errors (contraindications, ineligible zones)
+    const hasBlockingErrors = zoneAlerts.some((a) => a.severity === "error");
+    if (hasBlockingErrors) {
+      toast({
+        variant: "destructive",
+        title: "Impossible de demarrer",
+        description:
+          "Cette zone a des alertes bloquantes. Consultez les alertes ci-dessus.",
       });
       return;
     }
@@ -113,7 +204,7 @@ export default function NewSessionPage({
       toast({
         variant: "destructive",
         title: "Praticien requis",
-        description: "Veuillez sélectionner un praticien pour cette séance.",
+        description: "Veuillez selectionner un praticien pour cette seance.",
       });
       return;
     }
@@ -123,7 +214,9 @@ export default function NewSessionPage({
     let praticienName = `${user.prenom} ${user.nom}`;
 
     if (isAdmin && selectedPraticien) {
-      const selectedUser = practitioners.find((p: any) => p.id === selectedPraticien);
+      const selectedUser = practitioners.find(
+        (p: any) => p.id === selectedPraticien
+      );
       if (selectedUser) {
         praticienId = selectedUser.id;
         praticienName = `${selectedUser.prenom} ${selectedUser.nom}`;
@@ -135,30 +228,28 @@ export default function NewSessionPage({
     if (existingSession) {
       toast({
         variant: "destructive",
-        title: "Séance en cours",
-        description: `${praticienName} a déjà une séance en cours.`,
+        title: "Seance en cours",
+        description: `${praticienName} a deja une seance en cours.`,
       });
       return;
     }
 
     haptics.heavy();
 
-    // Start session in store with practitioner info
-    startSession(
-      praticienId,
-      praticienName,
-      {
-        patientId: id,
-        patientName: `${patient.prenom} ${patient.nom}`,
-        patientZoneId: selectedZone.id,
-        zoneName: selectedZone.zone_nom,
-        sessionNumber: selectedZone.seances_effectuees + 1,
-        totalSessions: selectedZone.seances_prevues,
-        typeLaser,
-        fluence: fluence || undefined,
-        spotSize: spotSize || undefined,
-      }
-    );
+    // Start session in store with Optiskin parameters
+    startSession(praticienId, praticienName, {
+      patientId: id,
+      patientName: `${patient.prenom} ${patient.nom}`,
+      patientZoneId: selectedZone.id,
+      zoneName: selectedZone.zone_nom,
+      sessionNumber: selectedZone.seances_effectuees + 1,
+      totalSessions: selectedZone.seances_prevues,
+      typeLaser,
+      spotSize: spotSize?.toString(),
+      fluence,
+      pulseDurationMs: pulseDuration?.toString(),
+      frequencyHz: frequencyHz || undefined,
+    });
 
     // Navigate to active session
     router.push("/seance-active");
@@ -166,213 +257,362 @@ export default function NewSessionPage({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <div className="sticky top-0 z-40 bg-background border-b px-4 py-3 safe-area-top">
-          <div className="flex items-center gap-3 max-w-lg mx-auto">
-            <div className="h-10 w-10 skeleton rounded-xl" />
-            <div className="h-6 w-32 skeleton" />
-          </div>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 skeleton rounded-xl" />
+          <div className="h-6 w-32 skeleton" />
         </div>
-        <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
-          <div className="h-32 skeleton rounded-2xl" />
-          <div className="h-24 skeleton rounded-2xl" />
-          <div className="h-24 skeleton rounded-2xl" />
-        </div>
+        <div className="h-32 skeleton rounded-2xl" />
+        <div className="h-24 skeleton rounded-2xl" />
+        <div className="h-24 skeleton rounded-2xl" />
       </div>
     );
   }
 
   if (!patient) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <p className="text-lg font-medium">Patient non trouvé</p>
-        <Button asChild className="mt-4">
-          <Link href="/patients">Retour à la liste</Link>
-        </Button>
+      <div className="space-y-4 sm:space-y-6">
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-lg font-medium">Patient non trouve</p>
+            <Button asChild className="mt-4">
+              <Link href="/patients">Retour a la liste</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  const activeZones = patient.zones?.filter(
-    (z: any) => z.seances_restantes > 0
-  ) || [];
+  const activeZones =
+    patient.zones?.filter((z: any) => z.seances_restantes > 0) || [];
+
+  // Check if patient has pre-consultation
+  const hasNoPreConsultation = alertsData?.alerts?.some(
+    (a: ZoneAlert) => a.type === "no_pre_consultation" || a.type === "pre_consultation_pending"
+  );
+
+  // Check if patient has global contraindications
+  const globalAlerts =
+    alertsData?.alerts?.filter(
+      (a: ZoneAlert) => a.type === "contraindication"
+    ) || [];
+  const hasErrors = alertsData?.has_errors || false;
 
   return (
-    <div className="min-h-screen flex flex-col pb-32">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b px-4 py-3 safe-area-top">
-        <div className="flex items-center gap-3 max-w-lg mx-auto">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={`/patients/${id}`}>
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <div>
-            <span className="font-semibold">Nouvelle séance</span>
-            <p className="text-sm text-muted-foreground">
-              {patient.prenom} {patient.nom}
-            </p>
-          </div>
+      <div className="flex items-center gap-3">
+        <Button asChild variant="ghost" size="icon-sm">
+          <Link href={`/patients/${id}`}>
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="heading-2">Nouvelle seance</h1>
+          <p className="text-sm text-muted-foreground">
+            {patient.prenom} {patient.nom}
+          </p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
-        {/* Zone Selection */}
+      {/* Pre-consultation Required Banner */}
+      {hasNoPreConsultation && (
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
+          <div className="flex items-start gap-3">
+            <XCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-destructive">
+                Pre-consultation requise
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Ce patient n'a pas de pre-consultation validee. Les seances ne peuvent pas etre demarrees sans pre-consultation prealable par le medecin.
+              </p>
+              <Button asChild variant="outline" size="sm" className="mt-3">
+                <Link href="/pre-consultations/nouveau">
+                  Creer une pre-consultation
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contraindication Alerts Banner */}
+      {!hasNoPreConsultation && globalAlerts.length > 0 && (
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-destructive">
+                Contre-indications detectees
+              </p>
+              <ul className="mt-1 space-y-1">
+                {globalAlerts.map((alert: ZoneAlert, i: number) => (
+                  <li key={i} className="text-sm text-muted-foreground">
+                    {alert.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zone Selection */}
+      <div>
+        <h2 className="font-semibold mb-3 flex items-center gap-2">
+          <Zap className="h-5 w-5 text-primary" />
+          Zone de traitement
+        </h2>
+        {activeZones.length > 0 ? (
+          <div className="space-y-2">
+            {activeZones.map((zone: any) => {
+              const zoneSpecificAlerts =
+                alertsData?.alerts?.filter(
+                  (a: ZoneAlert) => a.zone_id === zone.zone_definition_id
+                ) || [];
+              const hasZoneError = zoneSpecificAlerts.some(
+                (a: ZoneAlert) => a.severity === "error"
+              );
+              const hasZoneWarning = zoneSpecificAlerts.some(
+                (a: ZoneAlert) => a.severity === "warning"
+              );
+
+              return (
+                <div key={zone.id} className="relative">
+                  <ZoneCard
+                    zone={zone}
+                    selected={selectedZone?.id === zone.id}
+                    onSelect={() => handleZoneSelect(zone)}
+                  />
+                  {(hasZoneError || hasZoneWarning) && (
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      {hasZoneError && (
+                        <div className="p-1 bg-destructive rounded-full">
+                          <XCircle className="h-4 w-4 text-white" />
+                        </div>
+                      )}
+                      {hasZoneWarning && !hasZoneError && (
+                        <div className="p-1 bg-yellow-500 rounded-full">
+                          <AlertTriangle className="h-4 w-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <Zap className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="font-medium">Aucune zone disponible</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Toutes les zones sont terminees ou aucune zone configuree
+              </p>
+              <div className="mt-4">
+                <AddZoneDialog
+                  patientId={id}
+                  existingZones={
+                    patient.zones?.map((z: any) => ({
+                      zone_definition_id: z.zone_definition_id,
+                    })) || []
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Zone-specific Alerts */}
+      {zoneAlerts.length > 0 && (
+        <div className="space-y-2">
+          {zoneAlerts.map((alert, i) => (
+            <div
+              key={i}
+              className={cn(
+                "p-3 rounded-xl flex items-start gap-3",
+                alert.severity === "error"
+                  ? "bg-destructive/10 border border-destructive/30"
+                  : "bg-yellow-500/10 border border-yellow-500/30"
+              )}
+            >
+              {alert.severity === "error" ? (
+                <XCircle className="h-5 w-5 text-destructive shrink-0" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0" />
+              )}
+              <div>
+                <p
+                  className={cn(
+                    "font-medium text-sm",
+                    alert.severity === "error"
+                      ? "text-destructive"
+                      : "text-yellow-700"
+                  )}
+                >
+                  {alert.message}
+                </p>
+                {alert.type === "spacing" && alert.details?.days_since && (
+                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {alert.details.days_since} jours depuis la derniere seance
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Practitioner Selection (Admin only) */}
+      {isAdmin && (
         <div>
           <h2 className="font-semibold mb-3 flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Zone de traitement
+            <User className="h-5 w-5 text-primary" />
+            Praticien
           </h2>
-          {activeZones.length > 0 ? (
-            <div className="space-y-2">
-              {activeZones.map((zone: any) => (
-                <ZoneCard
-                  key={zone.id}
-                  zone={zone}
-                  selected={selectedZone?.id === zone.id}
-                  onSelect={() => handleZoneSelect(zone)}
-                />
+          <Select
+            value={selectedPraticien}
+            onValueChange={setSelectedPraticien}
+          >
+            <SelectTrigger className="h-14 text-base">
+              <SelectValue placeholder="Selectionner un praticien" />
+            </SelectTrigger>
+            <SelectContent>
+              {practitioners.map((p: any) => (
+                <SelectItem key={p.id} value={p.id} className="py-3">
+                  {p.prenom} {p.nom}
+                  {getSession(p.id) && (
+                    <span className="ml-2 text-xs text-yellow-600">
+                      (seance en cours)
+                    </span>
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Laser Type */}
+      <div>
+        <h2 className="font-semibold mb-3">Type de laser *</h2>
+        <ButtonGroup
+          options={LASER_TYPES}
+          value={typeLaser}
+          onChange={(v) => {
+            haptics.selection();
+            setTypeLaser(v);
+          }}
+          columns={2}
+          size="lg"
+        />
+      </div>
+
+      {/* Optiskin Parameters */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Settings2 className="h-4 w-4" />
+            Parametres Optiskin
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Spot Size */}
+          <div>
+            <Label className="text-sm font-medium">Spot *</Label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {SPOT_SIZES.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => {
+                    haptics.selection();
+                    setSpotSize(size);
+                  }}
+                  className={cn(
+                    "min-h-[48px] min-w-[48px] px-3 rounded-xl border-2 font-semibold transition-all active:scale-95",
+                    spotSize === size
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  {size}
+                </button>
               ))}
             </div>
-          ) : (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <Zap className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium">Aucune zone disponible</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Toutes les zones sont terminées ou aucune zone configurée
-                </p>
-                <div className="mt-4">
-                  <AddZoneDialog
-                    patientId={id}
-                    existingZones={patient.zones?.map((z: any) => ({ zone_definition_id: z.zone_definition_id })) || []}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Practitioner Selection (Admin only) */}
-        {isAdmin && (
-          <div>
-            <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              Praticien
-            </h2>
-            <Select value={selectedPraticien} onValueChange={setSelectedPraticien}>
-              <SelectTrigger className="h-14 text-base">
-                <SelectValue placeholder="Sélectionner un praticien" />
-              </SelectTrigger>
-              <SelectContent>
-                {practitioners.map((p: any) => (
-                  <SelectItem key={p.id} value={p.id} className="py-3">
-                    {p.prenom} {p.nom}
-                    {getSession(p.id) && (
-                      <span className="ml-2 text-xs text-yellow-600">(séance en cours)</span>
-                    )}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
-        )}
 
-        {/* Laser Type */}
-        <div>
-          <h2 className="font-semibold mb-3">Type de laser</h2>
-          <ButtonGroup
-            options={LASER_TYPES}
-            value={typeLaser}
-            onChange={(v) => {
-              haptics.selection();
-              setTypeLaser(v);
-            }}
-            columns={4}
-            size="lg"
-          />
-        </div>
+          {/* Fluence */}
+          <div>
+            <Label className="text-sm font-medium">Fluence (J/cm2) *</Label>
+            <Input
+              type="number"
+              value={fluence}
+              onChange={(e) => setFluence(e.target.value)}
+              placeholder="Ex: 25"
+              className="mt-2 h-12 text-lg"
+              min={0}
+              step={0.1}
+            />
+          </div>
 
-        {/* Quick Parameters */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Settings2 className="h-4 w-4" />
-              Paramètres rapides
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Fluence */}
-            <div>
-              <Label className="text-sm text-muted-foreground">Fluence (J/cm²)</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {FLUENCE_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      haptics.selection();
-                      setFluence(preset.toString());
-                    }}
-                    className={`
-                      min-h-[48px] min-w-[48px] px-3 rounded-xl border-2 font-semibold transition-all active:scale-95
-                      ${fluence === preset.toString()
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border hover:border-primary/50"
-                      }
-                    `}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
+          {/* Pulse Duration */}
+          <div>
+            <Label className="text-sm font-medium">Temps MS *</Label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {PULSE_DURATIONS_MS.map((ms) => (
+                <button
+                  key={ms}
+                  type="button"
+                  onClick={() => {
+                    haptics.selection();
+                    setPulseDuration(ms);
+                  }}
+                  className={cn(
+                    "min-h-[48px] min-w-[48px] px-3 rounded-xl border-2 font-semibold transition-all active:scale-95",
+                    pulseDuration === ms
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  {ms}
+                </button>
+              ))}
             </div>
+          </div>
 
-            {/* Spot Size */}
-            <div>
-              <Label className="text-sm text-muted-foreground">Spot (mm)</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {SPOT_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      haptics.selection();
-                      setSpotSize(preset.toString());
-                    }}
-                    className={`
-                      min-h-[48px] min-w-[48px] px-3 rounded-xl border-2 font-semibold transition-all active:scale-95
-                      ${spotSize === preset.toString()
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border hover:border-primary/50"
-                      }
-                    `}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Frequency */}
+          <div>
+            <Label className="text-sm font-medium">Frequence Hz</Label>
+            <Input
+              type="number"
+              value={frequencyHz}
+              onChange={(e) => setFrequencyHz(e.target.value)}
+              placeholder="Ex: 10"
+              className="mt-2 h-12 text-lg"
+              min={0}
+              step={0.1}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Bottom Action - THUMB ZONE */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t p-4 safe-area-bottom">
-        <div className="max-w-lg mx-auto">
-          <Button
-            size="lg"
-            className="w-full h-16 text-lg font-semibold rounded-2xl"
-            onClick={handleStartSession}
-            disabled={activeZones.length === 0}
-          >
-            <Zap className="h-6 w-6 mr-3" />
-            Démarrer la séance
-            <ChevronRight className="h-5 w-5 ml-2" />
-          </Button>
-        </div>
-      </div>
+      {/* Action Button */}
+      <Button
+        size="lg"
+        className="w-full h-14 text-lg font-semibold"
+        onClick={handleStartSession}
+        disabled={activeZones.length === 0 || hasErrors || hasNoPreConsultation}
+      >
+        <Zap className="h-6 w-6 mr-2" />
+        Demarrer la seance
+        <ChevronRight className="h-5 w-5 ml-2" />
+      </Button>
     </div>
   );
 }

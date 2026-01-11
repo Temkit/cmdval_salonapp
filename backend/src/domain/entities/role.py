@@ -25,6 +25,11 @@ class Permission(str, Enum):
     SESSIONS_VIEW = "sessions.view"
     SESSIONS_CREATE = "sessions.create"
 
+    # Pre-consultations
+    PRE_CONSULTATIONS_VIEW = "pre_consultations.view"
+    PRE_CONSULTATIONS_CREATE = "pre_consultations.create"
+    PRE_CONSULTATIONS_VALIDATE = "pre_consultations.validate"
+
     # Users
     USERS_VIEW = "users.view"
     USERS_MANAGE = "users.manage"
@@ -53,6 +58,8 @@ DEFAULT_SECRETAIRE_PERMISSIONS = [
     Permission.PATIENTS_QUESTIONNAIRE_EDIT.value,
     Permission.ZONES_VIEW.value,
     Permission.SESSIONS_VIEW.value,
+    Permission.PRE_CONSULTATIONS_VIEW.value,
+    Permission.PRE_CONSULTATIONS_CREATE.value,
     Permission.DASHBOARD_VIEW.value,
 ]
 
@@ -62,6 +69,9 @@ DEFAULT_PRATICIEN_PERMISSIONS = [
     Permission.ZONES_VIEW.value,
     Permission.SESSIONS_VIEW.value,
     Permission.SESSIONS_CREATE.value,
+    Permission.PRE_CONSULTATIONS_VIEW.value,
+    Permission.PRE_CONSULTATIONS_CREATE.value,
+    Permission.PRE_CONSULTATIONS_VALIDATE.value,
     Permission.DASHBOARD_VIEW.value,
 ]
 
@@ -76,6 +86,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PATIENTS_QUESTIONNAIRE_EDIT,
         Permission.ZONES_VIEW,
         Permission.SESSIONS_VIEW,
+        Permission.PRE_CONSULTATIONS_VIEW,
+        Permission.PRE_CONSULTATIONS_CREATE,
         Permission.DASHBOARD_VIEW,
     ],
     "Praticien": [
@@ -84,6 +96,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.ZONES_VIEW,
         Permission.SESSIONS_VIEW,
         Permission.SESSIONS_CREATE,
+        Permission.PRE_CONSULTATIONS_VIEW,
+        Permission.PRE_CONSULTATIONS_CREATE,
+        Permission.PRE_CONSULTATIONS_VALIDATE,
         Permission.DASHBOARD_VIEW,
     ],
 }

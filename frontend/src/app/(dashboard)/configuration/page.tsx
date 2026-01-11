@@ -40,9 +40,9 @@ export default function ConfigurationPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="heading-1">Configuration</h1>
-        <p className="text-secondary mt-1">
-          Paramètres et configuration du système
+        <h1 className="heading-2">Configuration</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Parametres et configuration du systeme
         </p>
       </div>
 

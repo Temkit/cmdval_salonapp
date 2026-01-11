@@ -114,9 +114,7 @@ class PatientModel(Base):
     sessions: Mapped[list["SessionModel"]] = relationship(
         back_populates="patient", cascade="all, delete-orphan"
     )
-    questionnaire_responses: Mapped[list["QuestionResponseModel"]] = relationship(
-        back_populates="patient", cascade="all, delete-orphan"
-    )
+    # Note: questionnaire_responses moved to PreConsultation
 
 
 class ZoneDefinitionModel(Base):
@@ -208,19 +206,19 @@ class QuestionModel(Base):
 
 
 class QuestionResponseModel(Base):
-    """Patient responses to questionnaire questions."""
+    """Pre-consultation responses to questionnaire questions."""
 
     __tablename__ = "question_responses"
     __table_args__ = (
-        UniqueConstraint("patient_id", "question_id", name="uq_patient_question"),
+        UniqueConstraint("pre_consultation_id", "question_id", name="uq_preconsult_question"),
     )
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid4())
     )
-    patient_id: Mapped[str] = mapped_column(
+    pre_consultation_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("patients.id", ondelete="CASCADE"),
+        ForeignKey("pre_consultations.id", ondelete="CASCADE"),
         nullable=False,
     )
     question_id: Mapped[str] = mapped_column(
@@ -235,7 +233,7 @@ class QuestionResponseModel(Base):
     )
 
     # Relationships
-    patient: Mapped["PatientModel"] = relationship(
+    pre_consultation: Mapped["PreConsultationModel"] = relationship(
         back_populates="questionnaire_responses"
     )
     question: Mapped["QuestionModel"] = relationship()
@@ -301,3 +299,172 @@ class SessionPhotoModel(Base):
 
     # Relationships
     session: Mapped["SessionModel"] = relationship(back_populates="photos")
+
+
+class PreConsultationModel(Base):
+    """Pre-consultation for eligibility assessment (medical evaluation only)."""
+
+    __tablename__ = "pre_consultations"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    patient_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("patients.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Demographics (medical evaluation - no personal identification info)
+    sexe: Mapped[str] = mapped_column(String(1), nullable=False)
+    age: Mapped[int] = mapped_column(Integer, nullable=False)
+    statut_marital: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    # Contraindications
+    is_pregnant: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_breastfeeding: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    pregnancy_planning: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Previous laser history
+    has_previous_laser: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    previous_laser_clarity_ii: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    previous_laser_sessions: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    previous_laser_brand: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Hair removal methods (JSON array)
+    hair_removal_methods: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+
+    # Medical history
+    medical_history: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    dermatological_conditions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    has_current_treatments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    current_treatments_details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Peeling
+    recent_peeling: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    recent_peeling_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
+    # Phototype
+    phototype: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+
+    # Notes
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Workflow status: draft, pending_validation, validated, patient_created, rejected
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
+
+    # Audit
+    created_by: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
+    validated_by: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
+    validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    zones: Mapped[list["PreConsultationZoneModel"]] = relationship(
+        back_populates="pre_consultation", cascade="all, delete-orphan"
+    )
+    questionnaire_responses: Mapped[list["QuestionResponseModel"]] = relationship(
+        back_populates="pre_consultation", cascade="all, delete-orphan"
+    )
+    patient: Mapped[Optional["PatientModel"]] = relationship()
+    creator: Mapped[Optional["UserModel"]] = relationship(foreign_keys=[created_by])
+    validator: Mapped[Optional["UserModel"]] = relationship(foreign_keys=[validated_by])
+
+    @property
+    def has_contraindications(self) -> bool:
+        """Check if patient has any contraindications."""
+        return self.is_pregnant or self.is_breastfeeding or self.pregnancy_planning
+
+
+class PreConsultationZoneModel(Base):
+    """Zone eligibility for pre-consultation."""
+
+    __tablename__ = "pre_consultation_zones"
+    __table_args__ = (
+        UniqueConstraint(
+            "pre_consultation_id", "zone_id", name="uq_pre_consultation_zone"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    pre_consultation_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("pre_consultations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    zone_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("zone_definitions.id"), nullable=False
+    )
+    is_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    observations: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    pre_consultation: Mapped["PreConsultationModel"] = relationship(back_populates="zones")
+    zone: Mapped["ZoneDefinitionModel"] = relationship()
+
+
+class SessionSideEffectModel(Base):
+    """Side effects recorded during sessions."""
+
+    __tablename__ = "session_side_effects"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    session_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    # Relationships
+    session: Mapped["SessionModel"] = relationship()
+    photos: Mapped[list["SideEffectPhotoModel"]] = relationship(
+        back_populates="side_effect", cascade="all, delete-orphan"
+    )
+
+
+class SideEffectPhotoModel(Base):
+    """Photos attached to side effects."""
+
+    __tablename__ = "side_effect_photos"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    side_effect_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("session_side_effects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    filepath: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    # Relationships
+    side_effect: Mapped["SessionSideEffectModel"] = relationship(back_populates="photos")

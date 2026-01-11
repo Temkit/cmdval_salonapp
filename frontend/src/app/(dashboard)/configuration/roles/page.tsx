@@ -169,25 +169,23 @@ export default function RolesConfigPage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <Button asChild variant="ghost" size="icon-sm">
           <Link href="/configuration">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div>
-            <h1 className="heading-1">Rôles</h1>
-            <p className="text-secondary">
-              Configurer les rôles et permissions
-            </p>
-          </div>
+        </Button>
+        <div className="flex-1">
+          <h1 className="heading-2">Roles</h1>
+          <p className="text-sm text-muted-foreground">
+            Configurer les roles et permissions
+          </p>
         </div>
         <Button onClick={handleOpenCreate}>
           <Plus className="h-4 w-4 mr-2" />
-          Nouveau rôle
+          Nouveau role
         </Button>
       </div>
 
@@ -200,10 +198,10 @@ export default function RolesConfigPage() {
           {isLoading ? (
             <div className="space-y-3" aria-busy="true" aria-label="Chargement des rôles">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="p-4 border rounded-lg space-y-3">
+                <div key={i} className="p-4 border rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full skeleton" />
+                      <div className="h-10 w-10 rounded-xl skeleton" />
                       <div className="space-y-2">
                         <div className="h-5 w-28 skeleton rounded" />
                         <div className="h-4 w-40 skeleton rounded" />
@@ -227,11 +225,11 @@ export default function RolesConfigPage() {
               {roles.roles.map((role: any) => (
                 <div
                   key={role.id}
-                  className="p-4 border rounded-lg space-y-3"
+                  className="p-4 border rounded-xl space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                         <Shield className="h-5 w-5 text-primary" />
                       </div>
                       <div>

@@ -12,12 +12,14 @@ import {
   User,
   Target,
   Users,
+  AlertTriangle,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { useSessionStore } from "@/stores/session-store";
+import { useSessionStore, SideEffect } from "@/stores/session-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +39,7 @@ export default function SeanceActivePage() {
   const getAllSessions = useSessionStore((s) => s.getAllSessions);
   const togglePause = useSessionStore((s) => s.togglePause);
   const addPhoto = useSessionStore((s) => s.addPhoto);
+  const addSideEffect = useSessionStore((s) => s.addSideEffect);
   const endSession = useSessionStore((s) => s.endSession);
   const getElapsedSeconds = useSessionStore((s) => s.getElapsedSeconds);
 
@@ -57,6 +60,11 @@ export default function SeanceActivePage() {
   const [endNotes, setEndNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [sideEffectCameraOpen, setSideEffectCameraOpen] = useState(false);
+  const [showSideEffectForm, setShowSideEffectForm] = useState(false);
+  const [sideEffectDescription, setSideEffectDescription] = useState("");
+  const [sideEffectSeverity, setSideEffectSeverity] = useState<"mild" | "moderate" | "severe">("mild");
+  const [sideEffectPhotos, setSideEffectPhotos] = useState<string[]>([]);
 
   // State for admin viewing another practitioner's session
   const [selectedPraticienId, setSelectedPraticienId] = useState<string | null>(null);
@@ -156,8 +164,46 @@ export default function SeanceActivePage() {
     if (!targetPraticienId) return;
     addPhoto(targetPraticienId, imageData);
     toast({
-      title: "Photo ajoutée",
-      description: "La photo a été enregistrée.",
+      title: "Photo ajoutee",
+      description: "La photo a ete enregistree.",
+    });
+  };
+
+  // Handle side effect photo capture
+  const handleSideEffectPhotoCapture = (imageData: string) => {
+    setSideEffectPhotos((prev) => [...prev, imageData]);
+    toast({
+      title: "Photo effet secondaire ajoutee",
+    });
+  };
+
+  // Handle adding side effect
+  const handleAddSideEffect = () => {
+    const targetPraticienId = activeSession ? user?.id : selectedPraticienId;
+    if (!targetPraticienId || !sideEffectDescription.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Description requise",
+        description: "Veuillez decrire l'effet secondaire.",
+      });
+      return;
+    }
+
+    addSideEffect(targetPraticienId, {
+      description: sideEffectDescription,
+      severity: sideEffectSeverity,
+      photos: sideEffectPhotos,
+    });
+
+    // Reset form
+    setSideEffectDescription("");
+    setSideEffectSeverity("mild");
+    setSideEffectPhotos([]);
+    setShowSideEffectForm(false);
+
+    toast({
+      title: "Effet secondaire enregistre",
+      description: "L'effet secondaire a ete ajoute a la seance.",
     });
   };
 
@@ -244,9 +290,14 @@ export default function SeanceActivePage() {
   // Show loading while hydrating from localStorage
   if (!hasHydrated) {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-6">
-        <div className="w-16 h-16 rounded-full bg-muted animate-pulse mb-4" />
-        <p className="text-muted-foreground">Chargement...</p>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="h-8 w-48 skeleton rounded" />
+        <Card>
+          <CardContent className="p-6">
+            <div className="h-16 w-32 skeleton rounded mx-auto mb-4" />
+            <div className="h-4 w-24 skeleton rounded mx-auto" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -260,10 +311,9 @@ export default function SeanceActivePage() {
     const sessionsToShow = isAdmin ? allSessions : [];
 
     return (
-      <div className="h-full flex flex-col p-6">
-        <div className="max-w-lg mx-auto w-full">
-          {/* Header */}
-          <h1 className="text-2xl font-bold mb-6">Séances en cours</h1>
+      <div className="space-y-4 sm:space-y-6">
+        {/* Header */}
+        <h1 className="heading-2">Seances en cours</h1>
 
           {sessionsToShow.length > 0 ? (
             <div className="space-y-3">
@@ -313,29 +363,28 @@ export default function SeanceActivePage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-                <Clock className="h-10 w-10 text-muted-foreground" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Aucune séance active</h2>
-              <p className="text-muted-foreground mb-8">
-                Sélectionnez un patient et démarrez une séance.
-              </p>
-            </div>
+            <Card>
+              <CardContent className="py-12 text-center">
+                <div className="h-16 w-16 rounded-xl bg-muted flex items-center justify-center mb-4 mx-auto">
+                  <Clock className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-lg font-medium mb-1">Aucune seance active</p>
+                <p className="text-sm text-muted-foreground">
+                  Selectionnez un patient et demarrez une seance.
+                </p>
+              </CardContent>
+            </Card>
           )}
 
           {/* Action button */}
-          <div className="mt-8">
-            <Button
-              size="lg"
-              className="w-full h-14 text-lg"
-              onClick={() => router.push("/patients")}
-            >
-              <User className="h-5 w-5 mr-2" />
-              Démarrer une séance
-            </Button>
-          </div>
-        </div>
+          <Button
+            size="lg"
+            className="w-full h-14 text-lg"
+            onClick={() => router.push("/patients")}
+          >
+            <User className="h-5 w-5 mr-2" />
+            Demarrer une seance
+          </Button>
       </div>
     );
   }
@@ -343,7 +392,7 @@ export default function SeanceActivePage() {
   // End confirmation view
   if (showEndConfirm) {
     return (
-      <div className="h-full flex flex-col">
+      <div className="space-y-4 sm:space-y-6">
         {/* Camera capture dialog */}
         <CameraCapture
           open={cameraOpen}
@@ -352,12 +401,10 @@ export default function SeanceActivePage() {
         />
 
         {/* Header */}
-        <div className="p-4 border-b safe-area-top">
-          <h1 className="text-xl font-bold text-center">Terminer la séance</h1>
-        </div>
+        <h1 className="heading-2">Terminer la seance</h1>
 
         {/* Content */}
-        <div className="flex-1 p-4 max-w-lg mx-auto w-full overflow-y-auto">
+        <div className="space-y-4">
           {/* Summary */}
           <Card className="mb-4">
             <CardContent className="p-4">
@@ -399,7 +446,7 @@ export default function SeanceActivePage() {
                 {displaySession.photos.map((photo, index) => (
                   <div
                     key={index}
-                    className="aspect-square rounded-lg overflow-hidden bg-muted relative group"
+                    className="aspect-square rounded-xl overflow-hidden bg-muted relative group"
                   >
                     <img
                       src={photo}
@@ -434,24 +481,22 @@ export default function SeanceActivePage() {
         </div>
 
         {/* Bottom Actions */}
-        <div className="p-4 border-t safe-area-bottom">
-          <div className="flex gap-3 max-w-lg mx-auto">
-            <Button
-              variant="outline"
-              className="flex-1 h-14"
-              onClick={() => setShowEndConfirm(false)}
-              disabled={isSaving}
-            >
-              Continuer
-            </Button>
-            <Button
-              className="flex-1 h-14"
-              onClick={handleConfirmEnd}
-              disabled={isSaving}
-            >
-              {isSaving ? "Enregistrement..." : "Enregistrer"}
-            </Button>
-          </div>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            className="flex-1 h-14"
+            onClick={() => setShowEndConfirm(false)}
+            disabled={isSaving}
+          >
+            Continuer
+          </Button>
+          <Button
+            className="flex-1 h-14"
+            onClick={handleConfirmEnd}
+            disabled={isSaving}
+          >
+            {isSaving ? "Enregistrement..." : "Enregistrer"}
+          </Button>
         </div>
       </div>
     );
@@ -459,7 +504,7 @@ export default function SeanceActivePage() {
 
   // Active session view (own or selected)
   return (
-    <div className="h-full flex flex-col">
+    <div className="space-y-4 sm:space-y-6">
       {/* Camera capture dialog */}
       <CameraCapture
         open={cameraOpen}
@@ -468,7 +513,7 @@ export default function SeanceActivePage() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b safe-area-top">
+      <div className="flex items-center justify-between">
         {/* Back button - only for selected session (admin viewing another's) */}
         {selectedPraticienId ? (
           <Button
@@ -479,12 +524,12 @@ export default function SeanceActivePage() {
             ← Retour
           </Button>
         ) : (
-          <div />
+          <h1 className="heading-2">Seance active</h1>
         )}
 
         <span
           className={cn(
-            "px-4 py-2 rounded-full text-sm font-semibold",
+            "px-4 py-2 rounded-xl text-sm font-semibold",
             displaySession.isPaused
               ? "bg-yellow-500/20 text-yellow-600"
               : "bg-green-500/20 text-green-600"
@@ -494,142 +539,314 @@ export default function SeanceActivePage() {
         </span>
 
         {/* Show practitioner name if viewing another's session */}
-        {selectedPraticienId ? (
+        {selectedPraticienId && (
           <span className="text-sm text-muted-foreground">
             {displaySession.praticienName}
           </span>
-        ) : (
-          <div />
         )}
       </div>
 
-      {/* Main Content - Glanceable */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6">
-        {/* Timer - Large and readable from distance */}
-        <div
-          className={cn(
-            "text-7xl sm:text-8xl font-mono font-bold mb-8 transition-colors",
-            displaySession.isPaused ? "text-yellow-500" : "text-foreground"
-          )}
-        >
-          {formatTime(displaySeconds)}
-        </div>
-
-        {/* Patient & Zone Info */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2">{displaySession.patientName}</h1>
-          <div className="flex items-center justify-center gap-2 text-lg text-muted-foreground">
-            <Target className="h-5 w-5" />
-            <span>{displaySession.zoneName}</span>
-            <span className="text-primary font-semibold">
-              ({displaySession.sessionNumber}/{displaySession.totalSessions})
-            </span>
+      {/* Timer Card */}
+      <Card>
+        <CardContent className="p-6">
+          {/* Timer - Large and readable from distance */}
+          <div
+            className={cn(
+              "text-6xl sm:text-7xl font-mono font-bold mb-4 transition-colors text-center",
+              displaySession.isPaused ? "text-yellow-500" : "text-foreground"
+            )}
+          >
+            {formatTime(displaySeconds)}
           </div>
-        </div>
 
-        {/* Parameters Card */}
-        <Card className="w-full max-w-sm mb-8">
+          {/* Patient & Zone Info */}
+          <div className="text-center">
+            <h2 className="text-xl sm:text-2xl font-bold mb-2">{displaySession.patientName}</h2>
+            <div className="flex items-center justify-center gap-2 text-lg text-muted-foreground">
+              <Target className="h-5 w-5" />
+              <span>{displaySession.zoneName}</span>
+              <span className="text-primary font-semibold">
+                ({displaySession.sessionNumber}/{displaySession.totalSessions})
+              </span>
+            </div>
+          </div>
+
+          {/* Pause/Resume Button */}
+          <div className="flex justify-center mt-6">
+            <Button
+              size="lg"
+              variant={displaySession.isPaused ? "default" : "outline"}
+              className="h-16 w-16 rounded-full"
+              onClick={handleTogglePause}
+            >
+              {displaySession.isPaused ? (
+                <Play className="h-8 w-8" />
+              ) : (
+                <Pause className="h-8 w-8" />
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Optiskin Parameters Card */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div className="p-2 bg-muted/50 rounded-xl">
+              <p className="text-xs text-muted-foreground">Laser</p>
+              <p className="font-semibold">{displaySession.typeLaser}</p>
+            </div>
+            <div className="p-2 bg-muted/50 rounded-xl">
+              <p className="text-xs text-muted-foreground">Spot</p>
+              <p className="font-semibold">{displaySession.spotSize || "-"}</p>
+            </div>
+            <div className="p-2 bg-muted/50 rounded-xl">
+              <p className="text-xs text-muted-foreground">Fluence J/cm2</p>
+              <p className="font-semibold">{displaySession.fluence || "-"}</p>
+            </div>
+            <div className="p-2 bg-muted/50 rounded-xl">
+              <p className="text-xs text-muted-foreground">Temps MS</p>
+              <p className="font-semibold">{displaySession.pulseDurationMs || "-"}</p>
+            </div>
+            {displaySession.frequencyHz && (
+              <div className="p-2 bg-muted/50 rounded-xl col-span-2 sm:col-span-4">
+                <p className="text-xs text-muted-foreground">Frequence Hz</p>
+                <p className="font-semibold">{displaySession.frequencyHz}</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Side Effects */}
+      {displaySession.sideEffects && displaySession.sideEffects.length > 0 && (
+        <Card>
           <CardContent className="p-4">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-sm text-muted-foreground">Laser</p>
-                <p className="font-semibold">{displaySession.typeLaser}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Fluence</p>
-                <p className="font-semibold">{displaySession.fluence || "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Spot</p>
-                <p className="font-semibold">{displaySession.spotSize || "-"}</p>
-              </div>
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <span className="text-sm font-medium">Effets secondaires ({displaySession.sideEffects.length})</span>
+            </div>
+            <div className="space-y-2">
+              {displaySession.sideEffects.map((effect, i) => (
+                <div key={i} className="p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm">
+                  <p className="font-medium">{effect.description}</p>
+                  {effect.severity && (
+                    <span className={cn(
+                      "text-xs px-2 py-0.5 rounded mt-1 inline-block",
+                      effect.severity === "severe" ? "bg-destructive/20 text-destructive" :
+                      effect.severity === "moderate" ? "bg-yellow-500/20 text-yellow-700" :
+                      "bg-green-500/20 text-green-700"
+                    )}>
+                      {effect.severity === "severe" ? "Severe" : effect.severity === "moderate" ? "Modere" : "Leger"}
+                    </span>
+                  )}
+                  {effect.photos.length > 0 && (
+                    <div className="flex gap-1 mt-2">
+                      {effect.photos.map((photo, j) => (
+                        <img key={j} src={photo} alt="" className="h-10 w-10 object-cover rounded-xl" />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-
-        {/* Pause/Resume Button */}
-        <Button
-          size="lg"
-          variant={displaySession.isPaused ? "default" : "outline"}
-          className="h-20 w-20 rounded-full"
-          onClick={handleTogglePause}
-        >
-          {displaySession.isPaused ? (
-            <Play className="h-10 w-10" />
-          ) : (
-            <Pause className="h-10 w-10" />
-          )}
-        </Button>
-      </div>
+      )}
 
       {/* Other Practitioners' Sessions - only show when viewing own session */}
       {!selectedPraticienId && otherSessions.length > 0 && (
-        <div className="px-4 pb-4">
-          <div className="max-w-lg mx-auto">
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-muted-foreground">
-                Autres séances en cours ({otherSessions.length})
+                Autres seances en cours ({otherSessions.length})
               </span>
             </div>
             <div className="space-y-2">
               {otherSessions.map((session) => (
-                <Card key={session.praticienId} className="overflow-hidden">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full shrink-0",
-                        session.isPaused ? "bg-yellow-500" : "bg-green-500 animate-pulse"
-                      )} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{session.patientName}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {session.zoneName} • {session.praticienName}
-                        </p>
-                      </div>
-                      <span className={cn(
-                        "font-mono text-sm font-semibold tabular-nums shrink-0",
-                        session.isPaused ? "text-yellow-600" : "text-green-600"
-                      )}>
-                        {formatTime(otherSessionsTimes[session.praticienId] || 0)}
-                      </span>
+                <div key={session.praticienId} className="p-3 border rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-2 h-2 rounded-full shrink-0",
+                      session.isPaused ? "bg-yellow-500" : "bg-green-500 animate-pulse"
+                    )} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{session.patientName}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {session.zoneName} • {session.praticienName}
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
+                    <span className={cn(
+                      "font-mono text-sm font-semibold tabular-nums shrink-0",
+                      session.isPaused ? "text-yellow-600" : "text-green-600"
+                    )}>
+                      {formatTime(otherSessionsTimes[session.praticienId] || 0)}
+                    </span>
+                  </div>
+                </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Side Effect Form Modal */}
+      {showSideEffectForm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+          <div className="bg-background w-full rounded-t-2xl p-4 safe-area-bottom max-h-[80vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Ajouter un effet secondaire
+            </h2>
+
+              {/* Description */}
+              <div className="mb-4">
+                <label className="text-sm font-medium mb-2 block">Description *</label>
+                <textarea
+                  value={sideEffectDescription}
+                  onChange={(e) => setSideEffectDescription(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border-2 border-border p-3 text-base resize-none focus:border-primary focus:outline-none"
+                  placeholder="Decrivez l'effet secondaire observe..."
+                />
+              </div>
+
+              {/* Severity */}
+              <div className="mb-4">
+                <label className="text-sm font-medium mb-2 block">Severite</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: "mild", label: "Leger", color: "bg-green-500/20 text-green-700 border-green-500/30" },
+                    { value: "moderate", label: "Modere", color: "bg-yellow-500/20 text-yellow-700 border-yellow-500/30" },
+                    { value: "severe", label: "Severe", color: "bg-destructive/20 text-destructive border-destructive/30" },
+                  ].map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setSideEffectSeverity(s.value as "mild" | "moderate" | "severe")}
+                      className={cn(
+                        "flex-1 py-2 px-3 rounded-lg border-2 font-medium transition-all",
+                        sideEffectSeverity === s.value ? s.color : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Photos */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Photos</label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSideEffectCameraOpen(true)}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Ajouter
+                  </Button>
+                </div>
+                {sideEffectPhotos.length > 0 ? (
+                  <div className="flex gap-2 flex-wrap">
+                    {sideEffectPhotos.map((photo, i) => (
+                      <div key={i} className="relative">
+                        <img src={photo} alt="" className="h-16 w-16 object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={() => setSideEffectPhotos((prev) => prev.filter((_, j) => j !== i))}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white rounded-full text-xs flex items-center justify-center"
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 border-2 border-dashed rounded-xl text-center text-muted-foreground">
+                    <Camera className="h-5 w-5 mx-auto mb-1 opacity-50" />
+                    <p className="text-sm">Aucune photo</p>
+                  </div>
+                )}
+              </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 h-12"
+                onClick={() => {
+                  setShowSideEffectForm(false);
+                  setSideEffectDescription("");
+                  setSideEffectPhotos([]);
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1 h-12"
+                onClick={handleAddSideEffect}
+                disabled={!sideEffectDescription.trim()}
+              >
+                Enregistrer
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Bottom Actions - THUMB ZONE */}
-      <div className="p-4 border-t safe-area-bottom">
-        <div className="flex gap-3 max-w-lg mx-auto">
-          {/* Photo */}
-          <Button
-            variant="outline"
-            className="flex-1 h-16 rounded-xl relative"
-            onClick={handleTakePhoto}
-          >
-            <Camera className="h-6 w-6 mr-2" />
-            Photo
-            {displaySession.photos.length > 0 && (
-              <span className="absolute -top-2 -right-2 w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs flex items-center justify-center font-semibold">
-                {displaySession.photos.length}
-              </span>
-            )}
-          </Button>
+      {/* Side Effect Camera Capture */}
+      <CameraCapture
+        open={sideEffectCameraOpen}
+        onOpenChange={setSideEffectCameraOpen}
+        onCapture={handleSideEffectPhotoCapture}
+      />
 
-          {/* End Session */}
-          <Button
-            variant="destructive"
-            className="flex-1 h-16 rounded-xl text-lg font-semibold"
-            onClick={handleEndClick}
-          >
-            <StopCircle className="h-6 w-6 mr-2" />
-            Terminer
-          </Button>
-        </div>
+      {/* Bottom Actions - THUMB ZONE */}
+      <div className="flex gap-2">
+        {/* Photo */}
+        <Button
+          variant="outline"
+          className="flex-1 h-14 rounded-xl relative"
+          onClick={handleTakePhoto}
+        >
+          <Camera className="h-5 w-5 mr-1" />
+          Photo
+          {displaySession.photos.length > 0 && (
+            <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-primary-foreground rounded-full text-xs flex items-center justify-center font-semibold">
+              {displaySession.photos.length}
+            </span>
+          )}
+        </Button>
+
+        {/* Side Effect */}
+        <Button
+          variant="outline"
+          className="flex-1 h-14 rounded-xl relative"
+          onClick={() => setShowSideEffectForm(true)}
+        >
+          <AlertTriangle className="h-5 w-5 mr-1" />
+          Effet
+          {displaySession.sideEffects && displaySession.sideEffects.length > 0 && (
+            <span className="absolute -top-2 -right-2 w-5 h-5 bg-yellow-500 text-white rounded-full text-xs flex items-center justify-center font-semibold">
+              {displaySession.sideEffects.length}
+            </span>
+          )}
+        </Button>
+
+        {/* End Session */}
+        <Button
+          variant="destructive"
+          className="flex-1 h-14 rounded-xl font-semibold"
+          onClick={handleEndClick}
+        >
+          <StopCircle className="h-5 w-5 mr-1" />
+          Terminer
+        </Button>
       </div>
     </div>
   );
