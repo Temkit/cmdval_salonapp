@@ -28,6 +28,7 @@ class Permission(str, Enum):
     # Pre-consultations
     PRE_CONSULTATIONS_VIEW = "pre_consultations.view"
     PRE_CONSULTATIONS_CREATE = "pre_consultations.create"
+    PRE_CONSULTATIONS_EDIT = "pre_consultations.edit"
     PRE_CONSULTATIONS_VALIDATE = "pre_consultations.validate"
 
     # Users
@@ -88,6 +89,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.SESSIONS_VIEW,
         Permission.PRE_CONSULTATIONS_VIEW,
         Permission.PRE_CONSULTATIONS_CREATE,
+        Permission.PRE_CONSULTATIONS_EDIT,
         Permission.DASHBOARD_VIEW,
     ],
     "Praticien": [
