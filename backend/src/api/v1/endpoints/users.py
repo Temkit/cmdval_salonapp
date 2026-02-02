@@ -68,7 +68,7 @@ async def create_user(
             created_at=user.created_at,
             updated_at=user.updated_at,
         )
-    except DuplicateUsernameError as e:
+    except DuplicateUsernameError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cet email est déjà utilisé",
@@ -141,7 +141,7 @@ async def update_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
-    except DuplicateUsernameError as e:
+    except DuplicateUsernameError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cet email est déjà utilisé",

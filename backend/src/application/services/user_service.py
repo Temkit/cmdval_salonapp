@@ -1,5 +1,9 @@
 """User service."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from src.domain.entities.user import User
 from src.domain.exceptions import (
     DuplicateUsernameError,
@@ -10,6 +14,9 @@ from src.domain.exceptions import (
 )
 from src.infrastructure.database.repositories import RoleRepository, UserRepository
 from src.infrastructure.security.password import hash_password
+
+if TYPE_CHECKING:
+    from src.domain.entities.role import Role
 
 
 class UserService:
@@ -123,7 +130,7 @@ class RoleService:
         self,
         nom: str,
         permissions: list[str],
-    ) -> "Role":
+    ) -> Role:
         """Create a new role."""
         from src.domain.entities.role import Role
 
@@ -140,14 +147,14 @@ class RoleService:
 
         return await self.role_repository.create(role)
 
-    async def get_role(self, role_id: str) -> "Role":
+    async def get_role(self, role_id: str) -> Role:
         """Get role by ID."""
         role = await self.role_repository.find_by_id(role_id)
         if not role:
             raise RoleNotFoundError(role_id)
         return role
 
-    async def get_all_roles(self) -> list["Role"]:
+    async def get_all_roles(self) -> list[Role]:
         """Get all roles."""
         return await self.role_repository.find_all()
 
@@ -156,7 +163,7 @@ class RoleService:
         role_id: str,
         nom: str | None = None,
         permissions: list[str] | None = None,
-    ) -> "Role":
+    ) -> Role:
         """Update role."""
         role = await self.role_repository.find_by_id(role_id)
         if not role:

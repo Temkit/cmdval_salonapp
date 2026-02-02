@@ -59,6 +59,10 @@ async def list_pre_consultations(
         items=[
             PreConsultationListResponse(
                 id=pc.id,
+                patient_id=pc.patient_id,
+                patient_nom=pc.patient_nom,
+                patient_prenom=pc.patient_prenom,
+                patient_code_carte=pc.patient_code_carte,
                 sexe=pc.sexe,
                 age=pc.age,
                 phototype=pc.phototype,
@@ -88,32 +92,39 @@ async def create_pre_consultation(
         PreConsultationService, Depends(get_pre_consultation_service)
     ],
 ):
-    """Create a new pre-consultation (medical evaluation only - no personal info)."""
-    pre_consultation = await pre_consultation_service.create(
-        sexe=request.sexe,
-        age=request.age,
-        created_by=current_user["id"],
-        statut_marital=request.statut_marital,
-        is_pregnant=request.is_pregnant,
-        is_breastfeeding=request.is_breastfeeding,
-        pregnancy_planning=request.pregnancy_planning,
-        has_previous_laser=request.has_previous_laser,
-        previous_laser_clarity_ii=request.previous_laser_clarity_ii,
-        previous_laser_sessions=request.previous_laser_sessions,
-        previous_laser_brand=request.previous_laser_brand,
-        hair_removal_methods=request.hair_removal_methods,
-        medical_history=request.medical_history,
-        dermatological_conditions=request.dermatological_conditions,
-        has_current_treatments=request.has_current_treatments,
-        current_treatments_details=request.current_treatments_details,
-        recent_peeling=request.recent_peeling,
-        recent_peeling_date=request.recent_peeling_date,
-        phototype=request.phototype,
-        notes=request.notes,
-        zones=[z.model_dump() for z in request.zones],
-    )
+    """Create a new pre-consultation for an existing patient."""
+    try:
+        pre_consultation = await pre_consultation_service.create(
+            patient_id=request.patient_id,
+            sexe=request.sexe,
+            age=request.age,
+            created_by=current_user["id"],
+            statut_marital=request.statut_marital,
+            is_pregnant=request.is_pregnant,
+            is_breastfeeding=request.is_breastfeeding,
+            pregnancy_planning=request.pregnancy_planning,
+            has_previous_laser=request.has_previous_laser,
+            previous_laser_clarity_ii=request.previous_laser_clarity_ii,
+            previous_laser_sessions=request.previous_laser_sessions,
+            previous_laser_brand=request.previous_laser_brand,
+            hair_removal_methods=request.hair_removal_methods,
+            medical_history=request.medical_history,
+            dermatological_conditions=request.dermatological_conditions,
+            has_current_treatments=request.has_current_treatments,
+            current_treatments_details=request.current_treatments_details,
+            recent_peeling=request.recent_peeling,
+            recent_peeling_date=request.recent_peeling_date,
+            phototype=request.phototype,
+            notes=request.notes,
+            zones=[z.model_dump() for z in request.zones],
+        )
 
-    return _to_response(pre_consultation)
+        return _to_response(pre_consultation)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 @router.get("/{pre_consultation_id}", response_model=PreConsultationResponse)
@@ -148,9 +159,7 @@ async def update_pre_consultation(
     try:
         # Filter out None values for partial update
         update_data = {k: v for k, v in request.model_dump().items() if v is not None}
-        pre_consultation = await pre_consultation_service.update(
-            pre_consultation_id, **update_data
-        )
+        pre_consultation = await pre_consultation_service.update(pre_consultation_id, **update_data)
         return _to_response(pre_consultation)
     except NotFoundError as e:
         raise HTTPException(
@@ -491,6 +500,10 @@ def _to_response(pre_consultation) -> PreConsultationResponse:
         notes=pre_consultation.notes,
         status=pre_consultation.status,
         patient_id=pre_consultation.patient_id,
+        patient_nom=pre_consultation.patient_nom,
+        patient_prenom=pre_consultation.patient_prenom,
+        patient_code_carte=pre_consultation.patient_code_carte,
+        patient_telephone=pre_consultation.patient_telephone,
         zones=[
             PreConsultationZoneResponse(
                 id=z.id,
@@ -516,7 +529,9 @@ def _to_response(pre_consultation) -> PreConsultationResponse:
 
 
 # Questionnaire endpoints
-@router.get("/{pre_consultation_id}/questionnaire", response_model=PreConsultationQuestionnaireResponse)
+@router.get(
+    "/{pre_consultation_id}/questionnaire", response_model=PreConsultationQuestionnaireResponse
+)
 async def get_pre_consultation_questionnaire(
     pre_consultation_id: str,
     _: Annotated[dict, Depends(require_permission("pre_consultations.view"))],
@@ -533,7 +548,9 @@ async def get_pre_consultation_questionnaire(
         )
 
 
-@router.put("/{pre_consultation_id}/questionnaire", response_model=PreConsultationQuestionnaireResponse)
+@router.put(
+    "/{pre_consultation_id}/questionnaire", response_model=PreConsultationQuestionnaireResponse
+)
 async def update_pre_consultation_questionnaire(
     pre_consultation_id: str,
     request: PreConsultationQuestionnaireUpdate,

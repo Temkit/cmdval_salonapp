@@ -6,17 +6,18 @@ Create Date: 2025-01-11 00:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = "003"
-down_revision: Union[str, None] = "002"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "002"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -54,7 +55,9 @@ def upgrade() -> None:
         sa.Column("hair_removal_methods", postgresql.JSONB, nullable=False, server_default="[]"),
         # Medical history
         sa.Column("medical_history", postgresql.JSONB, nullable=False, server_default="{}"),
-        sa.Column("dermatological_conditions", postgresql.JSONB, nullable=False, server_default="[]"),
+        sa.Column(
+            "dermatological_conditions", postgresql.JSONB, nullable=False, server_default="[]"
+        ),
         sa.Column("has_current_treatments", sa.Boolean, nullable=False, server_default="false"),
         sa.Column("current_treatments_details", sa.Text, nullable=True),
         # Peeling
@@ -129,9 +132,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint(
-            "pre_consultation_id", "zone_id", name="uq_pre_consultation_zone"
-        ),
+        sa.UniqueConstraint("pre_consultation_id", "zone_id", name="uq_pre_consultation_zone"),
     )
     op.create_index(
         "ix_pre_consultation_zones_pre_consultation_id",

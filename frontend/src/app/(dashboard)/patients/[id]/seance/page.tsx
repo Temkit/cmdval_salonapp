@@ -13,12 +13,12 @@ import {
   AlertTriangle,
   Clock,
   XCircle,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { ButtonGroup, ZoneCard } from "@/components/ui/button-group";
+import { ButtonGroup, NumberStepper, ZoneCard } from "@/components/ui/button-group";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { haptics } from "@/lib/haptics";
@@ -86,6 +86,32 @@ export default function NewSessionPage({
     queryFn: () => api.getPatientAlerts(id),
     enabled: !!id,
   });
+
+  // Fetch last session params for selected zone (quick-start)
+  const { data: lastParams } = useQuery({
+    queryKey: ["last-session-params", id, selectedZone?.id],
+    queryFn: () => api.getLastSessionParams(id, selectedZone!.id),
+    enabled: !!selectedZone,
+    retry: false,
+  });
+
+  const [paramsApplied, setParamsApplied] = useState(false);
+
+  const applyLastParams = () => {
+    if (!lastParams) return;
+    if (lastParams.type_laser) setTypeLaser(lastParams.type_laser);
+    if (lastParams.spot_size) setSpotSize(parseInt(lastParams.spot_size));
+    if (lastParams.fluence) setFluence(lastParams.fluence);
+    if (lastParams.pulse_duration_ms) setPulseDuration(parseInt(lastParams.pulse_duration_ms));
+    if (lastParams.frequency_hz) setFrequencyHz(lastParams.frequency_hz);
+    setParamsApplied(true);
+    haptics.medium();
+  };
+
+  // Reset paramsApplied when zone changes
+  useEffect(() => {
+    setParamsApplied(false);
+  }, [selectedZone?.id]);
 
   // Fetch practitioners for admin to assign sessions
   const { data: usersData } = useQuery({
@@ -468,6 +494,28 @@ export default function NewSessionPage({
         </div>
       )}
 
+      {/* Quick-start: Apply last session params */}
+      {lastParams && !paramsApplied && (
+        <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <RotateCcw className="h-5 w-5 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm">Parametres de la derniere seance</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {lastParams.type_laser}
+                  {lastParams.spot_size && ` • Spot ${lastParams.spot_size}`}
+                  {lastParams.fluence && ` • ${lastParams.fluence} J/cm²`}
+                </p>
+              </div>
+            </div>
+            <Button size="sm" onClick={applyLastParams}>
+              Appliquer
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Practitioner Selection (Admin only) */}
       {isAdmin && (
         <div>
@@ -550,14 +598,15 @@ export default function NewSessionPage({
           {/* Fluence */}
           <div>
             <Label className="text-sm font-medium">Fluence (J/cm2) *</Label>
-            <Input
-              type="number"
+            <NumberStepper
               value={fluence}
-              onChange={(e) => setFluence(e.target.value)}
-              placeholder="Ex: 25"
-              className="mt-2 h-12 text-lg"
-              min={0}
-              step={0.1}
+              onChange={setFluence}
+              min={1}
+              max={100}
+              step={1}
+              unit=" J/cm²"
+              presets={[8, 10, 12, 15, 18, 20]}
+              className="mt-2"
             />
           </div>
 
@@ -589,14 +638,15 @@ export default function NewSessionPage({
           {/* Frequency */}
           <div>
             <Label className="text-sm font-medium">Frequence Hz</Label>
-            <Input
-              type="number"
+            <NumberStepper
               value={frequencyHz}
-              onChange={(e) => setFrequencyHz(e.target.value)}
-              placeholder="Ex: 10"
-              className="mt-2 h-12 text-lg"
-              min={0}
-              step={0.1}
+              onChange={setFrequencyHz}
+              min={1}
+              max={20}
+              step={1}
+              unit=" Hz"
+              presets={[1, 2, 3, 5, 8, 10]}
+              className="mt-2"
             />
           </div>
         </CardContent>

@@ -9,11 +9,15 @@ from src.api.v1.dependencies import get_dashboard_service, require_permission
 from src.application.services import DashboardService
 from src.schemas.dashboard import (
     DashboardStatsResponse,
+    DemographicsResponse,
+    DoctorPerformanceResponse,
     PeriodStatsResponse,
     PraticienStatsItem,
     PraticienStatsResponse,
     RecentActivityItem,
     RecentActivityResponse,
+    RevenueStatsResponse,
+    SideEffectStatsResponse,
     ZoneStatsItem,
     ZoneStatsResponse,
 )
@@ -38,9 +42,7 @@ async def get_sessions_by_zone(
 ):
     """Get session count by zone."""
     data = await dashboard_service.get_sessions_by_zone()
-    return ZoneStatsResponse(
-        zones=[ZoneStatsItem(**item) for item in data]
-    )
+    return ZoneStatsResponse(zones=[ZoneStatsItem(**item) for item in data])
 
 
 @router.get("/sessions/by-praticien", response_model=PraticienStatsResponse)
@@ -50,18 +52,14 @@ async def get_sessions_by_praticien(
 ):
     """Get session count by praticien."""
     data = await dashboard_service.get_sessions_by_praticien()
-    return PraticienStatsResponse(
-        praticiens=[PraticienStatsItem(**item) for item in data]
-    )
+    return PraticienStatsResponse(praticiens=[PraticienStatsItem(**item) for item in data])
 
 
 @router.get("/sessions/by-period", response_model=PeriodStatsResponse)
 async def get_sessions_by_period(
     _: Annotated[dict, Depends(require_permission("dashboard.view"))],
     dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
-    date_from: datetime = Query(
-        default_factory=lambda: datetime.utcnow() - timedelta(days=30)
-    ),
+    date_from: datetime = Query(default_factory=lambda: datetime.utcnow() - timedelta(days=30)),
     date_to: datetime = Query(default_factory=datetime.utcnow),
     group_by: str = Query("day", regex="^(day|week|month)$"),
 ):
@@ -85,6 +83,46 @@ async def get_recent_activity(
 ):
     """Get recent activity."""
     data = await dashboard_service.get_recent_activity(limit=limit)
-    return RecentActivityResponse(
-        activities=[RecentActivityItem(**item) for item in data]
-    )
+    return RecentActivityResponse(activities=[RecentActivityItem(**item) for item in data])
+
+
+@router.get("/side-effects", response_model=SideEffectStatsResponse)
+async def get_side_effect_stats(
+    _: Annotated[dict, Depends(require_permission("dashboard.view"))],
+    dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
+):
+    """Get side effect statistics by severity and monthly trend."""
+    data = await dashboard_service.get_side_effect_stats()
+    return SideEffectStatsResponse(**data)
+
+
+@router.get("/doctor-performance", response_model=DoctorPerformanceResponse)
+async def get_doctor_performance(
+    _: Annotated[dict, Depends(require_permission("dashboard.view"))],
+    dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
+):
+    """Get doctor performance metrics (average session duration)."""
+    data = await dashboard_service.get_doctor_performance()
+    return DoctorPerformanceResponse(**data)
+
+
+@router.get("/revenue", response_model=RevenueStatsResponse)
+async def get_revenue_stats(
+    _: Annotated[dict, Depends(require_permission("dashboard.view"))],
+    dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
+):
+    """Get revenue statistics with optional date range filter."""
+    data = await dashboard_service.get_revenue_stats(date_from=date_from, date_to=date_to)
+    return RevenueStatsResponse(**data)
+
+
+@router.get("/demographics", response_model=DemographicsResponse)
+async def get_demographics(
+    _: Annotated[dict, Depends(require_permission("dashboard.view"))],
+    dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
+):
+    """Get patient demographics (age and city distribution)."""
+    data = await dashboard_service.get_demographics()
+    return DemographicsResponse(**data)

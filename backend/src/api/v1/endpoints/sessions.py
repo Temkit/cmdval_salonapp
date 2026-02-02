@@ -1,5 +1,6 @@
 """Session management endpoints."""
 
+import json
 import math
 import os
 from datetime import datetime
@@ -24,7 +25,6 @@ from src.domain.exceptions import (
 )
 from src.schemas.session import (
     LaserTypeResponse,
-    SessionCreate,
     SessionDetailResponse,
     SessionListResponse,
     SessionPhotoResponse,
@@ -105,17 +105,32 @@ async def create_session(
     notes: str | None = Form(None),
     duree_minutes: int | None = Form(None),
     date_seance: datetime | None = Form(None),
+    photo_ids: str | None = Form(None),  # JSON array of temp photo IDs
     photos: list[UploadFile] = File(default=[]),
 ):
     """Create a new session."""
-    import json
-
     try:
         # Parse parameters JSON
         params = json.loads(parametres)
 
-        # Read photo files
+        # Read photo files from uploads or temp photo IDs
         photo_files = []
+
+        # Handle temp photo IDs (already uploaded)
+        if photo_ids:
+            temp_ids = json.loads(photo_ids)
+            temp_dir = os.path.join(settings.photos_path, "temp-photos")
+            for temp_id in temp_ids:
+                if os.path.exists(temp_dir):
+                    for fname in os.listdir(temp_dir):
+                        if fname.startswith(temp_id):
+                            fpath = os.path.join(temp_dir, fname)
+                            with open(fpath, "rb") as f:
+                                photo_files.append((fname, f.read()))
+                            os.remove(fpath)  # Clean up temp file
+                            break
+
+        # Handle direct photo uploads (legacy)
         for photo in photos:
             if photo.filename:
                 content = await photo.read()
@@ -178,6 +193,33 @@ async def create_session(
         )
 
 
+@router.get("/sessions/last-params")
+async def get_last_session_params(
+    _: Annotated[dict, Depends(require_permission("sessions.view"))],
+    session_service: Annotated[SessionService, Depends(get_session_service)],
+    patient_id: str = Query(...),
+    patient_zone_id: str = Query(...),
+):
+    """Get parameters from the last session for a patient+zone."""
+    params = await session_service.get_last_session_params(patient_id, patient_zone_id)
+    if not params:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aucune seance precedente trouvee",
+        )
+    return params
+
+
+@router.get("/sessions/laser-types", response_model=LaserTypeResponse)
+async def get_laser_types(
+    _: Annotated[dict, Depends(require_permission("sessions.view"))],
+    session_service: Annotated[SessionService, Depends(get_session_service)],
+):
+    """Get available laser types."""
+    types = await session_service.get_laser_types()
+    return LaserTypeResponse(types=types)
+
+
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
 async def get_session(
     session_id: str,
@@ -226,16 +268,6 @@ async def get_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
-
-
-@router.get("/sessions/laser-types", response_model=LaserTypeResponse)
-async def get_laser_types(
-    _: Annotated[dict, Depends(require_permission("sessions.view"))],
-    session_service: Annotated[SessionService, Depends(get_session_service)],
-):
-    """Get available laser types."""
-    types = await session_service.get_laser_types()
-    return LaserTypeResponse(types=types)
 
 
 @router.get("/photos/{session_id}/{filename}")

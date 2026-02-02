@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,13 @@ export function AlertBanner({ patientId, className }: AlertBannerProps) {
     queryFn: () => api.getPatientAlerts(patientId),
     staleTime: 60000, // 1 minute
   });
+
+  // Auto-expand when contraindications (errors) are detected
+  useEffect(() => {
+    if (data?.has_errors) {
+      setIsExpanded(true);
+    }
+  }, [data?.has_errors]);
 
   if (isLoading || !data?.has_alerts) {
     return null;
@@ -81,8 +88,8 @@ export function AlertBanner({ patientId, className }: AlertBannerProps) {
               className={cn(
                 "p-3 rounded-lg",
                 alert.severity === "error"
-                  ? "bg-destructive/20 text-destructive"
-                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200"
+                  ? "bg-destructive/20 text-destructive border-l-4 border-destructive"
+                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200 border-l-4 border-yellow-500"
               )}
             >
               <div className="flex items-start gap-2">
@@ -160,8 +167,15 @@ export function ZoneAlertIndicator({ patientId, zoneId, className }: ZoneAlertIn
     return null;
   }
 
+  const label = data.has_errors ? "Contre-indication" : "Attention requise";
+
   return (
-    <div className={cn("flex items-center gap-1", className)}>
+    <div
+      className={cn("flex items-center gap-1", className)}
+      title={label}
+      aria-label={label}
+      role="status"
+    >
       {data.has_errors ? (
         <AlertCircle className="h-4 w-4 text-destructive" />
       ) : (

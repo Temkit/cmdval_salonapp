@@ -19,6 +19,8 @@ export interface Role {
   updated_at: string;
 }
 
+export type PatientStatus = "en_attente_evaluation" | "actif" | "ineligible";
+
 export interface Patient {
   id: string;
   code_carte: string;
@@ -31,6 +33,7 @@ export interface Patient {
   adresse: string | null;
   notes: string | null;
   phototype: string | null;
+  status: PatientStatus;
   age: number | null;
   created_at: string;
   updated_at: string;
@@ -40,11 +43,18 @@ export interface PatientDetail extends Patient {
   zones: PatientZone[];
 }
 
+export type ZoneCategorie = "visage" | "bras" | "jambes" | "corps" | "homme";
+
 export interface ZoneDefinition {
   id: string;
+  code: string;
   nom: string;
   description: string | null;
   ordre: number;
+  prix: number | null;
+  duree_minutes: number | null;
+  categorie: ZoneCategorie | null;
+  is_homme: boolean;
   is_active: boolean;
   created_at: string;
 }
@@ -102,6 +112,10 @@ export interface Session {
   date_seance: string;
   type_laser: string;
   parametres: Record<string, any>;
+  spot_size: number | null;
+  fluence: number | null;
+  pulse_duration_ms: number | null;
+  frequency_hz: number | null;
   notes: string | null;
   duree_minutes: number | null;
   photos: SessionPhoto[];
@@ -142,7 +156,12 @@ export interface PreConsultationZone {
 
 export interface PreConsultation {
   id: string;
-  patient_id: string | null;
+  patient_id: string;
+  // Patient info for display
+  patient_nom?: string;
+  patient_prenom?: string;
+  patient_code_carte?: string;
+  patient_telephone?: string;
   sexe: "M" | "F";
   age: number;
   statut_marital: string | null;
@@ -154,15 +173,24 @@ export interface PreConsultation {
   previous_laser_sessions: number | null;
   previous_laser_brand: string | null;
   hair_removal_methods: string[];
+  last_hair_removal_date: string | null;
   medical_history: Record<string, boolean>;
   dermatological_conditions: string[];
   has_current_treatments: boolean;
   current_treatments_details: string | null;
+  has_moles: boolean;
+  moles_location: string | null;
+  has_birthmarks: boolean;
+  birthmarks_location: string | null;
+  contraception_method: string | null;
+  hormonal_disease_2years: boolean;
   recent_peeling: boolean;
   recent_peeling_date: string | null;
+  peeling_zone: string | null;
+  last_laser_date: string | null;
   phototype: string | null;
   notes: string | null;
-  status: "draft" | "pending_validation" | "validated" | "rejected" | "patient_created";
+  status: "draft" | "pending_validation" | "validated" | "rejected";
   rejection_reason: string | null;
   created_by: string | null;
   created_by_name: string | null;
@@ -198,4 +226,113 @@ export interface PatientAlerts {
   error_count: number;
   warning_count: number;
   alerts: Alert[];
+}
+
+export interface Pack {
+  id: string;
+  nom: string;
+  description: string | null;
+  zone_ids: string[];
+  prix: number;
+  duree_jours: number | null;
+  seances_per_zone: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SubscriptionType = "gold" | "pack" | "seance";
+
+export interface PatientSubscription {
+  id: string;
+  patient_id: string;
+  pack_id: string | null;
+  pack_nom: string | null;
+  type: SubscriptionType;
+  date_debut: string | null;
+  date_fin: string | null;
+  is_active: boolean;
+  montant_paye: number;
+  notes: string | null;
+  days_remaining: number | null;
+  is_expired: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PaiementType = "encaissement" | "prise_en_charge" | "hors_carte";
+export type ModePaiement = "especes" | "carte" | "virement";
+
+export interface Paiement {
+  id: string;
+  patient_id: string;
+  patient_nom: string | null;
+  patient_prenom: string | null;
+  subscription_id: string | null;
+  session_id: string | null;
+  montant: number;
+  type: PaiementType;
+  mode_paiement: ModePaiement | null;
+  reference: string | null;
+  notes: string | null;
+  created_by: string | null;
+  date_paiement: string;
+  created_at: string;
+}
+
+export interface RevenueStats {
+  total_revenue: number;
+  total_payments: number;
+  by_type: { type: string; total: number; count: number }[];
+}
+
+export type PromotionType = "pourcentage" | "montant";
+
+export interface Promotion {
+  id: string;
+  nom: string;
+  type: PromotionType;
+  valeur: number;
+  zone_ids: string[];
+  date_debut: string | null;
+  date_fin: string | null;
+  is_active: boolean;
+  is_currently_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ScheduleStatus = "expected" | "checked_in" | "in_treatment" | "completed" | "no_show";
+
+export interface DailyScheduleEntry {
+  id: string;
+  date: string;
+  patient_nom: string;
+  patient_prenom: string;
+  patient_id: string | null;
+  doctor_name: string;
+  doctor_id: string | null;
+  specialite: string | null;
+  duration_type: string | null;
+  start_time: string;
+  end_time: string | null;
+  notes: string | null;
+  status: ScheduleStatus;
+  created_at: string;
+}
+
+export type QueueStatus = "waiting" | "in_treatment" | "done";
+
+export interface WaitingQueueEntry {
+  id: string;
+  schedule_id: string | null;
+  patient_id: string | null;
+  patient_name: string;
+  doctor_id: string | null;
+  doctor_name: string;
+  checked_in_at: string;
+  position: number;
+  status: QueueStatus;
+  called_at: string | null;
+  completed_at: string | null;
 }

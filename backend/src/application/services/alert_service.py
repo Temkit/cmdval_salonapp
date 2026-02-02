@@ -1,7 +1,6 @@
 """Alert service for computing patient alerts."""
 
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime, timezone
 
 from src.domain.entities.alert import Alert
 from src.infrastructure.database.repositories import (
@@ -12,9 +11,9 @@ from src.infrastructure.database.repositories.side_effect_repository import (
     SideEffectRepository,
 )
 
-
 # Alert thresholds (configurable)
 SESSION_SPACING_WARNING_DAYS = 60  # Warn if > 60 days since last session
+SESSION_SPACING_TOO_CLOSE_DAYS = 14  # Warn if < 14 days since last session on same zone
 
 
 class AlertService:
@@ -35,9 +34,7 @@ class AlertService:
         alerts = []
 
         # 1. Check for validated pre-consultation
-        pre_consultation = await self.pre_consultation_repo.find_by_patient_id(
-            patient_id
-        )
+        pre_consultation = await self.pre_consultation_repo.find_by_patient_id(patient_id)
         if not pre_consultation:
             alerts.append(
                 Alert(
@@ -47,7 +44,9 @@ class AlertService:
                     details={"reason": "missing_pre_consultation"},
                 )
             )
-        elif pre_consultation.status != "patient_created" and pre_consultation.status != "validated":
+        elif (
+            pre_consultation.status != "patient_created" and pre_consultation.status != "validated"
+        ):
             alerts.append(
                 Alert(
                     type="pre_consultation_pending",
@@ -77,6 +76,14 @@ class AlertService:
                         details={"reason": "breastfeeding"},
                     )
                 )
+                alerts.append(
+                    Alert(
+                        type="breastfeeding_sun_warning",
+                        severity="warning",
+                        message="Allaitement: risque accru de sensibilité au laser et aux UV. Protection solaire obligatoire.",
+                        details={"reason": "breastfeeding_sun_exposure"},
+                    )
+                )
             if pre_consultation.pregnancy_planning:
                 alerts.append(
                     Alert(
@@ -104,7 +111,7 @@ class AlertService:
         # 3. Session spacing alerts (per zone)
         zones_last_session = await self._get_last_session_per_zone(patient_id)
         for zone_id, (last_session_date, zone_nom) in zones_last_session.items():
-            days_since = (datetime.utcnow() - last_session_date).days
+            days_since = (datetime.now(timezone.utc) - last_session_date).days
             if days_since > SESSION_SPACING_WARNING_DAYS:
                 alerts.append(
                     Alert(
@@ -117,6 +124,21 @@ class AlertService:
                             "days_since": days_since,
                             "last_session": last_session_date.isoformat(),
                             "threshold_days": SESSION_SPACING_WARNING_DAYS,
+                        },
+                    )
+                )
+            elif days_since < SESSION_SPACING_TOO_CLOSE_DAYS:
+                alerts.append(
+                    Alert(
+                        type="spacing_too_close",
+                        severity="warning",
+                        message=f"Dernière séance il y a seulement {days_since} jours - Séances trop rapprochées",
+                        zone_id=zone_id,
+                        zone_nom=zone_nom,
+                        details={
+                            "days_since": days_since,
+                            "last_session": last_session_date.isoformat(),
+                            "threshold_days": SESSION_SPACING_TOO_CLOSE_DAYS,
                         },
                     )
                 )
@@ -147,32 +169,25 @@ class AlertService:
 
         return alerts
 
-    async def get_zone_alerts(
-        self, patient_id: str, zone_id: str
-    ) -> list[Alert]:
+    async def get_zone_alerts(self, patient_id: str, zone_id: str) -> list[Alert]:
         """Get alerts for a specific zone."""
         all_alerts = await self.get_patient_alerts(patient_id)
         # Return alerts that are global (no zone_id) or for this specific zone
-        return [
-            a for a in all_alerts if a.zone_id is None or a.zone_id == zone_id
-        ]
+        return [a for a in all_alerts if a.zone_id is None or a.zone_id == zone_id]
 
-    async def _get_last_session_per_zone(
-        self, patient_id: str
-    ) -> dict[str, tuple[datetime, str]]:
+    async def _get_last_session_per_zone(self, patient_id: str) -> dict[str, tuple[datetime, str]]:
         """Get last session date per zone for a patient."""
         sessions = await self.session_repo.find_by_patient_with_zones(patient_id)
 
         zones_last_session = {}
         for session in sessions:
-            if session.zone_id:
-                if session.zone_id not in zones_last_session:
-                    zones_last_session[session.zone_id] = (
-                        session.date_seance,
-                        session.zone_nom or "Zone inconnue",
-                    )
-                elif session.date_seance > zones_last_session[session.zone_id][0]:
-                    zones_last_session[session.zone_id] = (
+            zone_key = session.patient_zone_id
+            if zone_key:
+                if (
+                    zone_key not in zones_last_session
+                    or session.date_seance > zones_last_session[zone_key][0]
+                ):
+                    zones_last_session[zone_key] = (
                         session.date_seance,
                         session.zone_nom or "Zone inconnue",
                     )

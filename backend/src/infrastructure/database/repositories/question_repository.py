@@ -88,9 +88,7 @@ class QuestionRepository:
 
     async def get_max_ordre(self) -> int:
         """Get maximum ordre value."""
-        result = await self.session.execute(
-            select(func.max(QuestionModel.ordre))
-        )
+        result = await self.session.execute(select(func.max(QuestionModel.ordre)))
         return result.scalar() or 0
 
     def _to_entity(self, model: QuestionModel) -> Question:

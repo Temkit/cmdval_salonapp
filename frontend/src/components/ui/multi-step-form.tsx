@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
+import { Progress } from "./progress";
 import { Spinner } from "./spinner";
 
 interface Step {
@@ -36,6 +37,7 @@ export function MultiStepForm({
   className,
 }: MultiStepFormProps) {
   const isLastStep = currentStep === steps.length - 1;
+  const progressPercent = Math.round(((currentStep + 1) / steps.length) * 100);
 
   const handleNext = () => {
     if (isLastStep) {
@@ -53,6 +55,12 @@ export function MultiStepForm({
 
   return (
     <div className={cn("space-y-6", className)}>
+      {/* Progress bar */}
+      <div className="flex items-center gap-3 px-2">
+        <Progress value={progressPercent} className="h-2 flex-1" />
+        <span className="text-xs text-muted-foreground tabular-nums">{progressPercent}%</span>
+      </div>
+
       {/* Step indicator */}
       <nav aria-label="Progression" className="px-2">
         <ol className="flex items-center justify-between">

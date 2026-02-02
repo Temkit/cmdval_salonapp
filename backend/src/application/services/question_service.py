@@ -1,10 +1,8 @@
 """Question service."""
 
-from typing import Any
-
 from src.domain.entities.question import Question, QuestionResponse
-from src.domain.exceptions import QuestionNotFoundError
 from src.domain.exceptions import NotFoundError as PreConsultationNotFoundError
+from src.domain.exceptions import QuestionNotFoundError
 from src.infrastructure.database.repositories import (
     PreConsultationRepository,
     QuestionRepository,
@@ -46,9 +44,7 @@ class QuestionService:
             raise QuestionNotFoundError(question_id)
         return question
 
-    async def get_all_questions(
-        self, include_inactive: bool = False
-    ) -> list[Question]:
+    async def get_all_questions(self, include_inactive: bool = False) -> list[Question]:
         """Get all questions."""
         return await self.question_repository.find_all(include_inactive)
 
@@ -104,9 +100,7 @@ class QuestionnaireService:
         self.response_repository = response_repository
         self.pre_consultation_repository = pre_consultation_repository
 
-    async def get_pre_consultation_questionnaire(
-        self, pre_consultation_id: str
-    ) -> dict:
+    async def get_pre_consultation_questionnaire(self, pre_consultation_id: str) -> dict:
         """Get pre-consultation questionnaire with responses."""
         pre_consultation = await self.pre_consultation_repository.find_by_id(pre_consultation_id)
         if not pre_consultation:
@@ -121,21 +115,20 @@ class QuestionnaireService:
         # Build questionnaire data
         response_items = []
         for response in responses:
-            response_items.append({
-                "id": response.id,
-                "question_id": response.question_id,
-                "question_texte": response.question_texte,
-                "question_type": response.question_type,
-                "reponse": response.reponse,
-                "created_at": response.created_at,
-                "updated_at": response.updated_at,
-            })
+            response_items.append(
+                {
+                    "id": response.id,
+                    "question_id": response.question_id,
+                    "question_texte": response.question_texte,
+                    "question_type": response.question_type,
+                    "reponse": response.reponse,
+                    "created_at": response.created_at,
+                    "updated_at": response.updated_at,
+                }
+            )
 
         required_count = sum(1 for q in questions if q.obligatoire)
-        answered_required = sum(
-            1 for q in questions
-            if q.obligatoire and q.id in response_map
-        )
+        answered_required = sum(1 for q in questions if q.obligatoire and q.id in response_map)
 
         return {
             "pre_consultation_id": pre_consultation_id,

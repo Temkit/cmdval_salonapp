@@ -11,6 +11,8 @@ import {
   Menu,
   X,
   ClipboardList,
+  Calendar,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -19,6 +21,8 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
   { name: "Pre-consultations", href: "/pre-consultations", icon: ClipboardList, permission: "pre_consultations.view" },
+  { name: "Agenda", href: "/agenda", icon: Calendar, permission: "patients.view" },
+  { name: "Salle d'attente", href: "/salle-attente", icon: Clock, permission: "patients.view" },
   { name: "Patients", href: "/patients", icon: Users, permission: "patients.view" },
   { name: "Analytiques", href: "/analytiques", icon: BarChart3, permission: "dashboard.view" },
   { name: "Configuration", href: "/configuration", icon: Settings, permission: "config.questionnaire" },
@@ -79,6 +83,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
+          {filteredNav.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center px-4 py-8">
+              Aucun acces configure. Contactez un administrateur.
+            </p>
+          )}
           <ul className="space-y-1">
             {filteredNav.map((item) => {
               const isActive = pathname.startsWith(item.href);

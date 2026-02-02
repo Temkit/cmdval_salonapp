@@ -6,10 +6,15 @@ from src.api.v1.endpoints import (
     alerts,
     auth,
     dashboard,
+    documents,
+    packs,
+    paiements,
     patients,
     pre_consultations,
+    promotions,
     questionnaire,
     roles,
+    schedule,
     sessions,
     users,
     zones,
@@ -28,3 +33,8 @@ router.include_router(sessions.router)
 router.include_router(dashboard.router)
 router.include_router(pre_consultations.router)
 router.include_router(alerts.router)
+router.include_router(packs.router)
+router.include_router(paiements.router)
+router.include_router(promotions.router)
+router.include_router(schedule.router)
+router.include_router(documents.router)

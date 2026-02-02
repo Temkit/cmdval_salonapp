@@ -1,12 +1,10 @@
 """Pydantic schemas for side effects."""
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import Field
 
 from src.schemas.base import AppBaseModel
-
 
 SEVERITY_OPTIONS = ["mild", "moderate", "severe"]
 
@@ -24,7 +22,7 @@ class SideEffectBase(AppBaseModel):
     """Base schema for side effect."""
 
     description: str = Field(min_length=1, max_length=2000)
-    severity: Optional[str] = Field(None, pattern=r"^(mild|moderate|severe)$")
+    severity: str | None = Field(None, pattern=r"^(mild|moderate|severe)$")
 
 
 class SideEffectCreate(SideEffectBase):
@@ -41,9 +39,9 @@ class SideEffectResponse(SideEffectBase):
     photos: list[SideEffectPhotoResponse] = Field(default_factory=list)
 
     # Additional context
-    zone_id: Optional[str] = None
-    zone_nom: Optional[str] = None
-    patient_id: Optional[str] = None
+    zone_id: str | None = None
+    zone_nom: str | None = None
+    patient_id: str | None = None
 
     created_at: datetime
 
@@ -54,7 +52,7 @@ class SideEffectListResponse(AppBaseModel):
     id: str
     session_id: str
     description: str
-    severity: Optional[str] = None
-    zone_nom: Optional[str] = None
+    severity: str | None = None
+    zone_nom: str | None = None
     photos_count: int = 0
     created_at: datetime

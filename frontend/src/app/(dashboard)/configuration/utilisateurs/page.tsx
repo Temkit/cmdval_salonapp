@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Pencil, Trash2, User, Check, X, Filter } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, User, Check, X, Filter, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,7 @@ export default function UsersConfigPage() {
   const [formData, setFormData] = useState<UserForm>(initialFormState);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
@@ -168,10 +169,14 @@ export default function UsersConfigPage() {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  // Filter users based on role
-  const filteredUsers = users?.users?.filter(
-    (user: any) => roleFilter === "all" || user.role_id === roleFilter
-  ) || [];
+  // Filter users based on role and search
+  const filteredUsers = (users?.users || []).filter((user: any) => {
+    const matchesRole = roleFilter === "all" || user.role_id === roleFilter;
+    const matchesSearch = !search ||
+      `${user.prenom} ${user.nom}`.toLowerCase().includes(search.toLowerCase()) ||
+      user.email.toLowerCase().includes(search.toLowerCase());
+    return matchesRole && matchesSearch;
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -196,7 +201,8 @@ export default function UsersConfigPage() {
 
       {/* Users List */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="space-y-3">
+          <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <CardTitle>Liste des utilisateurs</CardTitle>
             {!isLoading && (
@@ -221,6 +227,25 @@ export default function UsersConfigPage() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Rechercher par nom ou email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded hover:bg-muted transition-colors"
+                aria-label="Effacer la recherche"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -274,6 +299,7 @@ export default function UsersConfigPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleOpenEdit(user)}
+                        aria-label={`Modifier ${user.prenom} ${user.nom}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -281,6 +307,7 @@ export default function UsersConfigPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => setDeleteUserId(user.id)}
+                        aria-label={`Supprimer ${user.prenom} ${user.nom}`}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -289,14 +316,17 @@ export default function UsersConfigPage() {
                 </div>
               ))}
             </div>
-          ) : users?.users?.length > 0 && roleFilter !== "all" ? (
+          ) : users?.users?.length > 0 && (roleFilter !== "all" || search) ? (
             <EmptyState
-              icon={Filter}
+              icon={search ? Search : Filter}
               title="Aucun résultat"
-              description="Aucun utilisateur ne correspond à ce filtre"
+              description={search
+                ? `Aucun utilisateur ne correspond à "${search}"`
+                : "Aucun utilisateur ne correspond à ce filtre"
+              }
               action={{
-                label: "Réinitialiser le filtre",
-                onClick: () => setRoleFilter("all"),
+                label: search ? "Effacer la recherche" : "Réinitialiser le filtre",
+                onClick: () => { setSearch(""); setRoleFilter("all"); },
               }}
             />
           ) : (

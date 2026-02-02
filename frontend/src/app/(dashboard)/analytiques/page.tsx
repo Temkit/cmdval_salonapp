@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   BarChart3,
   Users,
   Zap,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
@@ -29,7 +31,7 @@ const periodOptions = [
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState("month");
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => api.getDashboardStats(),
   });
@@ -49,10 +51,45 @@ export default function AnalyticsPage() {
     queryFn: () => api.getSessionsByPeriod(period),
   });
 
+  const { data: sideEffectData } = useQuery({
+    queryKey: ["side-effect-stats"],
+    queryFn: () => api.getSideEffectStats(),
+  });
+
+  const { data: doctorData } = useQuery({
+    queryKey: ["doctor-performance"],
+    queryFn: () => api.getDoctorPerformance(),
+  });
+
+  const { data: revenueData } = useQuery({
+    queryKey: ["dashboard-revenue"],
+    queryFn: () => api.getDashboardRevenue(),
+  });
+
+  const { data: demographicsData } = useQuery({
+    queryKey: ["demographics"],
+    queryFn: () => api.getDemographics(),
+  });
+
   // Calculate max values for charts
   const maxZoneCount = Math.max(...(byZone?.data?.map((z: any) => z.count) || [1]));
   const maxPraticienCount = Math.max(...(byPraticien?.data?.map((p: any) => p.count) || [1]));
   const maxPeriodCount = Math.max(...(byPeriod?.data?.map((p: any) => p.count) || [1]));
+
+  if (isError) {
+    return (
+      <Card><CardContent className="py-12 text-center">
+        <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-4" />
+        <p className="font-medium">Erreur de chargement</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {(error as any)?.message || "Impossible de charger les donnees"}
+        </p>
+        <Button variant="outline" onClick={() => refetch()} className="mt-4">
+          Reessayer
+        </Button>
+      </CardContent></Card>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -78,25 +115,25 @@ export default function AnalyticsPage() {
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Patients"
-          value={statsLoading ? "..." : stats?.total_patients || 0}
+          value={statsLoading ? <div className="h-8 w-20 skeleton rounded" /> : stats?.total_patients || 0}
           description="Patients enregistrés"
           icon={<Users className="h-5 w-5" />}
         />
         <StatCard
           title="Total Séances"
-          value={statsLoading ? "..." : stats?.total_sessions || 0}
+          value={statsLoading ? <div className="h-8 w-20 skeleton rounded" /> : stats?.total_sessions || 0}
           description="Séances effectuées"
           icon={<Zap className="h-5 w-5" />}
         />
         <StatCard
           title="Séances aujourd'hui"
-          value={statsLoading ? "..." : stats?.sessions_today || 0}
+          value={statsLoading ? <div className="h-8 w-20 skeleton rounded" /> : stats?.sessions_today || 0}
           description="Traitements du jour"
           icon={<Calendar className="h-5 w-5" />}
         />
         <StatCard
           title="Séances ce mois"
-          value={statsLoading ? "..." : stats?.sessions_this_month || 0}
+          value={statsLoading ? <div className="h-8 w-20 skeleton rounded" /> : stats?.sessions_this_month || 0}
           description="Ce mois-ci"
           icon={<TrendingUp className="h-5 w-5" />}
         />
@@ -354,6 +391,60 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Side Effects Summary */}
+      {sideEffectData && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Effets secondaires</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="text-center p-3 rounded-xl bg-muted/50">
+                <p className="text-2xl font-bold">{(sideEffectData as any)?.total || 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total signales</p>
+              </div>
+              <div className="text-center p-3 rounded-xl bg-muted/50">
+                <p className="text-2xl font-bold text-yellow-600">{(sideEffectData as any)?.by_severity?.mild || 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Legers</p>
+              </div>
+              <div className="text-center p-3 rounded-xl bg-muted/50">
+                <p className="text-2xl font-bold text-orange-600">{(sideEffectData as any)?.by_severity?.moderate || 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Moderes</p>
+              </div>
+              <div className="text-center p-3 rounded-xl bg-muted/50">
+                <p className="text-2xl font-bold text-destructive">{(sideEffectData as any)?.by_severity?.severe || 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Severes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Doctor Performance */}
+      {doctorData && (doctorData as any)?.doctors?.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Performance praticiens</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {(doctorData as any).doctors.map((doc: any) => (
+                <div key={doc.id || doc.nom} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                  <div>
+                    <p className="font-medium">{doc.nom}</p>
+                    <p className="text-xs text-muted-foreground">{doc.total_sessions} seances</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{doc.avg_duration ? `${Math.round(doc.avg_duration)} min` : "-"}</p>
+                    <p className="text-xs text-muted-foreground">duree moy.</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

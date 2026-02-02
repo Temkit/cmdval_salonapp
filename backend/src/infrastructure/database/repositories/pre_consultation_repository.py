@@ -1,8 +1,5 @@
 """Pre-consultation repository implementation."""
 
-from datetime import datetime
-from typing import Optional
-
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,8 +9,6 @@ from src.infrastructure.database.models import (
     PatientModel,
     PreConsultationModel,
     PreConsultationZoneModel,
-    UserModel,
-    ZoneDefinitionModel,
 )
 
 
@@ -39,12 +34,21 @@ class PreConsultationRepository:
             previous_laser_sessions=pre_consultation.previous_laser_sessions,
             previous_laser_brand=pre_consultation.previous_laser_brand,
             hair_removal_methods=pre_consultation.hair_removal_methods,
+            last_hair_removal_date=pre_consultation.last_hair_removal_date,
             medical_history=pre_consultation.medical_history,
             dermatological_conditions=pre_consultation.dermatological_conditions,
             has_current_treatments=pre_consultation.has_current_treatments,
             current_treatments_details=pre_consultation.current_treatments_details,
+            has_moles=pre_consultation.has_moles,
+            moles_location=pre_consultation.moles_location,
+            has_birthmarks=pre_consultation.has_birthmarks,
+            birthmarks_location=pre_consultation.birthmarks_location,
+            contraception_method=pre_consultation.contraception_method,
+            hormonal_disease_2years=pre_consultation.hormonal_disease_2years,
             recent_peeling=pre_consultation.recent_peeling,
             recent_peeling_date=pre_consultation.recent_peeling_date,
+            peeling_zone=pre_consultation.peeling_zone,
+            last_laser_date=pre_consultation.last_laser_date,
             phototype=pre_consultation.phototype,
             notes=pre_consultation.notes,
             status=pre_consultation.status,
@@ -70,7 +74,7 @@ class PreConsultationRepository:
         await self.session.flush()
         return await self.find_by_id(pre_consultation.id)
 
-    async def find_by_id(self, pre_consultation_id: str) -> Optional[PreConsultation]:
+    async def find_by_id(self, pre_consultation_id: str) -> PreConsultation | None:
         """Find pre-consultation by ID with all relationships."""
         result = await self.session.execute(
             select(PreConsultationModel)
@@ -80,13 +84,14 @@ class PreConsultationRepository:
                 ),
                 selectinload(PreConsultationModel.creator),
                 selectinload(PreConsultationModel.validator),
+                selectinload(PreConsultationModel.patient),
             )
             .where(PreConsultationModel.id == pre_consultation_id)
         )
         db_pre_consultation = result.scalar_one_or_none()
         return self._to_entity(db_pre_consultation) if db_pre_consultation else None
 
-    async def find_by_patient_id(self, patient_id: str) -> Optional[PreConsultation]:
+    async def find_by_patient_id(self, patient_id: str) -> PreConsultation | None:
         """Find pre-consultation by patient ID."""
         result = await self.session.execute(
             select(PreConsultationModel)
@@ -94,6 +99,7 @@ class PreConsultationRepository:
                 selectinload(PreConsultationModel.zones).selectinload(
                     PreConsultationZoneModel.zone
                 ),
+                selectinload(PreConsultationModel.patient),
             )
             .where(PreConsultationModel.patient_id == patient_id)
             .order_by(PreConsultationModel.created_at.desc())
@@ -105,14 +111,12 @@ class PreConsultationRepository:
         self,
         page: int,
         size: int,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        search: str | None = None,
     ) -> tuple[list[PreConsultation], int]:
         """Get all pre-consultations with pagination and filters."""
         base_query = select(PreConsultationModel).options(
-            selectinload(PreConsultationModel.zones).selectinload(
-                PreConsultationZoneModel.zone
-            ),
+            selectinload(PreConsultationModel.zones).selectinload(PreConsultationZoneModel.zone),
             selectinload(PreConsultationModel.creator),
             selectinload(PreConsultationModel.patient),
         )
@@ -125,8 +129,7 @@ class PreConsultationRepository:
             search_term = f"%{search}%"
             # Search by patient name or notes (patient may not be linked yet)
             base_query = base_query.outerjoin(
-                PatientModel,
-                PreConsultationModel.patient_id == PatientModel.id
+                PatientModel, PreConsultationModel.patient_id == PatientModel.id
             ).where(
                 or_(
                     PatientModel.nom.ilike(search_term),
@@ -156,9 +159,7 @@ class PreConsultationRepository:
     async def update(self, pre_consultation: PreConsultation) -> PreConsultation:
         """Update pre-consultation."""
         result = await self.session.execute(
-            select(PreConsultationModel).where(
-                PreConsultationModel.id == pre_consultation.id
-            )
+            select(PreConsultationModel).where(PreConsultationModel.id == pre_consultation.id)
         )
         db_pre_consultation = result.scalar_one_or_none()
         if not db_pre_consultation:
@@ -173,26 +174,25 @@ class PreConsultationRepository:
         db_pre_consultation.is_breastfeeding = pre_consultation.is_breastfeeding
         db_pre_consultation.pregnancy_planning = pre_consultation.pregnancy_planning
         db_pre_consultation.has_previous_laser = pre_consultation.has_previous_laser
-        db_pre_consultation.previous_laser_clarity_ii = (
-            pre_consultation.previous_laser_clarity_ii
-        )
-        db_pre_consultation.previous_laser_sessions = (
-            pre_consultation.previous_laser_sessions
-        )
+        db_pre_consultation.previous_laser_clarity_ii = pre_consultation.previous_laser_clarity_ii
+        db_pre_consultation.previous_laser_sessions = pre_consultation.previous_laser_sessions
         db_pre_consultation.previous_laser_brand = pre_consultation.previous_laser_brand
         db_pre_consultation.hair_removal_methods = pre_consultation.hair_removal_methods
+        db_pre_consultation.last_hair_removal_date = pre_consultation.last_hair_removal_date
         db_pre_consultation.medical_history = pre_consultation.medical_history
-        db_pre_consultation.dermatological_conditions = (
-            pre_consultation.dermatological_conditions
-        )
-        db_pre_consultation.has_current_treatments = (
-            pre_consultation.has_current_treatments
-        )
-        db_pre_consultation.current_treatments_details = (
-            pre_consultation.current_treatments_details
-        )
+        db_pre_consultation.dermatological_conditions = pre_consultation.dermatological_conditions
+        db_pre_consultation.has_current_treatments = pre_consultation.has_current_treatments
+        db_pre_consultation.current_treatments_details = pre_consultation.current_treatments_details
+        db_pre_consultation.has_moles = pre_consultation.has_moles
+        db_pre_consultation.moles_location = pre_consultation.moles_location
+        db_pre_consultation.has_birthmarks = pre_consultation.has_birthmarks
+        db_pre_consultation.birthmarks_location = pre_consultation.birthmarks_location
+        db_pre_consultation.contraception_method = pre_consultation.contraception_method
+        db_pre_consultation.hormonal_disease_2years = pre_consultation.hormonal_disease_2years
         db_pre_consultation.recent_peeling = pre_consultation.recent_peeling
         db_pre_consultation.recent_peeling_date = pre_consultation.recent_peeling_date
+        db_pre_consultation.peeling_zone = pre_consultation.peeling_zone
+        db_pre_consultation.last_laser_date = pre_consultation.last_laser_date
         db_pre_consultation.phototype = pre_consultation.phototype
         db_pre_consultation.notes = pre_consultation.notes
         db_pre_consultation.status = pre_consultation.status
@@ -206,9 +206,7 @@ class PreConsultationRepository:
     async def delete(self, pre_consultation_id: str) -> bool:
         """Delete pre-consultation."""
         result = await self.session.execute(
-            select(PreConsultationModel).where(
-                PreConsultationModel.id == pre_consultation_id
-            )
+            select(PreConsultationModel).where(PreConsultationModel.id == pre_consultation_id)
         )
         db_pre_consultation = result.scalar_one_or_none()
         if db_pre_consultation:
@@ -241,8 +239,8 @@ class PreConsultationRepository:
         return self._zone_to_entity(db_zone)
 
     async def update_zone(
-        self, pre_consultation_id: str, zone_id: str, is_eligible: bool, observations: Optional[str]
-    ) -> Optional[PreConsultationZone]:
+        self, pre_consultation_id: str, zone_id: str, is_eligible: bool, observations: str | None
+    ) -> PreConsultationZone | None:
         """Update zone eligibility."""
         result = await self.session.execute(
             select(PreConsultationZoneModel)
@@ -279,9 +277,7 @@ class PreConsultationRepository:
     async def count_by_status(self, status: str) -> int:
         """Count pre-consultations by status."""
         result = await self.session.execute(
-            select(func.count(PreConsultationModel.id)).where(
-                PreConsultationModel.status == status
-            )
+            select(func.count(PreConsultationModel.id)).where(PreConsultationModel.status == status)
         )
         return result.scalar() or 0
 
@@ -297,9 +293,24 @@ class PreConsultationRepository:
         if model.validator:
             validator_name = f"{model.validator.prenom} {model.validator.nom}"
 
+        # Patient info (always present now)
+        patient_nom = None
+        patient_prenom = None
+        patient_code_carte = None
+        patient_telephone = None
+        if model.patient:
+            patient_nom = model.patient.nom
+            patient_prenom = model.patient.prenom
+            patient_code_carte = model.patient.code_carte
+            patient_telephone = model.patient.telephone
+
         return PreConsultation(
             id=model.id,
             patient_id=model.patient_id,
+            patient_nom=patient_nom,
+            patient_prenom=patient_prenom,
+            patient_code_carte=patient_code_carte,
+            patient_telephone=patient_telephone,
             sexe=model.sexe,
             age=model.age,
             statut_marital=model.statut_marital,
@@ -311,12 +322,21 @@ class PreConsultationRepository:
             previous_laser_sessions=model.previous_laser_sessions,
             previous_laser_brand=model.previous_laser_brand,
             hair_removal_methods=model.hair_removal_methods or [],
+            last_hair_removal_date=model.last_hair_removal_date,
             medical_history=model.medical_history or {},
             dermatological_conditions=model.dermatological_conditions or [],
             has_current_treatments=model.has_current_treatments,
             current_treatments_details=model.current_treatments_details,
+            has_moles=model.has_moles,
+            moles_location=model.moles_location,
+            has_birthmarks=model.has_birthmarks,
+            birthmarks_location=model.birthmarks_location,
+            contraception_method=model.contraception_method,
+            hormonal_disease_2years=model.hormonal_disease_2years,
             recent_peeling=model.recent_peeling,
             recent_peeling_date=model.recent_peeling_date,
+            peeling_zone=model.peeling_zone,
+            last_laser_date=model.last_laser_date,
             phototype=model.phototype,
             notes=model.notes,
             status=model.status,

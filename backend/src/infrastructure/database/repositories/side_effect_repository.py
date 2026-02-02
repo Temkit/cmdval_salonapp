@@ -1,7 +1,5 @@
 """Side effect repository implementation."""
 
-from typing import Optional
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -44,7 +42,7 @@ class SideEffectRepository:
         await self.session.flush()
         return await self.find_by_id(side_effect.id)
 
-    async def find_by_id(self, side_effect_id: str) -> Optional[SideEffect]:
+    async def find_by_id(self, side_effect_id: str) -> SideEffect | None:
         """Find side effect by ID."""
         result = await self.session.execute(
             select(SessionSideEffectModel)
@@ -112,9 +110,7 @@ class SideEffectRepository:
         )
         return [self._to_entity(se) for se in result.scalars()]
 
-    async def add_photo(
-        self, side_effect_id: str, photo: SideEffectPhoto
-    ) -> SideEffectPhoto:
+    async def add_photo(self, side_effect_id: str, photo: SideEffectPhoto) -> SideEffectPhoto:
         """Add photo to side effect."""
         db_photo = SideEffectPhotoModel(
             id=photo.id,
@@ -129,9 +125,7 @@ class SideEffectRepository:
     async def delete(self, side_effect_id: str) -> bool:
         """Delete side effect."""
         result = await self.session.execute(
-            select(SessionSideEffectModel).where(
-                SessionSideEffectModel.id == side_effect_id
-            )
+            select(SessionSideEffectModel).where(SessionSideEffectModel.id == side_effect_id)
         )
         db_side_effect = result.scalar_one_or_none()
         if db_side_effect:
@@ -142,15 +136,19 @@ class SideEffectRepository:
 
     def _to_entity(self, model: SessionSideEffectModel) -> SideEffect:
         """Convert model to entity."""
-        photos = [
-            SideEffectPhoto(
-                id=p.id,
-                filename=p.filename,
-                filepath=p.filepath,
-                created_at=p.created_at,
-            )
-            for p in model.photos
-        ] if model.photos else []
+        photos = (
+            [
+                SideEffectPhoto(
+                    id=p.id,
+                    filename=p.filename,
+                    filepath=p.filepath,
+                    created_at=p.created_at,
+                )
+                for p in model.photos
+            ]
+            if model.photos
+            else []
+        )
 
         # Get zone info from session
         zone_id = None

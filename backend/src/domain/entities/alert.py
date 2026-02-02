@@ -1,7 +1,7 @@
 """Alert domain entity."""
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -11,8 +11,8 @@ class Alert:
     type: str  # 'contraindication', 'spacing', 'ineligible_zone', 'side_effect'
     severity: str  # 'warning', 'error'
     message: str
-    zone_id: Optional[str] = None
-    zone_nom: Optional[str] = None
+    zone_id: str | None = None
+    zone_nom: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
 
     @property

@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional
 from uuid import uuid4
 
 
@@ -12,8 +11,8 @@ class PreConsultationZone:
 
     zone_id: str
     is_eligible: bool = True
-    observations: Optional[str] = None
-    zone_nom: Optional[str] = None
+    observations: str | None = None
+    zone_nom: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
@@ -28,7 +27,7 @@ class PreConsultation:
     age: int
 
     # Marital status
-    statut_marital: Optional[str] = None  # 'celibataire', 'marie', 'divorce', 'veuf'
+    statut_marital: str | None = None  # 'celibataire', 'marie', 'divorce', 'veuf'
 
     # Contraindications
     is_pregnant: bool = False
@@ -38,44 +37,65 @@ class PreConsultation:
     # Previous laser history
     has_previous_laser: bool = False
     previous_laser_clarity_ii: bool = False
-    previous_laser_sessions: Optional[int] = None
-    previous_laser_brand: Optional[str] = None
+    previous_laser_sessions: int | None = None
+    previous_laser_brand: str | None = None
 
     # Hair removal methods
     hair_removal_methods: list[str] = field(default_factory=list)
+    last_hair_removal_date: date | None = None
 
     # Medical history
     medical_history: dict = field(default_factory=dict)
     dermatological_conditions: list[str] = field(default_factory=list)
     has_current_treatments: bool = False
-    current_treatments_details: Optional[str] = None
+    current_treatments_details: str | None = None
+
+    # Skin conditions
+    has_moles: bool = False
+    moles_location: str | None = None
+    has_birthmarks: bool = False
+    birthmarks_location: str | None = None
+
+    # Contraception and hormonal
+    contraception_method: str | None = None
+    hormonal_disease_2years: bool = False
 
     # Peeling
     recent_peeling: bool = False
-    recent_peeling_date: Optional[date] = None
+    recent_peeling_date: date | None = None
+    peeling_zone: str | None = None
+
+    # Previous laser dates
+    last_laser_date: date | None = None
 
     # Phototype
-    phototype: Optional[str] = None
+    phototype: str | None = None
 
     # Notes
-    notes: Optional[str] = None
+    notes: str | None = None
 
     # Workflow status
-    status: str = "draft"  # draft, pending_validation, validated, patient_created, rejected
+    status: str = "draft"  # draft, pending_validation, validated, rejected
 
     # Zone eligibility
     zones: list[PreConsultationZone] = field(default_factory=list)
 
-    # Relationships
-    patient_id: Optional[str] = None
+    # Patient relationship (required - patient is created first)
+    patient_id: str = ""
+
+    # Patient info for display (populated from relationship)
+    patient_nom: str | None = None
+    patient_prenom: str | None = None
+    patient_code_carte: str | None = None
+    patient_telephone: str | None = None
 
     # Audit
-    created_by: Optional[str] = None
-    created_by_name: Optional[str] = None
-    validated_by: Optional[str] = None
-    validated_by_name: Optional[str] = None
-    validated_at: Optional[datetime] = None
-    rejection_reason: Optional[str] = None
+    created_by: str | None = None
+    created_by_name: str | None = None
+    validated_by: str | None = None
+    validated_by_name: str | None = None
+    validated_at: datetime | None = None
+    rejection_reason: str | None = None
 
     # Metadata
     id: str = field(default_factory=lambda: str(uuid4()))
@@ -101,11 +121,6 @@ class PreConsultation:
     def can_validate(self) -> bool:
         """Check if pre-consultation can be validated."""
         return self.status == "pending_validation"
-
-    @property
-    def can_create_patient(self) -> bool:
-        """Check if patient can be created from this pre-consultation."""
-        return self.status == "validated" and self.patient_id is None
 
     def get_eligible_zones(self) -> list[PreConsultationZone]:
         """Get list of eligible zones."""

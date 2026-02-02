@@ -85,3 +85,89 @@ class PeriodStatsRequest(AppBaseModel):
     date_from: datetime
     date_to: datetime
     group_by: str = Field(default="day", pattern=r"^(day|week|month)$")
+
+
+# Phase 10 - Enhanced dashboard schemas
+
+
+class SeverityCountItem(AppBaseModel):
+    """Side effect count by severity."""
+
+    severity: str
+    count: int
+
+
+class MonthlyTrendItem(AppBaseModel):
+    """Monthly trend item."""
+
+    month: str
+    count: int
+
+
+class SideEffectStatsResponse(AppBaseModel):
+    """Side effect statistics response."""
+
+    total: int
+    by_severity: list[SeverityCountItem]
+    trend: list[MonthlyTrendItem]
+
+
+class DoctorPerformanceItem(AppBaseModel):
+    """Doctor performance metrics."""
+
+    doctor_id: str
+    doctor_name: str
+    avg_duration_minutes: float
+    total_sessions: int
+    comparison_to_avg: float
+
+
+class DoctorPerformanceResponse(AppBaseModel):
+    """Doctor performance response."""
+
+    doctors: list[DoctorPerformanceItem]
+    overall_avg_duration: float
+
+
+class RevenueByTypeItem(AppBaseModel):
+    """Revenue breakdown by payment type."""
+
+    type: str
+    total: int
+    count: int
+
+
+class RevenueByPeriodItem(AppBaseModel):
+    """Revenue breakdown by period."""
+
+    period: str
+    total: int
+
+
+class RevenueStatsResponse(AppBaseModel):
+    """Revenue statistics response."""
+
+    total_revenue: int
+    revenue_by_type: list[RevenueByTypeItem]
+    revenue_by_period: list[RevenueByPeriodItem]
+
+
+class AgeDistributionItem(AppBaseModel):
+    """Age distribution item."""
+
+    range: str
+    count: int
+
+
+class CityDistributionItem(AppBaseModel):
+    """City distribution item."""
+
+    city: str
+    count: int
+
+
+class DemographicsResponse(AppBaseModel):
+    """Demographics statistics response."""
+
+    age_distribution: list[AgeDistributionItem]
+    city_distribution: list[CityDistributionItem]

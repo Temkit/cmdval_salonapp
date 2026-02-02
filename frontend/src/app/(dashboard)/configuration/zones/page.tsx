@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Pencil, Trash2, Target } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Target, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ export default function ZonesConfigPage() {
   const [editingZone, setEditingZone] = useState<any>(null);
   const [formData, setFormData] = useState<ZoneForm>(initialFormState);
   const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const { data: zones, isLoading } = useQuery({
     queryKey: ["zones"],
@@ -134,6 +135,10 @@ export default function ZonesConfigPage() {
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const allZones = zones?.zones || [];
+  const filteredZones = allZones.filter((zone: any) =>
+    zone.nom.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -158,8 +163,26 @@ export default function ZonesConfigPage() {
 
       {/* Zones List */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 space-y-3">
           <CardTitle className="text-base">Zones de traitement</CardTitle>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Rechercher une zone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded hover:bg-muted transition-colors"
+                aria-label="Effacer la recherche"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -182,9 +205,9 @@ export default function ZonesConfigPage() {
                 </div>
               ))}
             </div>
-          ) : zones?.zones?.length > 0 ? (
+          ) : filteredZones.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {zones.zones.map((zone: any) => (
+              {filteredZones.map((zone: any) => (
                 <div
                   key={zone.id}
                   className="p-4 border rounded-xl space-y-2"
@@ -206,6 +229,7 @@ export default function ZonesConfigPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleOpenEdit(zone)}
+                        aria-label={`Modifier ${zone.nom}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -213,6 +237,7 @@ export default function ZonesConfigPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => setDeleteZoneId(zone.id)}
+                        aria-label={`Supprimer ${zone.nom}`}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -226,6 +251,16 @@ export default function ZonesConfigPage() {
                 </div>
               ))}
             </div>
+          ) : allZones.length > 0 && search ? (
+            <EmptyState
+              icon={Search}
+              title="Aucun résultat"
+              description={`Aucune zone ne correspond à "${search}"`}
+              action={{
+                label: "Effacer la recherche",
+                onClick: () => setSearch(""),
+              }}
+            />
           ) : (
             <EmptyState
               icon={Target}

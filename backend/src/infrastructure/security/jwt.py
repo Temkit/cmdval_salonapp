@@ -1,6 +1,6 @@
 """JWT token creation and validation."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -38,7 +38,7 @@ def create_access_token(
     Returns:
         Encoded JWT token string
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now + timedelta(hours=settings.jwt_expire_hours)
 
     payload = {
@@ -95,7 +95,7 @@ def get_token_expiration(token: str) -> datetime | None:
         )
         exp = payload.get("exp")
         if exp:
-            return datetime.fromtimestamp(exp, tz=timezone.utc)
+            return datetime.fromtimestamp(exp, tz=UTC)
         return None
     except jwt.InvalidTokenError:
         return None

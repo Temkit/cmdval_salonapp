@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     photo_quality: int = 85
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3420"]
 
     # Admin
     admin_username: str = "admin"

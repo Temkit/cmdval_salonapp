@@ -19,18 +19,28 @@ from src.application.services import (
     ZoneDefinitionService,
 )
 from src.application.services.alert_service import AlertService
+from src.application.services.pack_service import PackService, SubscriptionService
+from src.application.services.paiement_service import PaiementService
 from src.application.services.pre_consultation_service import PreConsultationService
+from src.application.services.promotion_service import PromotionService
+from src.application.services.schedule_service import ScheduleService
 from src.infrastructure.database.connection import get_session
 from src.infrastructure.database.repositories import (
+    PackRepository,
+    PaiementRepository,
     PatientRepository,
+    PatientSubscriptionRepository,
     PatientZoneRepository,
     PreConsultationRepository,
+    PromotionRepository,
     QuestionRepository,
     QuestionResponseRepository,
     RoleRepository,
+    ScheduleRepository,
     SessionRepository,
     SideEffectRepository,
     UserRepository,
+    WaitingQueueRepository,
     ZoneDefinitionRepository,
 )
 from src.infrastructure.security.jwt import decode_access_token
@@ -46,74 +56,106 @@ async def get_db() -> AsyncSession:
 
 
 # Repository dependencies
-def get_role_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
-) -> RoleRepository:
+def get_role_repository(session: Annotated[AsyncSession, Depends(get_db)]) -> RoleRepository:
     """Get role repository."""
     return RoleRepository(session)
 
 
-def get_user_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
-) -> UserRepository:
+def get_user_repository(session: Annotated[AsyncSession, Depends(get_db)]) -> UserRepository:
     """Get user repository."""
     return UserRepository(session)
 
 
-def get_patient_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
-) -> PatientRepository:
+def get_patient_repository(session: Annotated[AsyncSession, Depends(get_db)]) -> PatientRepository:
     """Get patient repository."""
     return PatientRepository(session)
 
 
 def get_zone_definition_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
+    session: Annotated[AsyncSession, Depends(get_db)],
 ) -> ZoneDefinitionRepository:
     """Get zone definition repository."""
     return ZoneDefinitionRepository(session)
 
 
 def get_patient_zone_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
+    session: Annotated[AsyncSession, Depends(get_db)],
 ) -> PatientZoneRepository:
     """Get patient zone repository."""
     return PatientZoneRepository(session)
 
 
 def get_question_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
+    session: Annotated[AsyncSession, Depends(get_db)],
 ) -> QuestionRepository:
     """Get question repository."""
     return QuestionRepository(session)
 
 
 def get_question_response_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
+    session: Annotated[AsyncSession, Depends(get_db)],
 ) -> QuestionResponseRepository:
     """Get question response repository."""
     return QuestionResponseRepository(session)
 
 
-def get_session_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
-) -> SessionRepository:
+def get_session_repository(session: Annotated[AsyncSession, Depends(get_db)]) -> SessionRepository:
     """Get session repository."""
     return SessionRepository(session)
 
 
 def get_pre_consultation_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
+    session: Annotated[AsyncSession, Depends(get_db)],
 ) -> PreConsultationRepository:
     """Get pre-consultation repository."""
     return PreConsultationRepository(session)
 
 
 def get_side_effect_repository(
-    session: Annotated[AsyncSession, Depends(get_db)]
+    session: Annotated[AsyncSession, Depends(get_db)],
 ) -> SideEffectRepository:
     """Get side effect repository."""
     return SideEffectRepository(session)
+
+
+def get_pack_repository(session: Annotated[AsyncSession, Depends(get_db)]) -> PackRepository:
+    """Get pack repository."""
+    return PackRepository(session)
+
+
+def get_patient_subscription_repository(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> PatientSubscriptionRepository:
+    """Get patient subscription repository."""
+    return PatientSubscriptionRepository(session)
+
+
+def get_paiement_repository(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> PaiementRepository:
+    """Get paiement repository."""
+    return PaiementRepository(session)
+
+
+def get_promotion_repository(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> PromotionRepository:
+    """Get promotion repository."""
+    return PromotionRepository(session)
+
+
+def get_schedule_repository(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> ScheduleRepository:
+    """Get schedule repository."""
+    return ScheduleRepository(session)
+
+
+def get_waiting_queue_repository(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> WaitingQueueRepository:
+    """Get waiting queue repository."""
+    return WaitingQueueRepository(session)
 
 
 # Service dependencies
@@ -174,7 +216,9 @@ def get_question_service(
 def get_questionnaire_service(
     question_repo: Annotated[QuestionRepository, Depends(get_question_repository)],
     response_repo: Annotated[QuestionResponseRepository, Depends(get_question_response_repository)],
-    pre_consultation_repo: Annotated[PreConsultationRepository, Depends(get_pre_consultation_repository)],
+    pre_consultation_repo: Annotated[
+        PreConsultationRepository, Depends(get_pre_consultation_repository)
+    ],
 ) -> QuestionnaireService:
     """Get questionnaire service."""
     return QuestionnaireService(question_repo, response_repo, pre_consultation_repo)
@@ -193,9 +237,11 @@ def get_session_service(
 def get_dashboard_service(
     patient_repo: Annotated[PatientRepository, Depends(get_patient_repository)],
     session_repo: Annotated[SessionRepository, Depends(get_session_repository)],
+    side_effect_repo: Annotated[SideEffectRepository, Depends(get_side_effect_repository)],
+    paiement_repo: Annotated[PaiementRepository, Depends(get_paiement_repository)],
 ) -> DashboardService:
     """Get dashboard service."""
-    return DashboardService(patient_repo, session_repo)
+    return DashboardService(patient_repo, session_repo, side_effect_repo, paiement_repo)
 
 
 def get_pre_consultation_service(
@@ -207,9 +253,7 @@ def get_pre_consultation_service(
     patient_zone_repo: Annotated[PatientZoneRepository, Depends(get_patient_zone_repository)],
 ) -> PreConsultationService:
     """Get pre-consultation service."""
-    return PreConsultationService(
-        pre_consultation_repo, patient_repo, zone_repo, patient_zone_repo
-    )
+    return PreConsultationService(pre_consultation_repo, patient_repo, zone_repo, patient_zone_repo)
 
 
 def get_alert_service(
@@ -221,6 +265,49 @@ def get_alert_service(
 ) -> AlertService:
     """Get alert service."""
     return AlertService(pre_consultation_repo, session_repo, side_effect_repo)
+
+
+def get_pack_service(
+    pack_repo: Annotated[PackRepository, Depends(get_pack_repository)],
+) -> PackService:
+    """Get pack service."""
+    return PackService(pack_repo)
+
+
+def get_subscription_service(
+    subscription_repo: Annotated[
+        PatientSubscriptionRepository, Depends(get_patient_subscription_repository)
+    ],
+    pack_repo: Annotated[PackRepository, Depends(get_pack_repository)],
+    patient_repo: Annotated[PatientRepository, Depends(get_patient_repository)],
+) -> SubscriptionService:
+    """Get subscription service."""
+    return SubscriptionService(subscription_repo, pack_repo, patient_repo)
+
+
+def get_paiement_service(
+    paiement_repo: Annotated[PaiementRepository, Depends(get_paiement_repository)],
+    patient_repo: Annotated[PatientRepository, Depends(get_patient_repository)],
+) -> PaiementService:
+    """Get paiement service."""
+    return PaiementService(paiement_repo, patient_repo)
+
+
+def get_promotion_service(
+    promotion_repo: Annotated[PromotionRepository, Depends(get_promotion_repository)],
+) -> PromotionService:
+    """Get promotion service."""
+    return PromotionService(promotion_repo)
+
+
+def get_schedule_service(
+    schedule_repo: Annotated[ScheduleRepository, Depends(get_schedule_repository)],
+    queue_repo: Annotated[WaitingQueueRepository, Depends(get_waiting_queue_repository)],
+    patient_repo: Annotated[PatientRepository, Depends(get_patient_repository)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repository)],
+) -> ScheduleService:
+    """Get schedule service."""
+    return ScheduleService(schedule_repo, queue_repo, patient_repo, user_repo)
 
 
 # Authentication dependency
@@ -249,9 +336,7 @@ async def get_current_user(
 def require_permission(permission: str):
     """Create a dependency that checks for a specific permission."""
 
-    async def check_permission(
-        current_user: Annotated[dict, Depends(get_current_user)]
-    ) -> dict:
+    async def check_permission(current_user: Annotated[dict, Depends(get_current_user)]) -> dict:
         if permission not in current_user.get("permissions", []):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

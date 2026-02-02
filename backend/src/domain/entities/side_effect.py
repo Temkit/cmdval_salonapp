@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 from uuid import uuid4
 
 
@@ -22,13 +21,13 @@ class SideEffect:
 
     session_id: str
     description: str
-    severity: Optional[str] = None  # 'mild', 'moderate', 'severe'
+    severity: str | None = None  # 'mild', 'moderate', 'severe'
     photos: list[SideEffectPhoto] = field(default_factory=list)
 
     # Additional context
-    zone_id: Optional[str] = None
-    zone_nom: Optional[str] = None
-    patient_id: Optional[str] = None
+    zone_id: str | None = None
+    zone_nom: str | None = None
+    patient_id: str | None = None
 
     # Metadata
     id: str = field(default_factory=lambda: str(uuid4()))

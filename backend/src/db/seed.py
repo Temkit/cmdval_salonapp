@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
-from src.domain.entities.role import DEFAULT_ROLE_PERMISSIONS, Permission
+from src.domain.entities.role import DEFAULT_ROLE_PERMISSIONS
 from src.domain.entities.zone import DEFAULT_ZONES
 from src.infrastructure.database.connection import async_session_factory, engine
 from src.infrastructure.database.models import (
@@ -84,8 +84,18 @@ DEFAULT_QUESTIONS = [
 SAMPLE_PRENOMS_F = ["Marie", "Sophie", "Camille", "Julie", "Emma", "Léa", "Chloé", "Sarah"]
 SAMPLE_PRENOMS_M = ["Thomas", "Nicolas", "Pierre", "Alexandre", "Lucas", "Hugo", "Louis"]
 SAMPLE_NOMS = [
-    "Martin", "Bernard", "Dubois", "Thomas", "Robert", "Richard",
-    "Petit", "Durand", "Leroy", "Moreau", "Simon", "Laurent",
+    "Martin",
+    "Bernard",
+    "Dubois",
+    "Thomas",
+    "Robert",
+    "Richard",
+    "Petit",
+    "Durand",
+    "Leroy",
+    "Moreau",
+    "Simon",
+    "Laurent",
 ]
 
 LASER_TYPES = ["Alexandrite (755nm)", "Diode (810nm)", "Nd:YAG (1064nm)", "IPL"]
@@ -108,11 +118,11 @@ async def seed_database():
         print(f"Created {len(roles)} roles")
 
         # 2. Create admin user
-        admin_user = await create_admin_user(session, roles["Admin"])
+        await create_admin_user(session, roles["Admin"])
         print(f"Created admin user: {settings.admin_username}")
 
         # 3. Create praticien and secretary users
-        praticien = await create_user(
+        await create_user(
             session,
             username="praticien",
             password="praticien123",
@@ -122,7 +132,7 @@ async def seed_database():
         )
         print("Created praticien user")
 
-        secretaire = await create_user(
+        await create_user(
             session,
             username="secretaire",
             password="secretaire123",
@@ -212,12 +222,17 @@ async def create_user(
 async def create_zone_definitions(session: AsyncSession) -> list[ZoneDefinitionModel]:
     """Create zone definitions."""
     zones = []
-    for i, zone_def in enumerate(DEFAULT_ZONES):
+    for zone_def in DEFAULT_ZONES:
         zone = ZoneDefinitionModel(
             id=str(uuid4()),
             code=zone_def.code,
             nom=zone_def.nom,
             description=zone_def.description,
+            ordre=zone_def.ordre,
+            prix=zone_def.prix,
+            duree_minutes=zone_def.duree_minutes,
+            categorie=zone_def.categorie,
+            is_homme=zone_def.is_homme,
             is_active=True,
         )
         session.add(zone)
@@ -329,12 +344,14 @@ async def create_patient_zones_and_sessions(
                         "frequence": f"{choice([1, 2, 3])} Hz",
                     },
                     duree_minutes=randint(15, 45),
-                    notes=choice([
-                        None,
-                        "Bonne tolérance",
-                        "Légère rougeur post-traitement",
-                        "RAS",
-                    ]),
+                    notes=choice(
+                        [
+                            None,
+                            "Bonne tolérance",
+                            "Légère rougeur post-traitement",
+                            "RAS",
+                        ]
+                    ),
                 )
                 session.add(session_obj)
 

@@ -28,9 +28,7 @@ class QuestionUpdate(AppBaseModel):
     """Question update schema."""
 
     texte: str | None = Field(default=None, min_length=1)
-    type_reponse: str | None = Field(
-        default=None, pattern=r"^(boolean|text|choice|multiple)$"
-    )
+    type_reponse: str | None = Field(default=None, pattern=r"^(boolean|text|choice|multiple)$")
     options: list[str] | None = None
     obligatoire: bool | None = None
     is_active: bool | None = None

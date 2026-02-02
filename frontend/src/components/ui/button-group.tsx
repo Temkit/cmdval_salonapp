@@ -47,12 +47,13 @@ export function ButtonGroup({
         <button
           key={option.value}
           type="button"
+          aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
             "flex flex-col items-center justify-center rounded-lg border-2 font-medium transition-all active:scale-[0.98]",
             sizeClasses[size],
             value === option.value
-              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+              ? "border-primary bg-primary text-primary-foreground shadow-sm ring-2 ring-primary ring-offset-2 ring-offset-background"
               : "border-border bg-background hover:border-primary/50 hover:bg-muted"
           )}
         >
@@ -165,11 +166,12 @@ export function ToggleButton({
     <div className={cn("grid grid-cols-2 gap-2", className)}>
       <button
         type="button"
+        aria-pressed={value === true}
         onClick={() => onChange(true)}
         className={cn(
           "min-h-[56px] px-4 py-3 rounded-lg border-2 font-medium text-lg transition-all active:scale-[0.98]",
           value === true
-            ? "border-primary bg-primary text-primary-foreground"
+            ? "border-primary bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
             : "border-border bg-background hover:border-primary/50 hover:bg-muted"
         )}
       >
@@ -177,11 +179,12 @@ export function ToggleButton({
       </button>
       <button
         type="button"
+        aria-pressed={value === false}
         onClick={() => onChange(false)}
         className={cn(
           "min-h-[56px] px-4 py-3 rounded-lg border-2 font-medium text-lg transition-all active:scale-[0.98]",
           value === false
-            ? "border-primary bg-primary text-primary-foreground"
+            ? "border-primary bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
             : "border-border bg-background hover:border-primary/50 hover:bg-muted"
         )}
       >

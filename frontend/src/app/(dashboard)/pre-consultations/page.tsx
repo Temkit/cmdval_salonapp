@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnnouncer } from "@/components/ui/live-region";
+import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
 import { formatDate, cn } from "@/lib/utils";
 import type { PreConsultation } from "@/types";
@@ -30,7 +31,6 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
   pending_validation: { label: "En attente", variant: "default", icon: Clock },
   validated: { label: "Validee", variant: "outline", icon: CheckCircle },
   rejected: { label: "Refusee", variant: "destructive", icon: XCircle },
-  patient_created: { label: "Patient cree", variant: "outline", icon: UserPlus },
 };
 
 export default function PreConsultationsPage() {
@@ -49,7 +49,7 @@ export default function PreConsultationsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["pre-consultations", page, debouncedSearch, statusFilter],
     queryFn: () =>
       api.getPreConsultations({
@@ -136,6 +136,22 @@ export default function PreConsultationsPage() {
         </CardContent>
       </Card>
 
+      {/* Error */}
+      {isError && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-4" />
+            <p className="font-medium">Erreur de chargement</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {(error as any)?.message || "Impossible de charger les pre-consultations"}
+            </p>
+            <Button variant="outline" onClick={() => refetch()} className="mt-4">
+              Reessayer
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Results */}
       {isLoading ? (
         <div className="space-y-3" aria-busy="true">
@@ -185,12 +201,13 @@ export default function PreConsultationsPage() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold truncate">
-                          {pc.sexe === "F" ? "Femme" : "Homme"}, {pc.age} ans
-                          {pc.phototype && <span className="text-muted-foreground font-normal"> - Phototype {pc.phototype}</span>}
+                          {pc.patient_prenom} {pc.patient_nom}
+                          {pc.patient_code_carte && <span className="text-muted-foreground font-normal"> - {pc.patient_code_carte}</span>}
                         </p>
                         <p className="text-sm text-muted-foreground mt-0.5 truncate">
-                          {(pc.zones_count ?? pc.zones?.length ?? 0)} zone{(pc.zones_count ?? pc.zones?.length ?? 0) !== 1 ? "s" : ""}
-                          {pc.created_by_name && ` • par ${pc.created_by_name}`}
+                          {pc.sexe === "F" ? "F" : "H"}, {pc.age} ans
+                          {pc.phototype && ` • Phototype ${pc.phototype}`}
+                          {` • ${(pc.zones_count ?? pc.zones?.length ?? 0)} zone${(pc.zones_count ?? pc.zones?.length ?? 0) !== 1 ? "s" : ""}`}
                         </p>
                       </div>
 
@@ -244,33 +261,26 @@ export default function PreConsultationsPage() {
             </Card>
           )}
         </div>
+      ) : search ? (
+        <Card>
+          <CardContent className="py-12">
+            <EmptyState
+              icon={ClipboardList}
+              title="Aucun resultat"
+              description={`Aucun resultat pour "${search}"`}
+              action={{ label: "Effacer la recherche", onClick: () => setSearch("") }}
+            />
+          </CardContent>
+        </Card>
       ) : (
         <Card>
           <CardContent className="py-12">
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <ClipboardList className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="font-medium text-lg">Aucune pre-consultation</p>
-              {search ? (
-                <>
-                  <p className="text-sm text-muted-foreground mt-1">Aucun resultat pour "{search}"</p>
-                  <Button variant="outline" onClick={() => setSearch("")} className="mt-4">
-                    Effacer la recherche
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground mt-1">Commencez par creer une pre-consultation</p>
-                  <Button asChild className="mt-4">
-                    <Link href="/pre-consultations/nouveau">
-                      <Plus className="h-5 w-5 mr-2" />
-                      Nouvelle pre-consultation
-                    </Link>
-                  </Button>
-                </>
-              )}
-            </div>
+            <EmptyState
+              icon={ClipboardList}
+              title="Aucune pre-consultation"
+              description="Les pre-consultations permettent d'evaluer l'eligibilite des patients"
+              action={{ label: "Nouvelle pre-consultation", href: "/pre-consultations/nouveau" }}
+            />
           </CardContent>
         </Card>
       )}

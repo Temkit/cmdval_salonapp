@@ -29,5 +29,15 @@ pytest-cov==6.0.0
 ruff==0.8.6
 mypy==1.14.1
 
+# Excel Processing
+openpyxl==3.1.5
+
+# QR Code
+qrcode[pil]==8.0
+
+# PDF Generation
+reportlab==4.2.5
+jinja2==3.1.5
+
 # Utilities
 python-dateutil==2.9.0.post0

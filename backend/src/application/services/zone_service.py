@@ -25,6 +25,10 @@ class ZoneDefinitionService:
         nom: str,
         description: str | None = None,
         ordre: int = 0,
+        prix: int | None = None,
+        duree_minutes: int | None = None,
+        categorie: str | None = None,
+        is_homme: bool = False,
     ) -> ZoneDefinition:
         """Create a new zone definition."""
         existing = await self.zone_repository.find_by_nom(nom)
@@ -36,6 +40,10 @@ class ZoneDefinitionService:
             nom=nom,
             description=description,
             ordre=ordre,
+            prix=prix,
+            duree_minutes=duree_minutes,
+            categorie=categorie,
+            is_homme=is_homme,
         )
 
         return await self.zone_repository.create(zone)
@@ -57,6 +65,10 @@ class ZoneDefinitionService:
         nom: str | None = None,
         description: str | None = None,
         ordre: int | None = None,
+        prix: int | None = None,
+        duree_minutes: int | None = None,
+        categorie: str | None = None,
+        is_homme: bool | None = None,
         is_active: bool | None = None,
     ) -> ZoneDefinition:
         """Update zone definition."""
@@ -74,6 +86,14 @@ class ZoneDefinitionService:
             zone.description = description
         if ordre is not None:
             zone.ordre = ordre
+        if prix is not None:
+            zone.prix = prix
+        if duree_minutes is not None:
+            zone.duree_minutes = duree_minutes
+        if categorie is not None:
+            zone.categorie = categorie
+        if is_homme is not None:
+            zone.is_homme = is_homme
         if is_active is not None:
             zone.is_active = is_active
 
@@ -123,9 +143,7 @@ class PatientZoneService:
             patient_id, zone_definition_id
         )
         if existing:
-            raise DuplicateZoneError(
-                f"Le patient a déjà la zone '{zone_def.nom}'"
-            )
+            raise DuplicateZoneError(f"Le patient a déjà la zone '{zone_def.nom}'")
 
         patient_zone = PatientZone(
             patient_id=patient_id,

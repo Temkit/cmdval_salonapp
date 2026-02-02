@@ -4,6 +4,11 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from uuid import uuid4
 
+# Patient status values
+PATIENT_STATUS_EN_ATTENTE = "en_attente_evaluation"
+PATIENT_STATUS_ACTIF = "actif"
+PATIENT_STATUS_INELIGIBLE = "ineligible"
+
 
 @dataclass
 class Patient:
@@ -21,6 +26,7 @@ class Patient:
     code_postal: str | None = None
     notes: str | None = None
     phototype: str | None = None
+    status: str = PATIENT_STATUS_EN_ATTENTE  # en_attente_evaluation, actif, ineligible
     created_by: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -35,10 +41,7 @@ class Patient:
         return (
             today.year
             - self.date_naissance.year
-            - (
-                (today.month, today.day)
-                < (self.date_naissance.month, self.date_naissance.day)
-            )
+            - ((today.month, today.day) < (self.date_naissance.month, self.date_naissance.day))
         )
 
     @property

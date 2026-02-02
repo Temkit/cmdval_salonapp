@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SkipLink } from "@/components/ui/skip-link";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
@@ -65,7 +66,7 @@ export default function DashboardLayout({
             className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6"
             tabIndex={-1}
           >
-            {children}
+            <ErrorBoundary>{children}</ErrorBoundary>
           </main>
         </div>
 

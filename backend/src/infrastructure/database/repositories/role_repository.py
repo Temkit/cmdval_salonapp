@@ -27,32 +27,24 @@ class RoleRepository:
 
     async def find_by_id(self, role_id: str) -> Role | None:
         """Find role by ID."""
-        result = await self.session.execute(
-            select(RoleModel).where(RoleModel.id == role_id)
-        )
+        result = await self.session.execute(select(RoleModel).where(RoleModel.id == role_id))
         db_role = result.scalar_one_or_none()
         return self._to_entity(db_role) if db_role else None
 
     async def find_by_name(self, name: str) -> Role | None:
         """Find role by name."""
-        result = await self.session.execute(
-            select(RoleModel).where(RoleModel.name == name)
-        )
+        result = await self.session.execute(select(RoleModel).where(RoleModel.name == name))
         db_role = result.scalar_one_or_none()
         return self._to_entity(db_role) if db_role else None
 
     async def find_all(self) -> list[Role]:
         """Get all roles."""
-        result = await self.session.execute(
-            select(RoleModel).order_by(RoleModel.name)
-        )
+        result = await self.session.execute(select(RoleModel).order_by(RoleModel.name))
         return [self._to_entity(r) for r in result.scalars()]
 
     async def update(self, role: Role) -> Role:
         """Update role."""
-        result = await self.session.execute(
-            select(RoleModel).where(RoleModel.id == role.id)
-        )
+        result = await self.session.execute(select(RoleModel).where(RoleModel.id == role.id))
         db_role = result.scalar_one_or_none()
         if db_role:
             db_role.name = role.name
@@ -63,9 +55,7 @@ class RoleRepository:
 
     async def delete(self, role_id: str) -> bool:
         """Delete role."""
-        result = await self.session.execute(
-            select(RoleModel).where(RoleModel.id == role_id)
-        )
+        result = await self.session.execute(select(RoleModel).where(RoleModel.id == role_id))
         db_role = result.scalar_one_or_none()
         if db_role:
             await self.session.delete(db_role)

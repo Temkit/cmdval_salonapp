@@ -25,6 +25,7 @@ class PatientService:
         adresse: str | None = None,
         notes: str | None = None,
         phototype: str | None = None,
+        status: str = "en_attente_evaluation",
     ) -> Patient:
         """Create a new patient."""
         # Check if card code already exists
@@ -43,6 +44,7 @@ class PatientService:
             adresse=adresse,
             notes=notes,
             phototype=phototype,
+            status=status,
         )
 
         return await self.patient_repository.create(patient)
@@ -90,6 +92,7 @@ class PatientService:
         adresse: str | None = None,
         notes: str | None = None,
         phototype: str | None = None,
+        status: str | None = None,
     ) -> Patient:
         """Update patient."""
         patient = await self.patient_repository.find_by_id(patient_id)
@@ -114,6 +117,8 @@ class PatientService:
             patient.notes = notes
         if phototype is not None:
             patient.phototype = phototype
+        if status is not None:
+            patient.status = status
 
         return await self.patient_repository.update(patient)
 

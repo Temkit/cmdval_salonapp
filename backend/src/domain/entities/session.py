@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import uuid4
 
-
 # Default laser types
 LASER_TYPES = [
     "Alexandrite (755nm)",
@@ -38,6 +37,10 @@ class Session:
     praticien_nom: str = ""
     patient_nom: str = ""
     patient_prenom: str = ""
+    spot_size: int | None = None
+    fluence: float | None = None
+    pulse_duration_ms: int | None = None
+    frequency_hz: float | None = None
     notes: str | None = None
     duree_minutes: int | None = None
     photos: list[SessionPhoto] = field(default_factory=list)

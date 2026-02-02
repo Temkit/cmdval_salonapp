@@ -19,11 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { useSessionStore, SideEffect } from "@/stores/session-store";
+import { useSessionStore, SideEffect, PhotoRef } from "@/stores/session-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { CameraCapture } from "@/components/ui/camera-capture";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function SeanceActivePage() {
   const router = useRouter();
@@ -39,12 +41,15 @@ export default function SeanceActivePage() {
   const getAllSessions = useSessionStore((s) => s.getAllSessions);
   const togglePause = useSessionStore((s) => s.togglePause);
   const addPhoto = useSessionStore((s) => s.addPhoto);
+  const removePhoto = useSessionStore((s) => s.removePhoto);
   const addSideEffect = useSessionStore((s) => s.addSideEffect);
   const endSession = useSessionStore((s) => s.endSession);
   const getElapsedSeconds = useSessionStore((s) => s.getElapsedSeconds);
 
   // Get active session for current user (only after hydration)
   const activeSession = hasHydrated && user ? getSession(user.id) : null;
+  // Warn user before leaving when a session is active
+  useUnsavedChanges(!!activeSession);
   // Get all active sessions for display
   const allSessions = getAllSessions();
 
@@ -62,6 +67,7 @@ export default function SeanceActivePage() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [sideEffectCameraOpen, setSideEffectCameraOpen] = useState(false);
   const [showSideEffectForm, setShowSideEffectForm] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sideEffectDescription, setSideEffectDescription] = useState("");
   const [sideEffectSeverity, setSideEffectSeverity] = useState<"mild" | "moderate" | "severe">("mild");
   const [sideEffectPhotos, setSideEffectPhotos] = useState<string[]>([]);
@@ -159,14 +165,25 @@ export default function SeanceActivePage() {
     setCameraOpen(true);
   };
 
-  const handlePhotoCapture = (imageData: string) => {
+  const handlePhotoCapture = async (imageData: string) => {
     const targetPraticienId = activeSession ? user?.id : selectedPraticienId;
     if (!targetPraticienId) return;
-    addPhoto(targetPraticienId, imageData);
-    toast({
-      title: "Photo ajoutee",
-      description: "La photo a ete enregistree.",
-    });
+
+    setUploadingPhoto(true);
+    try {
+      // Convert base64 to blob
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+
+      // Upload immediately to backend
+      const result = await api.uploadTempPhoto(blob);
+      addPhoto(targetPraticienId, { id: result.id, url: result.url });
+      toast({ title: "Photo ajoutee" });
+    } catch {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de telecharger la photo." });
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   // Handle side effect photo capture
@@ -246,12 +263,10 @@ export default function SeanceActivePage() {
       const allNotes = [session.notes, endNotes].filter(Boolean).join("\n\n");
       if (allNotes) formData.append("observations", allNotes);
 
-      // Convert base64 photos to files and append
-      for (let i = 0; i < session.photos.length; i++) {
-        const base64 = session.photos[i];
-        const response = await fetch(base64);
-        const blob = await response.blob();
-        formData.append("photos", blob, `photo-${i + 1}.jpg`);
+      // Append photo IDs (already uploaded as temp photos)
+      const photoIds = session.photos.map((p) => p.id);
+      if (photoIds.length > 0) {
+        formData.append("photo_ids", JSON.stringify(photoIds));
       }
 
       // Save to API
@@ -344,7 +359,7 @@ export default function SeanceActivePage() {
 
                       {/* Timer */}
                       <div className={cn(
-                        "font-mono text-lg font-semibold tabular-nums",
+                        "font-mono text-xl font-semibold tabular-nums",
                         session.isPaused ? "text-yellow-600" : "text-green-600"
                       )}>
                         {formatTime(otherSessionsTimes[session.praticienId] || 0)}
@@ -363,17 +378,12 @@ export default function SeanceActivePage() {
               ))}
             </div>
           ) : (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="h-16 w-16 rounded-xl bg-muted flex items-center justify-center mb-4 mx-auto">
-                  <Clock className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-lg font-medium mb-1">Aucune seance active</p>
-                <p className="text-sm text-muted-foreground">
-                  Selectionnez un patient et demarrez une seance.
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Clock}
+              title="Aucune seance active"
+              description="Demarrez une seance depuis le dossier d'un patient"
+              action={{ label: "Voir les patients", href: "/patients" }}
+            />
           )}
 
           {/* Action button */}
@@ -445,11 +455,11 @@ export default function SeanceActivePage() {
               <div className="grid grid-cols-4 gap-2">
                 {displaySession.photos.map((photo, index) => (
                   <div
-                    key={index}
+                    key={photo.id}
                     className="aspect-square rounded-xl overflow-hidden bg-muted relative group"
                   >
                     <img
-                      src={photo}
+                      src={photo.url}
                       alt={`Photo ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
@@ -578,6 +588,7 @@ export default function SeanceActivePage() {
               variant={displaySession.isPaused ? "default" : "outline"}
               className="h-16 w-16 rounded-full"
               onClick={handleTogglePause}
+              aria-label={displaySession.isPaused ? "Reprendre" : "Mettre en pause"}
             >
               {displaySession.isPaused ? (
                 <Play className="h-8 w-8" />
@@ -807,15 +818,17 @@ export default function SeanceActivePage() {
       />
 
       {/* Bottom Actions - THUMB ZONE */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2 pb-24">
         {/* Photo */}
         <Button
           variant="outline"
           className="flex-1 h-14 rounded-xl relative"
           onClick={handleTakePhoto}
+          disabled={uploadingPhoto}
+          aria-label="Prendre une photo"
         >
           <Camera className="h-5 w-5 mr-1" />
-          Photo
+          {uploadingPhoto ? "Envoi..." : "Photo"}
           {displaySession.photos.length > 0 && (
             <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-primary-foreground rounded-full text-xs flex items-center justify-center font-semibold">
               {displaySession.photos.length}
@@ -828,6 +841,7 @@ export default function SeanceActivePage() {
           variant="outline"
           className="flex-1 h-14 rounded-xl relative"
           onClick={() => setShowSideEffectForm(true)}
+          aria-label="Signaler un effet secondaire"
         >
           <AlertTriangle className="h-5 w-5 mr-1" />
           Effet
@@ -843,6 +857,7 @@ export default function SeanceActivePage() {
           variant="destructive"
           className="flex-1 h-14 rounded-xl font-semibold"
           onClick={handleEndClick}
+          aria-label="Terminer la seance"
         >
           <StopCircle className="h-5 w-5 mr-1" />
           Terminer

@@ -15,6 +15,10 @@ class ZoneDefinitionBase(AppBaseModel):
     nom: str = Field(min_length=1, max_length=100)
     description: str | None = None
     ordre: int = Field(default=0, ge=0)
+    prix: int | None = Field(default=None, ge=0)
+    duree_minutes: int | None = Field(default=None, ge=1)
+    categorie: str | None = Field(default=None, max_length=20)
+    is_homme: bool = False
 
 
 class ZoneDefinitionCreate(ZoneDefinitionBase):
@@ -29,6 +33,10 @@ class ZoneDefinitionUpdate(AppBaseModel):
     nom: str | None = Field(default=None, min_length=1, max_length=100)
     description: str | None = None
     ordre: int | None = Field(default=None, ge=0)
+    prix: int | None = Field(default=None, ge=0)
+    duree_minutes: int | None = Field(default=None, ge=1)
+    categorie: str | None = Field(default=None, max_length=20)
+    is_homme: bool | None = None
     is_active: bool | None = None
 
 

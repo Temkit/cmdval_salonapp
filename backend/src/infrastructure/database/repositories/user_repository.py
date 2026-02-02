@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 
 from src.domain.entities.user import User
 from src.domain.interfaces.user_repository import UserRepositoryInterface
-from src.infrastructure.database.models import RoleModel, UserModel
+from src.infrastructure.database.models import UserModel
 
 
 class UserRepository(UserRepositoryInterface):
@@ -33,9 +33,7 @@ class UserRepository(UserRepositoryInterface):
     async def find_by_id(self, user_id: str) -> User | None:
         """Find user by ID."""
         result = await self.session.execute(
-            select(UserModel)
-            .options(joinedload(UserModel.role))
-            .where(UserModel.id == user_id)
+            select(UserModel).options(joinedload(UserModel.role)).where(UserModel.id == user_id)
         )
         db_user = result.unique().scalar_one_or_none()
         return self._to_entity(db_user) if db_user else None
@@ -61,9 +59,7 @@ class UserRepository(UserRepositoryInterface):
 
     async def update(self, user: User) -> User:
         """Update user."""
-        result = await self.session.execute(
-            select(UserModel).where(UserModel.id == user.id)
-        )
+        result = await self.session.execute(select(UserModel).where(UserModel.id == user.id))
         db_user = result.scalar_one_or_none()
         if db_user:
             db_user.username = user.username
@@ -79,9 +75,7 @@ class UserRepository(UserRepositoryInterface):
 
     async def delete(self, user_id: str) -> bool:
         """Delete user."""
-        result = await self.session.execute(
-            select(UserModel).where(UserModel.id == user_id)
-        )
+        result = await self.session.execute(select(UserModel).where(UserModel.id == user_id))
         db_user = result.scalar_one_or_none()
         if db_user:
             await self.session.delete(db_user)

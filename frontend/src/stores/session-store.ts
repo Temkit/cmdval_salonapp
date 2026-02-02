@@ -3,10 +3,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface PhotoRef {
+  id: string;
+  url: string;
+}
+
 export interface SideEffect {
   description: string;
   severity?: "mild" | "moderate" | "severe";
-  photos: string[]; // base64 or URLs
+  photos: string[]; // base64 for side-effect photos (small, few)
 }
 
 export interface ActiveSession {
@@ -34,7 +39,7 @@ export interface ActiveSession {
   isPaused: boolean;
   // Capture
   notes: string;
-  photos: string[]; // base64 or URLs
+  photos: PhotoRef[]; // uploaded photo references (id + url)
   voiceNotes: string[]; // base64 or URLs
   // Side effects
   sideEffects: SideEffect[];
@@ -71,7 +76,8 @@ interface SessionState {
 
   // Add notes/photos
   addNote: (praticienId: string, note: string) => void;
-  addPhoto: (praticienId: string, photo: string) => void;
+  addPhoto: (praticienId: string, photo: PhotoRef) => void;
+  removePhoto: (praticienId: string, photoId: string) => void;
   addVoiceNote: (praticienId: string, voiceNote: string) => void;
   addSideEffect: (praticienId: string, sideEffect: SideEffect) => void;
 
@@ -182,6 +188,20 @@ export const useSessionStore = create<SessionState>()(
             [praticienId]: {
               ...session,
               photos: [...session.photos, photo],
+            },
+          },
+        }));
+      },
+
+      removePhoto: (praticienId, photoId) => {
+        const session = get().activeSessions[praticienId];
+        if (!session) return;
+        set((state) => ({
+          activeSessions: {
+            ...state.activeSessions,
+            [praticienId]: {
+              ...session,
+              photos: session.photos.filter((p) => p.id !== photoId),
             },
           },
         }));

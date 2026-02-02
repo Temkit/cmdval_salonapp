@@ -1,7 +1,6 @@
 """Session service."""
 
 import os
-import shutil
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
@@ -45,6 +44,10 @@ class SessionService:
         praticien_id: str,
         type_laser: str,
         parametres: dict[str, Any],
+        spot_size: int | None = None,
+        fluence: float | None = None,
+        pulse_duration_ms: int | None = None,
+        frequency_hz: float | None = None,
         notes: str | None = None,
         duree_minutes: int | None = None,
         date_seance: datetime | None = None,
@@ -75,6 +78,10 @@ class SessionService:
             praticien_id=praticien_id,
             type_laser=type_laser,
             parametres=parametres,
+            spot_size=spot_size,
+            fluence=fluence,
+            pulse_duration_ms=pulse_duration_ms,
+            frequency_hz=frequency_hz,
             zone_nom=patient_zone.zone_nom,
             praticien_nom=f"{praticien.prenom} {praticien.nom}",
             notes=notes,
@@ -146,6 +153,26 @@ class SessionService:
             raise SessionNotFoundError(session_id)
 
         return await self._save_photo(session_id, filename, file_data)
+
+    async def get_last_session_params(
+        self,
+        patient_id: str,
+        patient_zone_id: str,
+    ) -> dict | None:
+        """Get parameters from the last session for a patient+zone."""
+        session = await self.session_repository.find_last_by_patient_zone(
+            patient_id, patient_zone_id
+        )
+        if not session:
+            return None
+        return {
+            "type_laser": session.type_laser,
+            "spot_size": str(session.spot_size) if session.spot_size else None,
+            "fluence": str(session.fluence) if session.fluence else None,
+            "pulse_duration_ms": str(session.pulse_duration_ms) if session.pulse_duration_ms else None,
+            "frequency_hz": str(session.frequency_hz) if session.frequency_hz else None,
+            "session_date": session.date_seance.isoformat() if session.date_seance else None,
+        }
 
     async def get_laser_types(self) -> list[str]:
         """Get available laser types."""

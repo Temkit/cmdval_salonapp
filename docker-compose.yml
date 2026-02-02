@@ -27,7 +27,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://salonapp:${DB_PASSWORD:-salonapp_secret}@db:5432/salonapp
       SECRET_KEY: ${SECRET_KEY:-change-this-to-a-very-long-random-string}
       DEBUG: "false"
-      CORS_ORIGINS: '["http://localhost:3000", "http://localhost", "https://${DOMAIN:-localhost}"]'
+      CORS_ORIGINS: '["http://localhost:3420", "http://localhost", "https://${DOMAIN:-localhost}"]'
       PHOTOS_PATH: /app/data/photos
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
     volumes:
@@ -36,7 +36,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8420/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -48,7 +48,7 @@ services:
     container_name: salonapp-frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: http://backend:8420
     depends_on:
       - backend
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Users, Shield, FileText, Target, ChevronRight, Settings } from "lucide-react";
+import { Users, Shield, FileText, Target, ChevronRight, Settings, Package, Tag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,20 @@ const configSections = [
     href: "/configuration/zones",
     icon: Target,
     color: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
+  },
+  {
+    title: "Packs",
+    description: "Gérer les packs de séances et abonnements",
+    href: "/configuration/packs",
+    icon: Package,
+    color: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400",
+  },
+  {
+    title: "Promotions",
+    description: "Configurer les promotions et réductions sur les zones",
+    href: "/configuration/promotions",
+    icon: Tag,
+    color: "bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400",
   },
 ];
 

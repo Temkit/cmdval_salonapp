@@ -22,6 +22,10 @@ class ZoneDefinitionRepository:
             nom=zone.nom,
             description=zone.description,
             ordre=zone.ordre,
+            prix=zone.prix,
+            duree_minutes=zone.duree_minutes,
+            categorie=zone.categorie,
+            is_homme=zone.is_homme,
             is_active=zone.is_active,
         )
         self.session.add(db_zone)
@@ -62,6 +66,10 @@ class ZoneDefinitionRepository:
             db_zone.nom = zone.nom
             db_zone.description = zone.description
             db_zone.ordre = zone.ordre
+            db_zone.prix = zone.prix
+            db_zone.duree_minutes = zone.duree_minutes
+            db_zone.categorie = zone.categorie
+            db_zone.is_homme = zone.is_homme
             db_zone.is_active = zone.is_active
             await self.session.flush()
             return self._to_entity(db_zone)
@@ -87,6 +95,10 @@ class ZoneDefinitionRepository:
             nom=model.nom,
             description=model.description,
             ordre=model.ordre,
+            prix=model.prix,
+            duree_minutes=model.duree_minutes,
+            categorie=model.categorie,
+            is_homme=model.is_homme,
             is_active=model.is_active,
             created_at=model.created_at,
         )
@@ -132,9 +144,7 @@ class PatientZoneRepository:
         )
         return [self._to_entity(z) for z in result.unique().scalars()]
 
-    async def find_by_patient_and_zone(
-        self, patient_id: str, zone_id: str
-    ) -> PatientZone | None:
+    async def find_by_patient_and_zone(self, patient_id: str, zone_id: str) -> PatientZone | None:
         """Find patient zone by patient and zone definition."""
         result = await self.session.execute(
             select(PatientZoneModel)

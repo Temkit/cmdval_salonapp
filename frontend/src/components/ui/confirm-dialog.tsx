@@ -76,12 +76,13 @@ export function ConfirmDialog({
           </div>
         </DialogHeader>
         {children && <div className="py-4">{children}</div>}
-        <DialogFooter className="mt-4">
+        <DialogFooter className="mt-4 flex-col-reverse sm:flex-row gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             {cancelLabel}
           </Button>
@@ -90,6 +91,7 @@ export function ConfirmDialog({
             variant={variantStyles[variant]}
             onClick={handleConfirm}
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             {isLoading ? (
               <>

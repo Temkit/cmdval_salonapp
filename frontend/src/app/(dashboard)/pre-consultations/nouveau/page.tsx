@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Baby, Check, X, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Baby, Check, X, Plus, Trash2, Search, User, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,18 @@ import { Badge } from "@/components/ui/badge";
 import { MultiStepForm, StepContent } from "@/components/ui/multi-step-form";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { useToast } from "@/hooks/use-toast";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useFormPersist } from "@/hooks/use-form-persist";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { RequiredFieldLegend } from "@/components/ui/required-legend";
+import { Spinner } from "@/components/ui/spinner";
+import { LiveRegion, useAnnouncer } from "@/components/ui/live-region";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import type { Patient } from "@/types";
 
 const STEPS = [
+  { id: "patient", title: "Patient", description: "Selectionner ou creer" },
   { id: "demographics", title: "Donnees", description: "Informations de base" },
   { id: "contraindications", title: "Contre-indications", description: "Grossesse et allaitement" },
   { id: "laser-history", title: "Historique laser", description: "Traitements precedents" },
@@ -64,6 +72,7 @@ const PHOTOTYPES = [
 ];
 
 interface FormData {
+  patient_id: string;
   sexe: string;
   age: number;
   statut_marital: string;
@@ -90,7 +99,14 @@ export default function NewPreConsultationPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [showCreatePatient, setShowCreatePatient] = useState(false);
+  const [newPatient, setNewPatient] = useState({ nom: "", prenom: "", telephone: "", code_carte: "" });
+
   const [formData, setFormData] = useState<FormData>({
+    patient_id: "",
     sexe: "",
     age: 0,
     statut_marital: "",
@@ -112,14 +128,58 @@ export default function NewPreConsultationPage() {
     zones: [],
   });
 
+  // Auto-save form state to sessionStorage
+  const { clear: clearDraft, hasRestored } = useFormPersist(
+    "pre-consultation-draft",
+    formData,
+    setFormData,
+    { exclude: ["patient_id"] }
+  );
+
+  // Notify user if draft was restored
+  useEffect(() => {
+    if (hasRestored) {
+      toast({ title: "Brouillon restaure", description: "Les donnees de votre derniere session ont ete restaurees." });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasRestored]);
+
+  // Debounce patient search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(patientSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [patientSearch]);
+
+  const { data: patientsData, isLoading: isLoadingPatients } = useQuery({
+    queryKey: ["patients-search", debouncedSearch],
+    queryFn: () => api.getPatients({ page: 1, size: 10, q: debouncedSearch || undefined }),
+    enabled: debouncedSearch.length > 0,
+  });
+
   const { data: zonesData } = useQuery({
     queryKey: ["zones"],
     queryFn: () => api.getZones(),
   });
 
+  const createPatientMutation = useMutation({
+    mutationFn: (data: any) => api.createPatient(data),
+    onSuccess: (patient: Patient) => {
+      setSelectedPatient(patient);
+      setFormData((prev) => ({ ...prev, patient_id: patient.id }));
+      setShowCreatePatient(false);
+      toast({ title: "Patient cree avec succes" });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: error.message || "Erreur lors de la creation" });
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createPreConsultation(data),
     onSuccess: (result: any) => {
+      clearDraft();
       queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
       toast({ title: "Pre-consultation creee" });
       router.push(`/pre-consultations/${result.id}`);
@@ -128,6 +188,11 @@ export default function NewPreConsultationPage() {
       toast({ variant: "destructive", title: error.message || "Erreur lors de la creation" });
     },
   });
+
+  const isDirty = formData.patient_id !== "" || formData.zones.length > 0;
+  useUnsavedChanges(isDirty && !createMutation.isSuccess);
+
+  const { announce, Announcer } = useAnnouncer();
 
   const updateField = (field: keyof FormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -167,14 +232,18 @@ export default function NewPreConsultationPage() {
         ...prev,
         zones: [...prev.zones, { zone_id: zoneId, is_eligible: true, observations: "" }],
       }));
+      const zoneName = zonesData?.zones?.find((z: any) => z.id === zoneId)?.nom;
+      if (zoneName) announce(`Zone ${zoneName} ajoutee`);
     }
   };
 
   const removeZone = (zoneId: string) => {
+    const zoneName = zonesData?.zones?.find((z: any) => z.id === zoneId)?.nom;
     setFormData((prev) => ({
       ...prev,
       zones: prev.zones.filter((z) => z.zone_id !== zoneId),
     }));
+    if (zoneName) announce(`Zone ${zoneName} retiree`);
   };
 
   const updateZone = (zoneId: string, field: string, value: any) => {
@@ -188,11 +257,36 @@ export default function NewPreConsultationPage() {
 
   const canProceed = (): boolean => {
     switch (currentStep) {
-      case 0:
+      case 0: // Patient selection
+        return !!formData.patient_id;
+      case 1: // Demographics
         return !!formData.sexe && formData.age > 0;
       default:
         return true;
     }
+  };
+
+  const selectPatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setFormData((prev) => ({
+      ...prev,
+      patient_id: patient.id,
+      sexe: patient.sexe || "",
+      age: patient.age || 0,
+      phototype: patient.phototype || "",
+    }));
+    setPatientSearch("");
+  };
+
+  const handleCreatePatient = () => {
+    if (!newPatient.nom || !newPatient.prenom || !newPatient.code_carte) {
+      toast({ variant: "destructive", title: "Veuillez remplir tous les champs obligatoires" });
+      return;
+    }
+    createPatientMutation.mutate({
+      ...newPatient,
+      status: "en_attente_evaluation",
+    });
   };
 
   const handleSubmit = () => {
@@ -206,9 +300,31 @@ export default function NewPreConsultationPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-20">
-      <div>
+      <div className="space-y-2">
+        <Breadcrumbs items={[
+          { label: "Pre-consultations", href: "/pre-consultations" },
+          { label: "Nouvelle" },
+        ]} />
         <h1 className="heading-2">Nouvelle pre-consultation</h1>
-        <p className="text-sm text-muted-foreground mt-1">Evaluation d'eligibilite au traitement laser</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">Evaluation d'eligibilite au traitement laser</p>
+          <div className="flex items-center gap-2">
+            {hasRestored && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  clearDraft();
+                  window.location.reload();
+                }}
+                className="text-xs text-muted-foreground"
+              >
+                Effacer le brouillon
+              </Button>
+            )}
+            <RequiredFieldLegend />
+          </div>
+        </div>
       </div>
 
       <MultiStepForm
@@ -220,18 +336,177 @@ export default function NewPreConsultationPage() {
         canProceed={canProceed()}
         submitLabel="Creer la pre-consultation"
       >
-        {/* Step 1: Demographics */}
+        {/* Step 0: Patient Selection */}
         <StepContent step={0} currentStep={currentStep}>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Selectionner un patient
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedPatient ? (
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{selectedPatient.prenom} {selectedPatient.nom}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedPatient.code_carte}
+                        {selectedPatient.telephone && ` • ${selectedPatient.telephone}`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedPatient(null);
+                        setFormData((prev) => ({ ...prev, patient_id: "", sexe: "", age: 0 }));
+                      }}
+                    >
+                      Changer
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Search existing patients */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Rechercher un patient (nom, tel, code carte)..."
+                      value={patientSearch}
+                      onChange={(e) => setPatientSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+
+                  {/* Search results */}
+                  {debouncedSearch && (
+                    <div className="border rounded-xl divide-y max-h-[300px] overflow-y-auto z-50 relative bg-background shadow-md">
+                      {isLoadingPatients ? (
+                        <div className="p-4 text-center text-muted-foreground">Recherche...</div>
+                      ) : patientsData?.patients?.length ? (
+                        patientsData.patients.map((patient: Patient) => (
+                          <button
+                            key={patient.id}
+                            type="button"
+                            className="w-full p-3 text-left hover:bg-muted/50 transition-colors flex items-center justify-between"
+                            onClick={() => selectPatient(patient)}
+                          >
+                            <div>
+                              <p className="font-medium">{patient.prenom} {patient.nom}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {patient.code_carte}
+                                {patient.telephone && ` • ${patient.telephone}`}
+                              </p>
+                            </div>
+                            <Badge variant={patient.status === "actif" ? "outline" : "secondary"}>
+                              {patient.status === "en_attente_evaluation" ? "En attente" : patient.status === "actif" ? "Actif" : "Ineligible"}
+                            </Badge>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-muted-foreground">Aucun patient trouve</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Create new patient */}
+                  <div className="pt-4 border-t">
+                    {!showCreatePatient ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setShowCreatePatient(true)}
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Nouveau patient
+                      </Button>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-base font-semibold">Nouveau patient</Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowCreatePatient(false)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <Label>Prenom *</Label>
+                            <Input
+                              value={newPatient.prenom}
+                              onChange={(e) => setNewPatient((p) => ({ ...p, prenom: e.target.value }))}
+                              placeholder="Prenom"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label>Nom *</Label>
+                            <Input
+                              value={newPatient.nom}
+                              onChange={(e) => setNewPatient((p) => ({ ...p, nom: e.target.value }))}
+                              placeholder="Nom"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label>Telephone</Label>
+                            <Input
+                              value={newPatient.telephone}
+                              onChange={(e) => setNewPatient((p) => ({ ...p, telephone: e.target.value }))}
+                              placeholder="06 00 00 00 00"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label>Code carte *</Label>
+                            <Input
+                              value={newPatient.code_carte}
+                              onChange={(e) => setNewPatient((p) => ({ ...p, code_carte: e.target.value }))}
+                              placeholder="Code unique"
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={handleCreatePatient}
+                          disabled={createPatientMutation.isPending}
+                          className="w-full"
+                        >
+                          {createPatientMutation.isPending ? <><Spinner size="sm" className="mr-2" />Creation...</> : "Creer et selectionner"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </StepContent>
+
+        {/* Step 1: Demographics */}
+        <StepContent step={1} currentStep={currentStep}>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Informations de base</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Les informations du patient (nom, prenom, coordonnees) seront saisies lors de la creation du dossier patient, apres validation de cette pre-consultation.
-                </p>
-              </div>
+              {selectedPatient && (
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                  <p className="text-sm">
+                    <span className="font-medium">Patient:</span> {selectedPatient.prenom} {selectedPatient.nom}
+                    {selectedPatient.code_carte && ` (${selectedPatient.code_carte})`}
+                  </p>
+                </div>
+              )}
 
               <div>
                 <Label>Sexe *</Label>
@@ -302,7 +577,7 @@ export default function NewPreConsultationPage() {
         </StepContent>
 
         {/* Step 2: Contraindications */}
-        <StepContent step={1} currentStep={currentStep}>
+        <StepContent step={2} currentStep={currentStep}>
           {formData.sexe === "F" ? (
             <Card>
               <CardHeader className="pb-3">
@@ -364,7 +639,7 @@ export default function NewPreConsultationPage() {
               <CardContent className="py-12">
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
                   <p>Cette section ne s'applique pas aux patients masculins.</p>
-                  <Button variant="outline" className="mt-4" onClick={() => setCurrentStep(2)}>
+                  <Button variant="outline" className="mt-4" onClick={() => setCurrentStep(3)}>
                     Passer a l'etape suivante
                   </Button>
                 </div>
@@ -374,7 +649,7 @@ export default function NewPreConsultationPage() {
         </StepContent>
 
         {/* Step 3: Laser History */}
-        <StepContent step={2} currentStep={currentStep}>
+        <StepContent step={3} currentStep={currentStep}>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Historique des traitements laser</CardTitle>
@@ -433,7 +708,7 @@ export default function NewPreConsultationPage() {
         </StepContent>
 
         {/* Step 4: Medical History */}
-        <StepContent step={3} currentStep={currentStep}>
+        <StepContent step={4} currentStep={currentStep}>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Antecedents medicaux</CardTitle>
@@ -446,7 +721,7 @@ export default function NewPreConsultationPage() {
                     <label
                       key={condition.id}
                       className={cn(
-                        "flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition-colors",
+                        "flex items-center gap-3 p-3 min-h-[48px] border rounded-xl cursor-pointer transition-colors",
                         formData.medical_history[condition.id]
                           ? "bg-primary/10 border-primary"
                           : "hover:bg-muted/50"
@@ -456,7 +731,7 @@ export default function NewPreConsultationPage() {
                         type="checkbox"
                         checked={formData.medical_history[condition.id] || false}
                         onChange={() => toggleMedicalCondition(condition.id)}
-                        className="h-4 w-4"
+                        className="h-5 w-5"
                       />
                       <span className="text-sm">{condition.label}</span>
                     </label>
@@ -471,7 +746,7 @@ export default function NewPreConsultationPage() {
                     <label
                       key={condition.id}
                       className={cn(
-                        "flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition-colors",
+                        "flex items-center gap-3 p-3 min-h-[48px] border rounded-xl cursor-pointer transition-colors",
                         formData.dermatological_conditions.includes(condition.id)
                           ? "bg-primary/10 border-primary"
                           : "hover:bg-muted/50"
@@ -481,7 +756,7 @@ export default function NewPreConsultationPage() {
                         type="checkbox"
                         checked={formData.dermatological_conditions.includes(condition.id)}
                         onChange={() => toggleDermatologicalCondition(condition.id)}
-                        className="h-4 w-4"
+                        className="h-5 w-5"
                       />
                       <span className="text-sm">{condition.label}</span>
                     </label>
@@ -528,7 +803,7 @@ export default function NewPreConsultationPage() {
         </StepContent>
 
         {/* Step 5: Hair Removal Methods */}
-        <StepContent step={4} currentStep={currentStep}>
+        <StepContent step={5} currentStep={currentStep}>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Methodes d'epilation utilisees</CardTitle>
@@ -560,7 +835,7 @@ export default function NewPreConsultationPage() {
         </StepContent>
 
         {/* Step 6: Zone Eligibility */}
-        <StepContent step={5} currentStep={currentStep}>
+        <StepContent step={6} currentStep={currentStep}>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Eligibilite des zones</CardTitle>
@@ -575,7 +850,7 @@ export default function NewPreConsultationPage() {
                       <div
                         key={zone.zone_id}
                         className={cn(
-                          "p-4 border rounded-xl",
+                          "p-4 border rounded-xl transition-colors duration-200",
                           zone.is_eligible ? "border-green-500/30 bg-green-50/50 dark:bg-green-950/20" : "border-destructive/30 bg-destructive/10"
                         )}
                       >
@@ -689,6 +964,7 @@ export default function NewPreConsultationPage() {
           </Card>
         </StepContent>
       </MultiStepForm>
+      <Announcer mode="polite" />
     </div>
   );
 }

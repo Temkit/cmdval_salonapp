@@ -1,23 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, User, ChevronLeft, ChevronRight, X, Scan, Phone, CreditCard } from "lucide-react";
+import { Plus, Search, User, ChevronLeft, ChevronRight, X, Scan, Phone, CreditCard, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnnouncer } from "@/components/ui/live-region";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QRScanner } from "@/components/ui/qr-scanner";
+import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatDate, cn } from "@/lib/utils";
 
 export default function PatientsPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const pageSize = 20;
   const { announce, Announcer } = useAnnouncer();
+
+  const handleScan = useCallback(async (code: string) => {
+    setScannerOpen(false);
+    try {
+      const patient: any = await api.getPatientByCard(code);
+      router.push(`/patients/${patient.id}`);
+    } catch {
+      toast({ variant: "destructive", title: "Patient non trouve", description: `Aucun patient avec le code "${code}"` });
+    }
+  }, [router, toast]);
 
   // Debounce search input
   useEffect(() => {
@@ -28,7 +45,7 @@ export default function PatientsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["patients", page, debouncedSearch],
     queryFn: () => api.getPatients({ page, size: pageSize, q: debouncedSearch || undefined }),
   });
@@ -50,6 +67,9 @@ export default function PatientsPage() {
     <div className="space-y-4 sm:space-y-6">
       {/* Screen reader announcements */}
       <Announcer mode="polite" />
+
+      {/* QR Scanner */}
+      <QRScanner isOpen={scannerOpen} onScan={handleScan} onClose={() => setScannerOpen(false)} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -88,7 +108,7 @@ export default function PatientsPage() {
                 </button>
               )}
             </div>
-            <Button variant="outline" size="icon" className="shrink-0">
+            <Button variant="outline" size="icon" className="shrink-0" onClick={() => setScannerOpen(true)}>
               <Scan className="h-5 w-5" />
               <span className="sr-only">Scanner une carte</span>
             </Button>
@@ -97,7 +117,20 @@ export default function PatientsPage() {
       </Card>
 
       {/* Results */}
-      {isLoading ? (
+      {isError ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-4" />
+            <p className="font-medium">Erreur de chargement</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {(error as any)?.message || "Impossible de charger les patients"}
+            </p>
+            <Button variant="outline" onClick={() => refetch()} className="mt-4">
+              Reessayer
+            </Button>
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <div className="space-y-3" aria-busy="true" aria-label="Chargement des patients">
           {[1, 2, 3, 4, 5].map((i) => (
             <Card key={i}>
@@ -205,42 +238,15 @@ export default function PatientsPage() {
           )}
         </div>
       ) : (
-        <Card>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <User className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="font-medium text-lg">Aucun patient trouve</p>
-              {search ? (
-                <>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Aucun resultat pour "{search}"
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSearch("")}
-                    className="mt-4"
-                  >
-                    Effacer la recherche
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Commencez par ajouter votre premier patient
-                  </p>
-                  <Button asChild className="mt-4">
-                    <Link href="/patients/nouveau">
-                      <Plus className="h-5 w-5 mr-2" />
-                      Nouveau patient
-                    </Link>
-                  </Button>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={User}
+          title="Aucun patient trouve"
+          description={search ? `Aucun resultat pour "${search}"` : "Commencez par ajouter votre premier patient"}
+          action={search
+            ? { label: "Effacer la recherche", onClick: () => setSearch("") }
+            : { label: "Nouveau patient", href: "/patients/nouveau" }
+          }
+        />
       )}
     </div>
   );

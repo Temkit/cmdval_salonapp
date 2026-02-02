@@ -1,6 +1,5 @@
 """Authentication service."""
 
-from src.domain.entities.role import Role
 from src.domain.exceptions import (
     AuthenticationError,
     InvalidCredentialsError,

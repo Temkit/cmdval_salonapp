@@ -33,6 +33,10 @@ class SessionRepository(SessionRepositoryInterface):
             date_seance=session_entity.date_seance,
             type_laser=session_entity.type_laser,
             parametres=session_entity.parametres,
+            spot_size=session_entity.spot_size,
+            fluence=session_entity.fluence,
+            pulse_duration_ms=session_entity.pulse_duration_ms,
+            frequency_hz=session_entity.frequency_hz,
             notes=session_entity.notes,
             duree_minutes=session_entity.duree_minutes,
         )
@@ -56,9 +60,7 @@ class SessionRepository(SessionRepositoryInterface):
         result = await self.session.execute(
             select(SessionModel)
             .options(
-                joinedload(SessionModel.patient_zone).joinedload(
-                    PatientZoneModel.zone
-                ),
+                joinedload(SessionModel.patient_zone).joinedload(PatientZoneModel.zone),
                 joinedload(SessionModel.praticien),
                 joinedload(SessionModel.patient),
                 joinedload(SessionModel.photos),
@@ -86,9 +88,7 @@ class SessionRepository(SessionRepositoryInterface):
         # Get page
         result = await self.session.execute(
             base_query.options(
-                joinedload(SessionModel.patient_zone).joinedload(
-                    PatientZoneModel.zone
-                ),
+                joinedload(SessionModel.patient_zone).joinedload(PatientZoneModel.zone),
                 joinedload(SessionModel.praticien),
                 joinedload(SessionModel.patient),
                 joinedload(SessionModel.photos),
@@ -100,6 +100,21 @@ class SessionRepository(SessionRepositoryInterface):
         sessions = [self._to_entity(s) for s in result.unique().scalars()]
 
         return sessions, total
+
+    async def find_by_patient_with_zones(self, patient_id: str) -> list[Session]:
+        """Find all sessions for a patient (no pagination, for alert checks)."""
+        result = await self.session.execute(
+            select(SessionModel)
+            .where(SessionModel.patient_id == patient_id)
+            .options(
+                joinedload(SessionModel.patient_zone).joinedload(PatientZoneModel.zone),
+                joinedload(SessionModel.praticien),
+                joinedload(SessionModel.patient),
+                joinedload(SessionModel.photos),
+            )
+            .order_by(SessionModel.date_seance.desc())
+        )
+        return [self._to_entity(s) for s in result.unique().scalars()]
 
     async def find_all(
         self,
@@ -133,9 +148,7 @@ class SessionRepository(SessionRepositoryInterface):
         # Get page
         result = await self.session.execute(
             base_query.options(
-                joinedload(SessionModel.patient_zone).joinedload(
-                    PatientZoneModel.zone
-                ),
+                joinedload(SessionModel.patient_zone).joinedload(PatientZoneModel.zone),
                 joinedload(SessionModel.praticien),
                 joinedload(SessionModel.patient),
                 joinedload(SessionModel.photos),
@@ -148,6 +161,28 @@ class SessionRepository(SessionRepositoryInterface):
 
         return sessions, total
 
+    async def find_last_by_patient_zone(
+        self, patient_id: str, patient_zone_id: str
+    ) -> Session | None:
+        """Find the most recent session for a patient+zone combination."""
+        result = await self.session.execute(
+            select(SessionModel)
+            .options(
+                joinedload(SessionModel.patient_zone).joinedload(PatientZoneModel.zone),
+                joinedload(SessionModel.praticien),
+                joinedload(SessionModel.patient),
+                joinedload(SessionModel.photos),
+            )
+            .where(
+                SessionModel.patient_id == patient_id,
+                SessionModel.patient_zone_id == patient_zone_id,
+            )
+            .order_by(SessionModel.date_seance.desc())
+            .limit(1)
+        )
+        db_session = result.unique().scalar_one_or_none()
+        return self._to_entity(db_session) if db_session else None
+
     async def count(self) -> int:
         """Count total sessions."""
         result = await self.session.execute(select(func.count(SessionModel.id)))
@@ -157,9 +192,7 @@ class SessionRepository(SessionRepositoryInterface):
         """Count sessions today."""
         today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         result = await self.session.execute(
-            select(func.count(SessionModel.id)).where(
-                SessionModel.date_seance >= today
-            )
+            select(func.count(SessionModel.id)).where(SessionModel.date_seance >= today)
         )
         return result.scalar() or 0
 
@@ -168,9 +201,7 @@ class SessionRepository(SessionRepositoryInterface):
         now = datetime.utcnow()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         result = await self.session.execute(
-            select(func.count(SessionModel.id)).where(
-                SessionModel.date_seance >= start_of_month
-            )
+            select(func.count(SessionModel.id)).where(SessionModel.date_seance >= start_of_month)
         )
         return result.scalar() or 0
 
@@ -193,10 +224,7 @@ class SessionRepository(SessionRepositoryInterface):
             .group_by(ZoneDefinitionModel.id, ZoneDefinitionModel.nom)
             .order_by(func.count(SessionModel.id).desc())
         )
-        return [
-            {"zone_id": row[0], "zone_nom": row[1], "count": row[2]}
-            for row in result.all()
-        ]
+        return [{"zone_id": row[0], "zone_nom": row[1], "count": row[2]} for row in result.all()]
 
     async def count_by_praticien(self) -> list[dict]:
         """Count sessions grouped by praticien."""
@@ -248,9 +276,7 @@ class SessionRepository(SessionRepositoryInterface):
         result = await self.session.execute(
             select(SessionModel)
             .options(
-                joinedload(SessionModel.patient_zone).joinedload(
-                    PatientZoneModel.zone
-                ),
+                joinedload(SessionModel.patient_zone).joinedload(PatientZoneModel.zone),
                 joinedload(SessionModel.praticien),
                 joinedload(SessionModel.patient),
                 joinedload(SessionModel.photos),
@@ -260,9 +286,7 @@ class SessionRepository(SessionRepositoryInterface):
         )
         return [self._to_entity(s) for s in result.unique().scalars()]
 
-    async def add_photo(
-        self, session_id: str, filename: str, filepath: str
-    ) -> SessionPhoto:
+    async def add_photo(self, session_id: str, filename: str, filepath: str) -> SessionPhoto:
         """Add a photo to a session."""
         from uuid import uuid4
 
@@ -321,6 +345,10 @@ class SessionRepository(SessionRepositoryInterface):
             date_seance=model.date_seance,
             type_laser=model.type_laser,
             parametres=model.parametres,
+            spot_size=model.spot_size,
+            fluence=model.fluence,
+            pulse_duration_ms=model.pulse_duration_ms,
+            frequency_hz=model.frequency_hz,
             notes=model.notes,
             duree_minutes=model.duree_minutes,
             photos=photos,

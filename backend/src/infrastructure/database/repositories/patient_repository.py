@@ -28,6 +28,7 @@ class PatientRepository(PatientRepositoryInterface):
             adresse=patient.adresse,
             notes=patient.notes,
             phototype=patient.phototype,
+            status=patient.status,
         )
         self.session.add(db_patient)
         await self.session.flush()
@@ -89,9 +90,7 @@ class PatientRepository(PatientRepositoryInterface):
     ) -> tuple[list[Patient], int]:
         """Get all patients with pagination."""
         # Count total
-        count_result = await self.session.execute(
-            select(func.count(PatientModel.id))
-        )
+        count_result = await self.session.execute(select(func.count(PatientModel.id)))
         total = count_result.scalar() or 0
 
         # Get page
@@ -121,6 +120,7 @@ class PatientRepository(PatientRepositoryInterface):
             db_patient.adresse = patient.adresse
             db_patient.notes = patient.notes
             db_patient.phototype = patient.phototype
+            db_patient.status = patient.status
             await self.session.flush()
             return self._to_entity(db_patient)
         raise ValueError(f"Patient {patient.id} not found")
@@ -139,9 +139,7 @@ class PatientRepository(PatientRepositoryInterface):
 
     async def count(self) -> int:
         """Count total patients."""
-        result = await self.session.execute(
-            select(func.count(PatientModel.id))
-        )
+        result = await self.session.execute(select(func.count(PatientModel.id)))
         return result.scalar() or 0
 
     async def count_new_this_month(self) -> int:
@@ -151,9 +149,7 @@ class PatientRepository(PatientRepositoryInterface):
         now = datetime.utcnow()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         result = await self.session.execute(
-            select(func.count(PatientModel.id)).where(
-                PatientModel.created_at >= start_of_month
-            )
+            select(func.count(PatientModel.id)).where(PatientModel.created_at >= start_of_month)
         )
         return result.scalar() or 0
 
@@ -173,6 +169,7 @@ class PatientRepository(PatientRepositoryInterface):
             code_postal=model.code_postal,
             notes=model.notes,
             phototype=model.phototype,
+            status=model.status,
             created_by=model.created_by,
             created_at=model.created_at,
             updated_at=model.updated_at,

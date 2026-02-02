@@ -17,6 +17,15 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
+function wrapFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, init).catch((err) => {
+    if (err instanceof TypeError && err.message === "Failed to fetch") {
+      throw new ApiError(0, "Verifiez votre connexion internet");
+    }
+    throw err;
+  });
+}
+
 function getAuthHeaders(): HeadersInit {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -25,7 +34,7 @@ function getAuthHeaders(): HeadersInit {
 export const api = {
   // Auth
   async login(username: string, password: string) {
-    const response = await fetch(`${API_BASE}/auth/login`, {
+    const response = await wrapFetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -34,7 +43,7 @@ export const api = {
   },
 
   async getCurrentUser() {
-    const response = await fetch(`${API_BASE}/auth/me`, {
+    const response = await wrapFetch(`${API_BASE}/auth/me`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{
@@ -49,7 +58,7 @@ export const api = {
   },
 
   async changePassword(currentPassword: string, newPassword: string) {
-    const response = await fetch(`${API_BASE}/auth/password`, {
+    const response = await wrapFetch(`${API_BASE}/auth/password`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
@@ -59,14 +68,14 @@ export const api = {
 
   // Users
   async getUsers() {
-    const response = await fetch(`${API_BASE}/users`, {
+    const response = await wrapFetch(`${API_BASE}/users`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ users: any[] }>(response);
   },
 
   async createUser(data: any) {
-    const response = await fetch(`${API_BASE}/users`, {
+    const response = await wrapFetch(`${API_BASE}/users`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -75,7 +84,7 @@ export const api = {
   },
 
   async updateUser(id: string, data: any) {
-    const response = await fetch(`${API_BASE}/users/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/users/${id}`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -84,7 +93,7 @@ export const api = {
   },
 
   async deleteUser(id: string) {
-    const response = await fetch(`${API_BASE}/users/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/users/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -93,14 +102,14 @@ export const api = {
 
   // Roles
   async getRoles() {
-    const response = await fetch(`${API_BASE}/roles`, {
+    const response = await wrapFetch(`${API_BASE}/roles`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ roles: any[] }>(response);
   },
 
   async createRole(data: any) {
-    const response = await fetch(`${API_BASE}/roles`, {
+    const response = await wrapFetch(`${API_BASE}/roles`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -109,7 +118,7 @@ export const api = {
   },
 
   async updateRole(id: string, data: any) {
-    const response = await fetch(`${API_BASE}/roles/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/roles/${id}`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -118,7 +127,7 @@ export const api = {
   },
 
   async deleteRole(id: string) {
-    const response = await fetch(`${API_BASE}/roles/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/roles/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -126,7 +135,7 @@ export const api = {
   },
 
   async getPermissions() {
-    const response = await fetch(`${API_BASE}/roles/permissions`, {
+    const response = await wrapFetch(`${API_BASE}/roles/permissions`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ permissions: any[] }>(response);
@@ -139,28 +148,28 @@ export const api = {
     if (params.size) searchParams.set("size", params.size.toString());
     if (params.q) searchParams.set("q", params.q);
 
-    const response = await fetch(`${API_BASE}/patients?${searchParams}`, {
+    const response = await wrapFetch(`${API_BASE}/patients?${searchParams}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ patients: any[]; total: number; page: number; size: number; pages: number }>(response);
   },
 
   async getPatient(id: string) {
-    const response = await fetch(`${API_BASE}/patients/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${id}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   async getPatientByCard(code: string) {
-    const response = await fetch(`${API_BASE}/patients/by-card/${encodeURIComponent(code)}`, {
+    const response = await wrapFetch(`${API_BASE}/patients/by-card/${encodeURIComponent(code)}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   async createPatient(data: any) {
-    const response = await fetch(`${API_BASE}/patients`, {
+    const response = await wrapFetch(`${API_BASE}/patients`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -169,7 +178,7 @@ export const api = {
   },
 
   async updatePatient(id: string, data: any) {
-    const response = await fetch(`${API_BASE}/patients/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${id}`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -178,7 +187,7 @@ export const api = {
   },
 
   async deletePatient(id: string) {
-    const response = await fetch(`${API_BASE}/patients/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -187,14 +196,14 @@ export const api = {
 
   // Patient zones
   async getPatientZones(patientId: string) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/zones`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/zones`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ zones: any[] }>(response);
   },
 
   async addPatientZone(patientId: string, data: any) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/zones`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/zones`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -203,7 +212,7 @@ export const api = {
   },
 
   async updatePatientZone(patientId: string, zoneId: string, data: any) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/zones/${zoneId}`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/zones/${zoneId}`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -212,7 +221,7 @@ export const api = {
   },
 
   async deletePatientZone(patientId: string, zoneId: string) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/zones/${zoneId}`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/zones/${zoneId}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -221,14 +230,14 @@ export const api = {
 
   // Pre-consultation Questionnaire
   async getPreConsultationQuestionnaire(preConsultationId: string): Promise<PreConsultationQuestionnaire> {
-    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/questionnaire`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${preConsultationId}/questionnaire`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<PreConsultationQuestionnaire>(response);
   },
 
   async updatePreConsultationQuestionnaire(preConsultationId: string, responses: any[]): Promise<PreConsultationQuestionnaire> {
-    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/questionnaire`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${preConsultationId}/questionnaire`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ responses }),
@@ -238,14 +247,14 @@ export const api = {
 
   // Question Management (Admin)
   async getQuestions() {
-    const response = await fetch(`${API_BASE}/questionnaire/questions`, {
+    const response = await wrapFetch(`${API_BASE}/questionnaire/questions`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ questions: any[] }>(response);
   },
 
   async createQuestion(data: any) {
-    const response = await fetch(`${API_BASE}/questionnaire/questions`, {
+    const response = await wrapFetch(`${API_BASE}/questionnaire/questions`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -254,7 +263,7 @@ export const api = {
   },
 
   async updateQuestion(id: string, data: any) {
-    const response = await fetch(`${API_BASE}/questionnaire/questions/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/questionnaire/questions/${id}`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -263,7 +272,7 @@ export const api = {
   },
 
   async deleteQuestion(id: string) {
-    const response = await fetch(`${API_BASE}/questionnaire/questions/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/questionnaire/questions/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -271,7 +280,7 @@ export const api = {
   },
 
   async reorderQuestions(data: { question_ids: string[] }) {
-    const response = await fetch(`${API_BASE}/questionnaire/questions/order`, {
+    const response = await wrapFetch(`${API_BASE}/questionnaire/questions/order`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -285,14 +294,14 @@ export const api = {
     if (params.page) searchParams.set("page", params.page.toString());
     if (params.size) searchParams.set("size", params.size.toString());
 
-    const response = await fetch(`${API_BASE}/patients/${patientId}/sessions?${searchParams}`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/sessions?${searchParams}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ sessions: any[]; total: number; page: number; size: number; pages: number }>(response);
   },
 
   async createSession(patientId: string, formData: FormData) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/sessions`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/sessions`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: formData,
@@ -301,14 +310,29 @@ export const api = {
   },
 
   async getSession(id: string) {
-    const response = await fetch(`${API_BASE}/sessions/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/sessions/${id}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
+  async getLastSessionParams(patientId: string, patientZoneId: string) {
+    const params = new URLSearchParams({ patient_id: patientId, patient_zone_id: patientZoneId });
+    const response = await wrapFetch(`${API_BASE}/sessions/last-params?${params}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{
+      type_laser: string;
+      spot_size: string | null;
+      fluence: string | null;
+      pulse_duration_ms: string | null;
+      frequency_hz: string | null;
+      session_date: string | null;
+    }>(response);
+  },
+
   async getLaserTypes() {
-    const response = await fetch(`${API_BASE}/sessions/laser-types`, {
+    const response = await wrapFetch(`${API_BASE}/sessions/laser-types`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ types: string[] }>(response);
@@ -316,14 +340,14 @@ export const api = {
 
   // Zones
   async getZones(includeInactive = false) {
-    const response = await fetch(`${API_BASE}/zones?include_inactive=${includeInactive}`, {
+    const response = await wrapFetch(`${API_BASE}/zones?include_inactive=${includeInactive}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ zones: any[] }>(response);
   },
 
   async createZone(data: any) {
-    const response = await fetch(`${API_BASE}/zones`, {
+    const response = await wrapFetch(`${API_BASE}/zones`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -332,7 +356,7 @@ export const api = {
   },
 
   async updateZone(id: string, data: any) {
-    const response = await fetch(`${API_BASE}/zones/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/zones/${id}`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -341,7 +365,7 @@ export const api = {
   },
 
   async deleteZone(id: string) {
-    const response = await fetch(`${API_BASE}/zones/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/zones/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -350,7 +374,7 @@ export const api = {
 
   // Dashboard
   async getDashboardStats() {
-    const response = await fetch(`${API_BASE}/dashboard/stats`, {
+    const response = await wrapFetch(`${API_BASE}/dashboard/stats`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{
@@ -363,7 +387,7 @@ export const api = {
   },
 
   async getSessionsByZone() {
-    const response = await fetch(`${API_BASE}/dashboard/sessions/by-zone`, {
+    const response = await wrapFetch(`${API_BASE}/dashboard/sessions/by-zone`, {
       headers: getAuthHeaders(),
     });
     const result = await handleResponse<{ zones: any[] }>(response);
@@ -371,7 +395,7 @@ export const api = {
   },
 
   async getSessionsByPraticien() {
-    const response = await fetch(`${API_BASE}/dashboard/sessions/by-praticien`, {
+    const response = await wrapFetch(`${API_BASE}/dashboard/sessions/by-praticien`, {
       headers: getAuthHeaders(),
     });
     const result = await handleResponse<{ praticiens: any[] }>(response);
@@ -415,14 +439,14 @@ export const api = {
       date_to: now.toISOString().split("T")[0],
       group_by: groupBy,
     });
-    const response = await fetch(`${API_BASE}/dashboard/sessions/by-period?${searchParams}`, {
+    const response = await wrapFetch(`${API_BASE}/dashboard/sessions/by-period?${searchParams}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ data: any[]; group_by: string }>(response);
   },
 
   async getRecentActivity(limit = 10) {
-    const response = await fetch(`${API_BASE}/dashboard/recent-activity?limit=${limit}`, {
+    const response = await wrapFetch(`${API_BASE}/dashboard/recent-activity?limit=${limit}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ activities: any[] }>(response);
@@ -436,7 +460,7 @@ export const api = {
     if (params.status) searchParams.set("status", params.status);
     if (params.search) searchParams.set("search", params.search);
 
-    const response = await fetch(`${API_BASE}/pre-consultations?${searchParams}`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations?${searchParams}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{
@@ -449,14 +473,14 @@ export const api = {
   },
 
   async getPreConsultation(id: string): Promise<PreConsultation> {
-    const response = await fetch(`${API_BASE}/pre-consultations/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${id}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<PreConsultation>(response);
   },
 
   async createPreConsultation(data: any) {
-    const response = await fetch(`${API_BASE}/pre-consultations`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -465,7 +489,7 @@ export const api = {
   },
 
   async updatePreConsultation(id: string, data: any) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${id}`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -474,7 +498,7 @@ export const api = {
   },
 
   async deletePreConsultation(id: string) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${id}`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -482,7 +506,7 @@ export const api = {
   },
 
   async addPreConsultationZone(preConsultationId: string, data: any) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -491,7 +515,7 @@ export const api = {
   },
 
   async updatePreConsultationZone(preConsultationId: string, zoneId: string, data: any) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones/${zoneId}`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones/${zoneId}`, {
       method: "PUT",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -500,7 +524,7 @@ export const api = {
   },
 
   async deletePreConsultationZone(preConsultationId: string, zoneId: string) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones/${zoneId}`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${preConsultationId}/zones/${zoneId}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -508,7 +532,7 @@ export const api = {
   },
 
   async submitPreConsultation(id: string) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${id}/submit`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${id}/submit`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
@@ -516,7 +540,7 @@ export const api = {
   },
 
   async validatePreConsultation(id: string) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${id}/validate`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${id}/validate`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
@@ -524,7 +548,7 @@ export const api = {
   },
 
   async rejectPreConsultation(id: string, reason: string) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${id}/reject`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${id}/reject`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ reason }),
@@ -533,7 +557,7 @@ export const api = {
   },
 
   async createPatientFromPreConsultation(preConsultationId: string, data: any) {
-    const response = await fetch(`${API_BASE}/pre-consultations/${preConsultationId}/create-patient`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/${preConsultationId}/create-patient`, {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -542,7 +566,7 @@ export const api = {
   },
 
   async getPendingPreConsultationsCount() {
-    const response = await fetch(`${API_BASE}/pre-consultations/stats/pending-count`, {
+    const response = await wrapFetch(`${API_BASE}/pre-consultations/stats/pending-count`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{ count: number }>(response);
@@ -550,7 +574,7 @@ export const api = {
 
   async getPatientPreConsultation(patientId: string): Promise<PreConsultation | null> {
     try {
-      const response = await fetch(`${API_BASE}/pre-consultations/by-patient/${patientId}`, {
+      const response = await wrapFetch(`${API_BASE}/pre-consultations/by-patient/${patientId}`, {
         headers: getAuthHeaders(),
       });
       if (response.status === 404) {
@@ -567,7 +591,7 @@ export const api = {
 
   // Alerts
   async getPatientAlerts(patientId: string) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/alerts`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/alerts`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{
@@ -582,7 +606,7 @@ export const api = {
   },
 
   async getZoneAlerts(patientId: string, zoneId: string) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/zones/${zoneId}/alerts`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/zones/${zoneId}/alerts`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{
@@ -597,7 +621,7 @@ export const api = {
   },
 
   async getAlertsSummary(patientId: string) {
-    const response = await fetch(`${API_BASE}/patients/${patientId}/alerts/summary`, {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/alerts/summary`, {
       headers: getAuthHeaders(),
     });
     return handleResponse<{
@@ -607,6 +631,273 @@ export const api = {
       error_count: number;
       warning_count: number;
     }>(response);
+  },
+
+  // Packs
+  async getPacks(includeInactive = false) {
+    const response = await wrapFetch(`${API_BASE}/packs?include_inactive=${includeInactive}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ packs: any[] }>(response);
+  },
+
+  async createPack(data: any) {
+    const response = await wrapFetch(`${API_BASE}/packs`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updatePack(id: string, data: any) {
+    const response = await wrapFetch(`${API_BASE}/packs/${id}`, {
+      method: "PUT",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async deletePack(id: string) {
+    const response = await wrapFetch(`${API_BASE}/packs/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Subscriptions
+  async createSubscription(patientId: string, data: any) {
+    const response = await wrapFetch(`${API_BASE}/packs/patients/${patientId}/subscriptions`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async getPatientSubscriptions(patientId: string) {
+    const response = await wrapFetch(`${API_BASE}/packs/patients/${patientId}/subscriptions`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ subscriptions: any[] }>(response);
+  },
+
+  // Paiements
+  async createPaiement(data: any) {
+    const response = await wrapFetch(`${API_BASE}/paiements`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async getPaiements(params: { patient_id?: string; date_from?: string; date_to?: string; type?: string } = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.patient_id) searchParams.set("patient_id", params.patient_id);
+    if (params.date_from) searchParams.set("date_from", params.date_from);
+    if (params.date_to) searchParams.set("date_to", params.date_to);
+    if (params.type) searchParams.set("type", params.type);
+    const response = await wrapFetch(`${API_BASE}/paiements?${searchParams}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ paiements: any[] }>(response);
+  },
+
+  async getPatientPaiements(patientId: string) {
+    const response = await wrapFetch(`${API_BASE}/paiements/patients/${patientId}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ paiements: any[] }>(response);
+  },
+
+  async getRevenueStats() {
+    const response = await wrapFetch(`${API_BASE}/paiements/stats`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Promotions
+  async getPromotions(includeInactive = false) {
+    const response = await wrapFetch(`${API_BASE}/promotions?include_inactive=${includeInactive}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ promotions: any[] }>(response);
+  },
+
+  async getActivePromotions() {
+    const response = await wrapFetch(`${API_BASE}/promotions/active`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ promotions: any[] }>(response);
+  },
+
+  async createPromotion(data: any) {
+    const response = await wrapFetch(`${API_BASE}/promotions`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updatePromotion(id: string, data: any) {
+    const response = await wrapFetch(`${API_BASE}/promotions/${id}`, {
+      method: "PUT",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async deletePromotion(id: string) {
+    const response = await wrapFetch(`${API_BASE}/promotions/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async getZonePrice(zoneId: string) {
+    const response = await wrapFetch(`${API_BASE}/promotions/zones/${zoneId}/price`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ zone_id: string; original_price: number; final_price: number; promotions: any[] }>(response);
+  },
+
+  // Schedule
+  async uploadSchedule(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await wrapFetch(`${API_BASE}/schedule/upload`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: formData,
+    });
+    return handleResponse<{ message: string; entries_created: number; date: string }>(response);
+  },
+
+  async getTodaySchedule() {
+    const response = await wrapFetch(`${API_BASE}/schedule/today`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ entries: any[]; date: string; total: number }>(response);
+  },
+
+  async getSchedule(date: string) {
+    const response = await wrapFetch(`${API_BASE}/schedule/${date}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ entries: any[]; date: string; total: number }>(response);
+  },
+
+  async checkInPatient(entryId: string) {
+    const response = await wrapFetch(`${API_BASE}/schedule/${entryId}/check-in`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Queue
+  async getQueue(doctorId?: string) {
+    const params = doctorId ? `?doctor_id=${doctorId}` : "";
+    const response = await wrapFetch(`${API_BASE}/schedule/queue${params}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<{ entries: any[]; total: number }>(response);
+  },
+
+  async getDisplayQueue() {
+    const response = await wrapFetch(`${API_BASE}/schedule/queue/display`);
+    return handleResponse<{ entries: any[] }>(response);
+  },
+
+  async callPatient(entryId: string) {
+    const response = await wrapFetch(`${API_BASE}/schedule/queue/${entryId}/call`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async completePatient(entryId: string) {
+    const response = await wrapFetch(`${API_BASE}/schedule/queue/${entryId}/complete`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Temp Photos
+  async uploadTempPhoto(blob: Blob): Promise<{ id: string; url: string }> {
+    const formData = new FormData();
+    formData.append("photo", blob, "photo.jpg");
+    const response = await wrapFetch(`${API_BASE}/documents/temp-photo`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: formData,
+    });
+    return handleResponse<{ id: string; url: string }>(response);
+  },
+
+  async deleteTempPhoto(id: string): Promise<void> {
+    await wrapFetch(`${API_BASE}/documents/temp-photo/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+  },
+
+  // Documents & QR
+  getPatientConsentUrl(patientId: string) {
+    return `${API_BASE}/documents/patients/${patientId}/documents/consent`;
+  },
+
+  getPatientRulesUrl(patientId: string) {
+    return `${API_BASE}/documents/patients/${patientId}/documents/rules`;
+  },
+
+  getPatientPrecautionsUrl(patientId: string) {
+    return `${API_BASE}/documents/patients/${patientId}/documents/precautions`;
+  },
+
+  getPatientQRCodeUrl(patientId: string) {
+    return `${API_BASE}/documents/patients/${patientId}/qr-code`;
+  },
+
+  // Dashboard enhancements
+  async getSideEffectStats() {
+    const response = await wrapFetch(`${API_BASE}/dashboard/side-effects`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async getDoctorPerformance() {
+    const response = await wrapFetch(`${API_BASE}/dashboard/doctor-performance`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async getDashboardRevenue(params: { date_from?: string; date_to?: string } = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.date_from) searchParams.set("date_from", params.date_from);
+    if (params.date_to) searchParams.set("date_to", params.date_to);
+    const response = await wrapFetch(`${API_BASE}/dashboard/revenue?${searchParams}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  async getDemographics() {
+    const response = await wrapFetch(`${API_BASE}/dashboard/demographics`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
   },
 };
 

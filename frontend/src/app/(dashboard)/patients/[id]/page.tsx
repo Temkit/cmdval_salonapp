@@ -32,6 +32,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
 import { formatDate, formatDateTime, cn } from "@/lib/utils";
 import { AddZoneDialog } from "@/components/features/patients/add-zone-dialog";
@@ -66,8 +68,9 @@ export default function PatientDetailPage({
     queryFn: () => api.getPatientSessions(id, { page: 1, size: 10 }),
   });
 
-  // State for session detail dialog
+  // State for session detail dialog and tabs
   const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
   if (isLoading) {
     return (
@@ -130,13 +133,19 @@ export default function PatientDetailPage({
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon-sm">
-          <Link href="/patients">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <h1 className="heading-2 truncate">Dossier patient</h1>
+      <div className="space-y-2">
+        <Breadcrumbs items={[
+          { label: "Patients", href: "/patients" },
+          { label: `${patient.prenom} ${patient.nom}` },
+        ]} />
+        <div className="flex items-center gap-3">
+          <Button asChild variant="ghost" size="icon-sm">
+            <Link href="/patients" aria-label="Retour a la liste des patients">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <h1 className="heading-2 truncate">Dossier patient</h1>
+        </div>
       </div>
 
       {/* Alert Banner */}
@@ -222,7 +231,7 @@ export default function PatientDetailPage({
       )}
 
       {/* Tabs - optimized for tablet click navigation */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full flex-wrap sm:flex-nowrap justify-start">
           <TabsTrigger value="overview" className="gap-2 flex-1 sm:flex-none">
             <User className="h-4 w-4 shrink-0" />
@@ -244,7 +253,7 @@ export default function PatientDetailPage({
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Contact Info */}
             <Card>
               <CardHeader className="pb-3">
@@ -404,22 +413,13 @@ export default function PatientDetailPage({
               ))}
             </div>
           ) : (
-            <Card>
-              <CardContent className="py-12">
-                <div className="empty-state">
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Target className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <p className="font-medium text-lg">Aucune zone configurée</p>
-                  <p className="text-sm mt-1">
-                    Ajoutez des zones de traitement pour ce patient
-                  </p>
-                  <div className="mt-4">
-                    <AddZoneDialog patientId={id} existingZones={[]} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Target}
+              title="Aucune zone configuree"
+              description="Ajoutez des zones de traitement pour ce patient"
+            >
+              <AddZoneDialog patientId={id} existingZones={[]} />
+            </EmptyState>
           )}
         </TabsContent>
 
@@ -485,25 +485,15 @@ export default function PatientDetailPage({
               ))}
             </div>
           ) : (
-            <Card>
-              <CardContent className="py-12">
-                <div className="empty-state">
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <History className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <p className="font-medium text-lg">Aucune séance enregistrée</p>
-                  <p className="text-sm mt-1">
-                    Commencez par créer une première séance
-                  </p>
-                  <Button asChild className="mt-4">
-                    <Link href={`/patients/${id}/seance`}>
-                      <Plus className="h-5 w-5 mr-2" />
-                      Nouvelle séance
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={History}
+              title="Aucune seance enregistree"
+              description="Commencez par creer une premiere seance"
+              action={{
+                label: "Nouvelle seance",
+                href: `/patients/${id}/seance`,
+              }}
+            />
           )}
         </TabsContent>
       </Tabs>
