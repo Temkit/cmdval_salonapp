@@ -91,7 +91,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions."""
-    await logger.exception(
+    logger.exception(
         "unhandled_exception",
         path=str(request.url.path),
         method=request.method,

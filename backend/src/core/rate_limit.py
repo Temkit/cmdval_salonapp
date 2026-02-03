@@ -50,7 +50,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         key = f"global:{ip}"
         retry_after = _check_rate(key, settings.rate_limit_per_minute)
         if retry_after is not None:
-            await logger.warning("rate_limit_exceeded", client=ip, path=request.url.path)
+            logger.warning("rate_limit_exceeded", client=ip, path=request.url.path)
             return Response(
                 content='{"detail":"Trop de requêtes. Veuillez réessayer."}',
                 status_code=429,
@@ -66,7 +66,7 @@ async def rate_limit_login(request: Request) -> None:
     key = f"login:{ip}"
     retry_after = _check_rate(key, settings.rate_limit_login_per_minute)
     if retry_after is not None:
-        await logger.warning("login_rate_limit_exceeded", client=ip)
+        logger.warning("login_rate_limit_exceeded", client=ip)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Trop de tentatives de connexion. Veuillez réessayer.",
