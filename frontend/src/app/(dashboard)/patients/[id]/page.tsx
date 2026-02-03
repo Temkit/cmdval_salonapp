@@ -326,26 +326,26 @@ export default function PatientDetailPage({
 
       {/* Tabs - optimized for tablet click navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="w-full flex-wrap sm:flex-nowrap justify-start">
-          <TabsTrigger value="overview" className="gap-2 flex-1 sm:flex-none">
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="overview" className="gap-2 flex-1">
             <User className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Aperçu</span>
+            <span className="hidden lg:inline">Aperçu</span>
           </TabsTrigger>
-          <TabsTrigger value="zones" className="gap-2 flex-1 sm:flex-none">
+          <TabsTrigger value="zones" className="gap-2 flex-1">
             <Target className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Zones</span>
+            <span className="hidden lg:inline">Zones</span>
           </TabsTrigger>
-          <TabsTrigger value="preconsultation" className="gap-2 flex-1 sm:flex-none">
+          <TabsTrigger value="preconsultation" className="gap-2 flex-1">
             <FileText className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Pre-consultation</span>
+            <span className="hidden lg:inline">Pre-consultation</span>
           </TabsTrigger>
-          <TabsTrigger value="sessions" className="gap-2 flex-1 sm:flex-none">
+          <TabsTrigger value="sessions" className="gap-2 flex-1">
             <History className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Séances</span>
+            <span className="hidden lg:inline">Séances</span>
           </TabsTrigger>
-          <TabsTrigger value="paiements" className="gap-2 flex-1 sm:flex-none">
+          <TabsTrigger value="paiements" className="gap-2 flex-1">
             <Wallet className="h-4 w-4 shrink-0" />
-            <span className="hidden md:inline">Paiements</span>
+            <span className="hidden lg:inline">Paiements</span>
           </TabsTrigger>
         </TabsList>
 

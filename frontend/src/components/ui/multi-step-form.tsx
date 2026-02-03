@@ -63,7 +63,8 @@ export function MultiStepForm({
 
       {/* Step indicator */}
       <nav aria-label="Progression" className="px-2">
-        <ol className="flex items-center justify-between">
+        {/* Desktop (lg+): full horizontal stepper with labels */}
+        <ol className="hidden lg:flex items-center justify-between">
           {steps.map((step, index) => {
             const isCompleted = index < currentStep;
             const isCurrent = index === currentStep;
@@ -88,7 +89,6 @@ export function MultiStepForm({
                   )}
                   aria-current={isCurrent ? "step" : undefined}
                 >
-                  {/* Step circle */}
                   <span
                     className={cn(
                       "flex items-center justify-center h-10 w-10 rounded-full border-2 transition-colors shrink-0",
@@ -103,11 +103,9 @@ export function MultiStepForm({
                       <span className="text-sm font-semibold">{index + 1}</span>
                     )}
                   </span>
-
-                  {/* Step label - hidden on small screens */}
                   <span
                     className={cn(
-                      "hidden sm:block text-sm font-medium",
+                      "text-sm font-medium",
                       isCurrent ? "text-foreground" : "text-muted-foreground"
                     )}
                   >
@@ -115,11 +113,67 @@ export function MultiStepForm({
                   </span>
                 </button>
 
-                {/* Connector line */}
                 {index < steps.length - 1 && (
                   <div
                     className={cn(
-                      "flex-1 h-0.5 mx-3 sm:mx-4",
+                      "flex-1 h-0.5 mx-4",
+                      isCompleted ? "bg-primary" : "bg-muted"
+                    )}
+                    aria-hidden="true"
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ol>
+
+        {/* Tablet + Mobile: compact circles-only stepper */}
+        <ol className="flex lg:hidden items-center justify-between">
+          {steps.map((step, index) => {
+            const isCompleted = index < currentStep;
+            const isCurrent = index === currentStep;
+
+            return (
+              <li
+                key={step.id}
+                className={cn(
+                  "flex items-center",
+                  index < steps.length - 1 && "flex-1"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => index < currentStep && onStepChange(index)}
+                  disabled={index > currentStep}
+                  className={cn(
+                    "group",
+                    index <= currentStep
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed opacity-50"
+                  )}
+                  aria-current={isCurrent ? "step" : undefined}
+                  aria-label={`${step.title} - Etape ${index + 1}`}
+                >
+                  <span
+                    className={cn(
+                      "flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-full border-2 transition-colors shrink-0",
+                      isCompleted && "bg-primary border-primary text-primary-foreground",
+                      isCurrent && "border-primary text-primary",
+                      !isCompleted && !isCurrent && "border-muted-foreground/30 text-muted-foreground"
+                    )}
+                  >
+                    {isCompleted ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <span className="text-xs sm:text-sm font-semibold">{index + 1}</span>
+                    )}
+                  </span>
+                </button>
+
+                {index < steps.length - 1 && (
+                  <div
+                    className={cn(
+                      "flex-1 h-0.5 mx-1.5 sm:mx-2",
                       isCompleted ? "bg-primary" : "bg-muted"
                     )}
                     aria-hidden="true"
@@ -131,10 +185,10 @@ export function MultiStepForm({
         </ol>
       </nav>
 
-      {/* Current step title (mobile) */}
-      <div className="sm:hidden text-center">
+      {/* Current step title (mobile + tablet) */}
+      <div className="lg:hidden text-center">
         <p className="text-sm text-muted-foreground">
-          Étape {currentStep + 1} sur {steps.length}
+          Etape {currentStep + 1} sur {steps.length}
         </p>
         <h2 className="heading-4 mt-1">{steps[currentStep].title}</h2>
         {steps[currentStep].description && (
@@ -148,7 +202,7 @@ export function MultiStepForm({
       </div>
 
       {/* Navigation buttons */}
-      <div className="sticky bottom-4 flex gap-3 pt-4 bg-background/80 backdrop-blur-sm -mx-4 px-4 pb-4 sm:static sm:bg-transparent sm:backdrop-blur-none sm:mx-0 sm:px-0 sm:pb-0">
+      <div className="sticky bottom-4 flex gap-3 pt-4 bg-background/80 backdrop-blur-sm -mx-4 px-4 pb-4 lg:static lg:bg-transparent lg:backdrop-blur-none lg:mx-0 lg:px-0 lg:pb-0">
         {currentStep > 0 ? (
           <Button
             type="button"

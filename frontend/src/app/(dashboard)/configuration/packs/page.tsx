@@ -244,7 +244,7 @@ export default function PacksConfigPage() {
                 <Label htmlFor="nom">Nom</Label>
                 <Input id="nom" value={formData.nom} onChange={(e) => setFormData((p) => ({ ...p, nom: e.target.value }))} required />
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="prix">Prix (DA)</Label>
                   <Input id="prix" type="number" min="0" value={formData.prix} onChange={(e) => setFormData((p) => ({ ...p, prix: e.target.value }))} required />

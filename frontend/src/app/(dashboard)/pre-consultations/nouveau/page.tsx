@@ -558,7 +558,7 @@ export default function NewPreConsultationPage() {
 
               <div>
                 <Label>Phototype</Label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-1.5">
+                <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 mt-1.5">
                   {PHOTOTYPES.map((pt) => (
                     <Button
                       key={pt.value}

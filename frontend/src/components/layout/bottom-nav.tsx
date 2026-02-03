@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Users, ClipboardList, Settings, BarChart3 } from "lucide-react";
+import { Home, Users, ClipboardList, Settings, BarChart3, Calendar, Clock, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 
@@ -11,6 +11,7 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   match?: RegExp;
+  tabletOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -19,6 +20,20 @@ const NAV_ITEMS: NavItem[] = [
     label: "Accueil",
     icon: Home,
     match: /^\/(dashboard)?$/,
+  },
+  {
+    href: "/agenda",
+    label: "Agenda",
+    icon: Calendar,
+    match: /^\/agenda/,
+    tabletOnly: true,
+  },
+  {
+    href: "/salle-attente",
+    label: "Attente",
+    icon: Clock,
+    match: /^\/salle-attente/,
+    tabletOnly: true,
   },
   {
     href: "/patients",
@@ -31,6 +46,13 @@ const NAV_ITEMS: NavItem[] = [
     label: "Pre-consult",
     icon: ClipboardList,
     match: /^\/pre-consultations/,
+  },
+  {
+    href: "/paiements",
+    label: "Paiements",
+    icon: CreditCard,
+    match: /^\/paiements/,
+    tabletOnly: true,
   },
   {
     href: "/analytiques",
@@ -59,7 +81,7 @@ export function BottomNav() {
       role="navigation"
       aria-label="Navigation principale"
     >
-      <div className="flex items-center justify-around px-2">
+      <div className="flex items-center justify-around px-1 md:px-2">
         {NAV_ITEMS.map((item) => {
           const isActive = item.match
             ? item.match.test(pathname)
@@ -72,31 +94,32 @@ export function BottomNav() {
               href={item.href}
               onClick={handleTap}
               className={cn(
-                "flex flex-col items-center justify-center py-3 px-4 min-w-[64px] min-h-[64px]",
+                "flex-col items-center justify-center py-3 px-2 md:px-3 min-w-0 md:min-w-[56px] min-h-[64px]",
                 "transition-all duration-200 active:scale-95",
                 "rounded-xl",
                 isActive
                   ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+                item.tabletOnly ? "hidden md:flex" : "flex"
               )}
               aria-current={isActive ? "page" : undefined}
             >
               <div
                 className={cn(
-                  "flex items-center justify-center w-12 h-8 rounded-full transition-all duration-200",
+                  "flex items-center justify-center w-10 md:w-12 h-8 rounded-full transition-all duration-200",
                   isActive && "bg-primary/15"
                 )}
               >
                 <Icon
                   className={cn(
-                    "h-6 w-6 transition-transform duration-200",
+                    "h-5 w-5 md:h-6 md:w-6 transition-transform duration-200",
                     isActive && "scale-110"
                   )}
                 />
               </div>
               <span
                 className={cn(
-                  "text-xs mt-1 font-medium transition-all duration-200 truncate max-w-[56px]",
+                  "text-[10px] md:text-xs mt-1 font-medium transition-all duration-200 truncate max-w-[48px] md:max-w-[56px]",
                   isActive ? "opacity-100" : "opacity-70"
                 )}
               >
