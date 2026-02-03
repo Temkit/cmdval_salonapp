@@ -1,7 +1,7 @@
 """Side effect domain entity."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 
@@ -12,7 +12,7 @@ class SideEffectPhoto:
     filename: str
     filepath: str
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -31,7 +31,7 @@ class SideEffect:
 
     # Metadata
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def is_severe(self) -> bool:

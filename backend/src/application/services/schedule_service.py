@@ -5,7 +5,9 @@ from io import BytesIO
 
 from src.domain.entities.schedule import DailyScheduleEntry, WaitingQueueEntry
 from src.domain.exceptions import NotFoundError, ValidationError
+from src.infrastructure.events import event_bus
 from src.infrastructure.database.repositories import PatientRepository, UserRepository
+from src.infrastructure.database.repositories.box_repository import BoxAssignmentRepository
 from src.infrastructure.database.repositories.schedule_repository import (
     ScheduleRepository,
     WaitingQueueRepository,
@@ -21,11 +23,13 @@ class ScheduleService:
         queue_repo: WaitingQueueRepository,
         patient_repo: PatientRepository,
         user_repo: UserRepository,
+        box_assignment_repo: BoxAssignmentRepository | None = None,
     ):
         self.schedule_repo = schedule_repo
         self.queue_repo = queue_repo
         self.patient_repo = patient_repo
         self.user_repo = user_repo
+        self.box_assignment_repo = box_assignment_repo
 
     async def upload_schedule(
         self, file_data: bytes, uploaded_by: str | None = None
@@ -128,7 +132,19 @@ class ScheduleService:
             doctor_id=entry.doctor_id,
             doctor_name=entry.doctor_name,
         )
-        return await self.queue_repo.create(queue_entry)
+        result = await self.queue_repo.create(queue_entry)
+
+        # Publish SSE event for real-time notifications
+        doctor_channel = f"queue:{entry.doctor_id}" if entry.doctor_id else "queue:all"
+        await event_bus.publish(doctor_channel, {
+            "type": "patient_checked_in",
+            "patient_name": f"{entry.patient_prenom} {entry.patient_nom}",
+            "doctor_id": entry.doctor_id or "",
+            "doctor_name": entry.doctor_name or "",
+            "position": result.position,
+        })
+
+        return result
 
     async def get_queue(self, doctor_id: str | None = None) -> list[WaitingQueueEntry]:
         return await self.queue_repo.find_active(doctor_id)
@@ -136,10 +152,19 @@ class ScheduleService:
     async def get_display_queue(self) -> list[WaitingQueueEntry]:
         return await self.queue_repo.find_display()
 
-    async def call_patient(self, entry_id: str) -> WaitingQueueEntry:
+    async def call_patient(self, entry_id: str, caller_user_id: str | None = None) -> WaitingQueueEntry:
         result = await self.queue_repo.update_status(entry_id, "in_treatment")
         if not result:
             raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
+
+        # Set box info from the calling doctor's assignment
+        if caller_user_id and self.box_assignment_repo:
+            assignment = await self.box_assignment_repo.get_by_user(caller_user_id)
+            if assignment:
+                await self.queue_repo.update_box(entry_id, assignment.box_id, assignment.box_nom)
+                result.box_id = assignment.box_id
+                result.box_nom = assignment.box_nom
+
         # Also update schedule
         if result.schedule_id:
             await self.schedule_repo.update_status(result.schedule_id, "in_treatment")

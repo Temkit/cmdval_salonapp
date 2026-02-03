@@ -1,7 +1,7 @@
 """Dashboard service."""
 
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import func, select
@@ -9,9 +9,11 @@ from sqlalchemy import func, select
 from src.infrastructure.database.models import (
     PaiementModel,
     PatientModel,
+    PatientZoneModel,
     SessionModel,
     SessionSideEffectModel,
     UserModel,
+    ZoneDefinitionModel,
 )
 from src.infrastructure.database.repositories import (
     PaiementRepository,
@@ -112,7 +114,7 @@ class DashboardService:
         ]
 
         # Monthly trend (last 6 months)
-        six_months_ago = datetime.utcnow() - relativedelta(months=6)
+        six_months_ago = datetime.now(UTC) - relativedelta(months=6)
         month_col = func.date_trunc("month", SessionSideEffectModel.created_at).label("month")
         trend_result = await db.execute(
             select(
@@ -132,18 +134,21 @@ class DashboardService:
         }
 
     async def get_doctor_performance(self) -> dict:
-        """Get average session duration per doctor compared to overall average."""
+        """Get average session duration per doctor compared to expected zone durations."""
         db = self.session_repository.session
 
-        # Per-doctor stats (only sessions with duree_minutes recorded)
+        # Per-doctor stats with expected duration from zone definitions
         doctor_result = await db.execute(
             select(
                 UserModel.id.label("doctor_id"),
                 func.concat(UserModel.prenom, " ", UserModel.nom).label("doctor_name"),
                 func.avg(SessionModel.duree_minutes).label("avg_duration"),
                 func.count(SessionModel.id).label("total_sessions"),
+                func.avg(ZoneDefinitionModel.duree_minutes).label("avg_expected"),
             )
             .join(UserModel, SessionModel.praticien_id == UserModel.id)
+            .join(PatientZoneModel, SessionModel.patient_zone_id == PatientZoneModel.id)
+            .join(ZoneDefinitionModel, PatientZoneModel.zone_id == ZoneDefinitionModel.id)
             .where(SessionModel.duree_minutes.is_not(None))
             .group_by(UserModel.id, UserModel.prenom, UserModel.nom)
             .order_by(func.count(SessionModel.id).desc())
@@ -161,7 +166,18 @@ class DashboardService:
         doctors = []
         for row in rows:
             avg_dur = float(row[2] or 0)
+            expected_avg = float(row[4] or 0)
             comparison = ((avg_dur - overall_avg) / overall_avg * 100) if overall_avg > 0 else 0.0
+
+            # Determine status based on actual vs expected ratio
+            status = "normal"
+            if expected_avg > 0:
+                ratio = avg_dur / expected_avg
+                if ratio > 1.25:
+                    status = "trop_lent"
+                elif ratio < 0.75:
+                    status = "trop_rapide"
+
             doctors.append(
                 {
                     "doctor_id": row[0],
@@ -169,6 +185,8 @@ class DashboardService:
                     "avg_duration_minutes": round(avg_dur, 1),
                     "total_sessions": row[3],
                     "comparison_to_avg": round(comparison, 1),
+                    "expected_avg_duration": round(expected_avg, 1),
+                    "status": status,
                 }
             )
 
@@ -217,10 +235,105 @@ class DashboardService:
             for row in period_result.all()
         ]
 
+        # Extract hors_carte and pack breakdowns from revenue_by_type
+        hors_carte_revenue = 0
+        hors_carte_count = 0
+        pack_revenue = 0
+        pack_count = 0
+        for item in revenue_by_type:
+            if item["type"] == "hors_carte":
+                hors_carte_revenue = item["total"]
+                hors_carte_count = item["count"]
+            elif item["type"] == "encaissement":
+                pack_revenue = item["total"]
+                pack_count = item["count"]
+
         return {
             "total_revenue": total_revenue,
             "revenue_by_type": revenue_by_type,
             "revenue_by_period": revenue_by_period,
+            "hors_carte_revenue": hors_carte_revenue,
+            "hors_carte_count": hors_carte_count,
+            "pack_revenue": pack_revenue,
+            "pack_count": pack_count,
+        }
+
+    async def get_lost_time_stats(
+        self,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> dict:
+        """Get lost/overtime stats per doctor and per laser type."""
+        db = self.session_repository.session
+
+        # Base filter: sessions with recorded duration and zones with expected duration
+        base_filter = [
+            SessionModel.duree_minutes.is_not(None),
+            ZoneDefinitionModel.duree_minutes.is_not(None),
+        ]
+        if date_from:
+            base_filter.append(SessionModel.date_seance >= date_from)
+        if date_to:
+            base_filter.append(SessionModel.date_seance <= date_to)
+
+        # By doctor
+        doctor_result = await db.execute(
+            select(
+                UserModel.id.label("doctor_id"),
+                func.concat(UserModel.prenom, " ", UserModel.nom).label("doctor_name"),
+                func.sum(ZoneDefinitionModel.duree_minutes).label("total_expected"),
+                func.sum(SessionModel.duree_minutes).label("total_actual"),
+                func.count(SessionModel.id).label("session_count"),
+            )
+            .join(UserModel, SessionModel.praticien_id == UserModel.id)
+            .join(PatientZoneModel, SessionModel.patient_zone_id == PatientZoneModel.id)
+            .join(ZoneDefinitionModel, PatientZoneModel.zone_id == ZoneDefinitionModel.id)
+            .where(*base_filter)
+            .group_by(UserModel.id, UserModel.prenom, UserModel.nom)
+            .order_by(func.sum(SessionModel.duree_minutes).desc())
+        )
+        by_doctor = []
+        for row in doctor_result.all():
+            expected = float(row[2] or 0)
+            actual = float(row[3] or 0)
+            by_doctor.append({
+                "doctor_id": row[0],
+                "doctor_name": row[1],
+                "total_expected_minutes": round(expected, 1),
+                "total_actual_minutes": round(actual, 1),
+                "lost_minutes": round(actual - expected, 1),
+                "session_count": row[4],
+            })
+
+        # By laser type
+        laser_result = await db.execute(
+            select(
+                SessionModel.type_laser,
+                func.sum(ZoneDefinitionModel.duree_minutes).label("total_expected"),
+                func.sum(SessionModel.duree_minutes).label("total_actual"),
+                func.count(SessionModel.id).label("session_count"),
+            )
+            .join(PatientZoneModel, SessionModel.patient_zone_id == PatientZoneModel.id)
+            .join(ZoneDefinitionModel, PatientZoneModel.zone_id == ZoneDefinitionModel.id)
+            .where(*base_filter)
+            .group_by(SessionModel.type_laser)
+            .order_by(func.sum(SessionModel.duree_minutes).desc())
+        )
+        by_laser = []
+        for row in laser_result.all():
+            expected = float(row[1] or 0)
+            actual = float(row[2] or 0)
+            by_laser.append({
+                "type_laser": row[0],
+                "total_expected_minutes": round(expected, 1),
+                "total_actual_minutes": round(actual, 1),
+                "lost_minutes": round(actual - expected, 1),
+                "session_count": row[3],
+            })
+
+        return {
+            "by_doctor": by_doctor,
+            "by_laser": by_laser,
         }
 
     async def get_demographics(self) -> dict:

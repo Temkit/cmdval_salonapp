@@ -12,6 +12,10 @@ import {
   Calendar,
   Award,
   PieChart,
+  DollarSign,
+  Timer,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +24,30 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import type {
+  ZoneStatsItem,
+  PraticienStatsItem,
+  PeriodDataItem,
+  SideEffectStatsResponse,
+  DoctorPerformanceItem,
+  DoctorPerformanceResponse,
+  RevenueBreakdown,
+} from "@/types";
+
+interface LostTimeItem {
+  doctor_id?: string;
+  doctor_name?: string;
+  type_laser?: string;
+  total_expected_minutes: number;
+  total_actual_minutes: number;
+  lost_minutes: number;
+  session_count: number;
+}
+
+interface LostTimeStats {
+  by_doctor: LostTimeItem[];
+  by_laser: LostTimeItem[];
+}
 
 const periodOptions = [
   { value: "week", label: "Semaine" },
@@ -71,10 +99,15 @@ export default function AnalyticsPage() {
     queryFn: () => api.getDemographics(),
   });
 
+  const { data: lostTimeData } = useQuery({
+    queryKey: ["lost-time-stats"],
+    queryFn: () => api.getLostTimeStats(),
+  });
+
   // Calculate max values for charts
-  const maxZoneCount = Math.max(...(byZone?.data?.map((z: any) => z.count) || [1]));
-  const maxPraticienCount = Math.max(...(byPraticien?.data?.map((p: any) => p.count) || [1]));
-  const maxPeriodCount = Math.max(...(byPeriod?.data?.map((p: any) => p.count) || [1]));
+  const maxZoneCount = Math.max(...(byZone?.data?.map((z: ZoneStatsItem) => z.count) || [1]));
+  const maxPraticienCount = Math.max(...(byPraticien?.data?.map((p: PraticienStatsItem) => p.count) || [1]));
+  const maxPeriodCount = Math.max(...(byPeriod?.data?.map((p: PeriodDataItem) => p.count) || [1]));
 
   if (isError) {
     return (
@@ -82,7 +115,7 @@ export default function AnalyticsPage() {
         <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-4" />
         <p className="font-medium">Erreur de chargement</p>
         <p className="text-sm text-muted-foreground mt-1">
-          {(error as any)?.message || "Impossible de charger les donnees"}
+          {error instanceof Error ? error.message : "Impossible de charger les donnees"}
         </p>
         <Button variant="outline" onClick={() => refetch()} className="mt-4">
           Reessayer
@@ -164,7 +197,7 @@ export default function AnalyticsPage() {
             <p className="text-sm text-muted-foreground mb-3">Zones populaires</p>
             {(byZone?.data?.length ?? 0) > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {byZone?.data?.slice(0, 4).map((zone: any, index: number) => (
+                {byZone?.data?.slice(0, 4).map((zone: ZoneStatsItem, index: number) => (
                   <Badge
                     key={zone.zone_id}
                     variant={index === 0 ? "default" : "secondary"}
@@ -228,7 +261,7 @@ export default function AnalyticsPage() {
                 </div>
                 {/* Bars */}
                 <div className="flex-1 flex items-end gap-1 sm:gap-2 border-l border-b border-border pl-2" style={{ height: "160px" }}>
-                  {byPeriod?.data?.slice(-12).map((item: any, index: number) => {
+                  {byPeriod?.data?.slice(-12).map((item: PeriodDataItem, index: number) => {
                     const heightPercent = maxPeriodCount > 0 ? (item.count / maxPeriodCount) * 100 : 0;
                     const barHeight = Math.max(heightPercent, item.count > 0 ? 8 : 2);
                     return (
@@ -270,14 +303,14 @@ export default function AnalyticsPage() {
               <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground pt-2 border-t">
                 <span className="flex items-center gap-1">
                   <span className="font-medium text-foreground">
-                    {byPeriod?.data?.reduce((sum: number, item: any) => sum + item.count, 0) ?? 0}
+                    {byPeriod?.data?.reduce((sum: number, item: PeriodDataItem) => sum + item.count, 0) ?? 0}
                   </span>
                   total
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="font-medium text-foreground">
                     {Math.round(
-                      (byPeriod?.data?.reduce((sum: number, item: any) => sum + item.count, 0) ?? 0) /
+                      (byPeriod?.data?.reduce((sum: number, item: PeriodDataItem) => sum + item.count, 0) ?? 0) /
                         (byPeriod?.data?.length || 1)
                     )}
                   </span>
@@ -316,7 +349,7 @@ export default function AnalyticsPage() {
               </div>
             ) : (byZone?.data?.length ?? 0) > 0 ? (
               <div className="space-y-4">
-                {byZone?.data?.map((zone: any) => (
+                {byZone?.data?.map((zone: ZoneStatsItem) => (
                   <div key={zone.zone_id} className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium truncate">{zone.zone_nom}</span>
@@ -360,7 +393,7 @@ export default function AnalyticsPage() {
               </div>
             ) : (byPraticien?.data?.length ?? 0) > 0 ? (
               <div className="space-y-4">
-                {byPraticien?.data?.map((praticien: any, index: number) => (
+                {byPraticien?.data?.map((praticien: PraticienStatsItem, index: number) => (
                   <div key={praticien.praticien_id} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
@@ -400,50 +433,205 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="text-center p-3 rounded-xl bg-muted/50">
-                <p className="text-2xl font-bold">{(sideEffectData as any)?.total || 0}</p>
-                <p className="text-xs text-muted-foreground mt-1">Total signales</p>
-              </div>
-              <div className="text-center p-3 rounded-xl bg-muted/50">
-                <p className="text-2xl font-bold text-yellow-600">{(sideEffectData as any)?.by_severity?.mild || 0}</p>
-                <p className="text-xs text-muted-foreground mt-1">Legers</p>
-              </div>
-              <div className="text-center p-3 rounded-xl bg-muted/50">
-                <p className="text-2xl font-bold text-orange-600">{(sideEffectData as any)?.by_severity?.moderate || 0}</p>
-                <p className="text-xs text-muted-foreground mt-1">Moderes</p>
-              </div>
-              <div className="text-center p-3 rounded-xl bg-muted/50">
-                <p className="text-2xl font-bold text-destructive">{(sideEffectData as any)?.by_severity?.severe || 0}</p>
-                <p className="text-xs text-muted-foreground mt-1">Severes</p>
-              </div>
+              {(() => {
+                const se = sideEffectData;
+                const getSeverityCount = (severity: string) =>
+                  se?.by_severity?.find((s) => s.severity === severity)?.count || 0;
+                return (
+                  <>
+                    <div className="text-center p-3 rounded-xl bg-muted/50">
+                      <p className="text-2xl font-bold">{se?.total || 0}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Total signales</p>
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-muted/50">
+                      <p className="text-2xl font-bold text-yellow-600">{getSeverityCount("mild")}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Legers</p>
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-muted/50">
+                      <p className="text-2xl font-bold text-orange-600">{getSeverityCount("moderate")}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Moderes</p>
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-muted/50">
+                      <p className="text-2xl font-bold text-destructive">{getSeverityCount("severe")}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Severes</p>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Doctor Performance */}
-      {doctorData && (doctorData as any)?.doctors?.length > 0 && (
+      {/* Hors Carte Profitability */}
+      {revenueData && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Rentabilite par type
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const rev = revenueData;
+              const packRev = rev.pack_revenue || 0;
+              const hcRev = rev.hors_carte_revenue || 0;
+              const total = packRev + hcRev;
+              const packPct = total > 0 ? Math.round((packRev / total) * 100) : 0;
+              const hcPct = total > 0 ? 100 - packPct : 0;
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                      <p className="text-sm text-muted-foreground">Pack / Carte</p>
+                      <p className="text-2xl font-bold">{packRev.toLocaleString()} DA</p>
+                      <p className="text-xs text-muted-foreground mt-1">{rev.pack_count || 0} paiements</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
+                      <p className="text-sm text-muted-foreground">Hors carte</p>
+                      <p className="text-2xl font-bold">{hcRev.toLocaleString()} DA</p>
+                      <p className="text-xs text-muted-foreground mt-1">{rev.hors_carte_count || 0} paiements</p>
+                    </div>
+                  </div>
+                  {total > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Pack ({packPct}%)</span>
+                        <span>Hors carte ({hcPct}%)</span>
+                      </div>
+                      <div className="flex h-3 rounded-full overflow-hidden">
+                        <div className="bg-primary transition-all" style={{ width: `${packPct}%` }} />
+                        <div className="bg-orange-500 transition-all" style={{ width: `${hcPct}%` }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Doctor Performance with Flags */}
+      {doctorData && doctorData.doctors?.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Performance praticiens</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {(doctorData as any).doctors.map((doc: any) => (
-                <div key={doc.id || doc.nom} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
-                  <div>
-                    <p className="font-medium">{doc.nom}</p>
-                    <p className="text-xs text-muted-foreground">{doc.total_sessions} seances</p>
+              {doctorData.doctors.map((doc: DoctorPerformanceItem) => {
+                const statusConfig: Record<string, { label: string; className: string }> = {
+                  normal: { label: "Normal", className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+                  trop_lent: { label: "Trop lent", className: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
+                  trop_rapide: { label: "Trop rapide", className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
+                };
+                const status = statusConfig[doc.status] || statusConfig.normal;
+                return (
+                  <div key={doc.doctor_id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{doc.doctor_name}</p>
+                        <span className={cn("px-2 py-0.5 rounded text-xs font-medium", status.className)}>
+                          {status.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{doc.total_sessions} seances</p>
+                    </div>
+                    <div className="text-right shrink-0 ml-4">
+                      <p className="font-medium">{doc.avg_duration_minutes ? `${Math.round(doc.avg_duration_minutes)} min` : "-"}</p>
+                      {doc.expected_avg_duration > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          attendu: {Math.round(doc.expected_avg_duration)} min
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium">{doc.avg_duration ? `${Math.round(doc.avg_duration)} min` : "-"}</p>
-                    <p className="text-xs text-muted-foreground">duree moy.</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Lost Time */}
+      {lostTimeData && (lostTimeData.by_doctor?.length > 0 || lostTimeData.by_laser?.length > 0) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {/* By Doctor */}
+          {lostTimeData.by_doctor?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Timer className="h-5 w-5 text-primary" />
+                  Temps perdu par praticien
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {lostTimeData.by_doctor.map((item: LostTimeItem) => (
+                    <div key={item.doctor_id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{item.doctor_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.session_count} seances • Attendu: {Math.round(item.total_expected_minutes)} min • Reel: {Math.round(item.total_actual_minutes)} min
+                        </p>
+                      </div>
+                      <div className={cn(
+                        "flex items-center gap-1 font-semibold shrink-0 ml-2",
+                        item.lost_minutes > 0 ? "text-red-600" : "text-green-600"
+                      )}>
+                        {item.lost_minutes > 0 ? (
+                          <ArrowUpRight className="h-4 w-4" />
+                        ) : (
+                          <ArrowDownRight className="h-4 w-4" />
+                        )}
+                        {Math.abs(Math.round(item.lost_minutes))} min
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* By Laser */}
+          {lostTimeData.by_laser?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Zap className="h-5 w-5 text-primary" />
+                  Temps perdu par laser
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {lostTimeData.by_laser.map((item: LostTimeItem) => (
+                    <div key={item.type_laser} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{item.type_laser}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.session_count} seances • Attendu: {Math.round(item.total_expected_minutes)} min • Reel: {Math.round(item.total_actual_minutes)} min
+                        </p>
+                      </div>
+                      <div className={cn(
+                        "flex items-center gap-1 font-semibold shrink-0 ml-2",
+                        item.lost_minutes > 0 ? "text-red-600" : "text-green-600"
+                      )}>
+                        {item.lost_minutes > 0 ? (
+                          <ArrowUpRight className="h-4 w-4" />
+                        ) : (
+                          <ArrowDownRight className="h-4 w-4" />
+                        )}
+                        {Math.abs(Math.round(item.lost_minutes))} min
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

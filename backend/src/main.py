@@ -9,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.v1.router import router as api_router
 from src.core.config import get_settings
 from src.core.exceptions import register_exception_handlers
+from src.core.logging import setup_logging
+from src.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+from src.core.rate_limit import RateLimitMiddleware
 
 settings = get_settings()
 
@@ -26,6 +29,8 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
+    setup_logging(debug=settings.debug, log_level=settings.log_level)
+
     app = FastAPI(
         title=settings.app_name,
         description="API de gestion de salon d'épilation laser",
@@ -33,6 +38,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         docs_url="/api/docs" if settings.debug else None,
         redoc_url="/api/redoc" if settings.debug else None,
+        openapi_url="/api/openapi.json" if settings.debug else None,
     )
 
     # CORS middleware
@@ -40,9 +46,19 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
+        max_age=600,
     )
+
+    # Security headers (outermost — runs first on response)
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # Request logging
+    app.add_middleware(RequestLoggingMiddleware)
+
+    # Rate limiting
+    app.add_middleware(RateLimitMiddleware)
 
     # Register exception handlers
     register_exception_handlers(app)

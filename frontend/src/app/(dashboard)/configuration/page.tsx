@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Users, Shield, FileText, Target, ChevronRight, Settings, Package, Tag } from "lucide-react";
+import { Users, Shield, FileText, Target, ChevronRight, Settings, Package, Tag, DoorOpen } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,13 @@ const configSections = [
     href: "/configuration/zones",
     icon: Target,
     color: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
+  },
+  {
+    title: "Boxes",
+    description: "Gérer les salles de traitement",
+    href: "/configuration/boxes",
+    icon: DoorOpen,
+    color: "bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400",
   },
   {
     title: "Packs",

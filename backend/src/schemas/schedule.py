@@ -41,6 +41,8 @@ class QueueEntryResponse(AppBaseModel):
     patient_name: str
     doctor_id: str | None = None
     doctor_name: str
+    box_id: str | None = None
+    box_nom: str | None = None
     checked_in_at: dt.datetime
     position: int
     status: str

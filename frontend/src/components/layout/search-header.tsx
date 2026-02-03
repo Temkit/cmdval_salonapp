@@ -13,7 +13,7 @@ interface SearchResult {
   code_carte: string;
   nom: string;
   prenom: string;
-  telephone?: string;
+  telephone?: string | null;
 }
 
 interface SearchHeaderProps {

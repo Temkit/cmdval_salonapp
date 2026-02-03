@@ -1,7 +1,7 @@
 """Pre-consultation management endpoints."""
 
 import math
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -44,7 +44,7 @@ async def list_pre_consultations(
     ],
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    status_filter: str | None = Query(None, alias="status"),
+    status_filter: Literal["draft", "pending_validation", "validated", "patient_created", "rejected"] | None = Query(None, alias="status"),
     search: str | None = Query(None),
 ):
     """List pre-consultations with pagination and filters."""

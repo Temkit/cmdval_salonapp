@@ -13,10 +13,12 @@ import {
   ClipboardList,
   Calendar,
   Clock,
+  DoorOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
+import { useQueueEvents } from "@/hooks/use-queue-events";
 
 const navigation = [
   { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
@@ -36,6 +38,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout, hasPermission } = useAuthStore();
+  const { newCheckInCount: queueNotifications } = useQueueEvents();
 
   const filteredNav = navigation.filter((item) => hasPermission(item.permission));
 
@@ -106,12 +109,46 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   >
                     <item.icon className="h-5 w-5 shrink-0" />
                     {item.name}
+                    {item.href === "/salle-attente" && queueNotifications > 0 && (
+                      <span className="ml-auto w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-semibold">
+                        {queueNotifications}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
             })}
           </ul>
         </nav>
+
+        {/* Box info */}
+        {user?.role_nom === "Praticien" && (
+          <div className="border-t px-4 py-3">
+            <div className="flex items-center gap-2">
+              <DoorOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+              {user.box_nom ? (
+                <>
+                  <span className="text-sm font-medium truncate">{user.box_nom}</span>
+                  <Link
+                    href="/select-box"
+                    onClick={onClose}
+                    className="ml-auto text-xs text-primary hover:underline shrink-0"
+                  >
+                    Changer
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  href="/select-box"
+                  onClick={onClose}
+                  className="text-sm text-amber-600 dark:text-amber-400 hover:underline"
+                >
+                  Choisir un box
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* User info */}
         <div className="border-t p-4">
@@ -132,8 +169,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <Button
             variant="outline"
             className="w-full min-h-[44px]"
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               window.location.href = "/login";
             }}
           >
@@ -150,6 +187,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 export function MobileNav() {
   const pathname = usePathname();
   const { hasPermission } = useAuthStore();
+  const { newCheckInCount: queueNotifications } = useQueueEvents();
 
   const filteredNav = navigation.filter((item) => hasPermission(item.permission));
 
@@ -175,7 +213,14 @@ export function MobileNav() {
                   : "text-muted-foreground active:text-foreground"
               )}
             >
-              <item.icon className={cn("h-6 w-6 transition-transform", isActive && "scale-110")} />
+              <div className="relative">
+                <item.icon className={cn("h-6 w-6 transition-transform", isActive && "scale-110")} />
+                {item.href === "/salle-attente" && queueNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center font-bold">
+                    {queueNotifications}
+                  </span>
+                )}
+              </div>
               <span className={cn(
                 "text-[10px] font-medium leading-tight",
                 isActive && "font-semibold"

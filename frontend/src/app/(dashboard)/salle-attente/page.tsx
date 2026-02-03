@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Clock, Phone, CheckCircle, Users, Stethoscope, RefreshCw } from "lucide-react";
+import { Phone, CheckCircle, Users, Stethoscope, RefreshCw, DoorOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import { useQueueEvents } from "@/hooks/use-queue-events";
 
 const queueStatusConfig: Record<string, { label: string; variant: "info" | "warning" | "success"; pulse?: boolean }> = {
   waiting: { label: "En attente", variant: "info", pulse: true },
@@ -25,7 +26,9 @@ interface QueueEntry {
   patient_nom?: string;
   doctor_name?: string;
   medecin?: string;
-  doctor_id?: string;
+  doctor_id?: string | null;
+  box_id?: string | null;
+  box_nom?: string | null;
   status: string;
   position?: number;
   checked_in_at?: string;
@@ -37,6 +40,10 @@ export default function SalleAttentePage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const { newCheckInCount: newCheckIns, resetCount } = useQueueEvents({
+    showToasts: true,
+    invalidateQueries: true,
+  });
 
   const { data: queueData, isLoading } = useQuery({
     queryKey: ["queue"],
@@ -50,7 +57,7 @@ export default function SalleAttentePage() {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
       toast({ title: "Patient appele" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
   });
@@ -61,7 +68,7 @@ export default function SalleAttentePage() {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
       toast({ title: "Traitement termine" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
   });
@@ -98,7 +105,14 @@ export default function SalleAttentePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="heading-2">Salle d'attente</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="heading-2">Salle d'attente</h1>
+            {newCheckIns > 0 && (
+              <Badge variant="destructive" className="animate-pulse">
+                {newCheckIns} nouveau{newCheckIns > 1 ? "x" : ""}
+              </Badge>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             {waitingCount} en attente, {inTreatmentCount} en traitement
             {autoRefresh && " - Actualisation automatique"}
@@ -116,7 +130,10 @@ export default function SalleAttentePage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["queue"] })}
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ["queue"] });
+              resetCount();
+            }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Actualiser
@@ -221,6 +238,14 @@ export default function SalleAttentePage() {
                               {entry.checked_in_at && ` - Arrive a ${new Date(entry.checked_in_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
                             </p>
                           </div>
+
+                          {/* Box */}
+                          {entry.box_nom && (isInTreatment || entry.status === "called") && (
+                            <Badge variant="secondary" className="shrink-0 gap-1">
+                              <DoorOpen className="h-3 w-3" />
+                              {entry.box_nom}
+                            </Badge>
+                          )}
 
                           {/* Status */}
                           <div className="flex items-center gap-2 shrink-0">

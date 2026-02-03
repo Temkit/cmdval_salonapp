@@ -1,7 +1,7 @@
 """Promotion domain entity."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 PROMOTION_TYPES = ["pourcentage", "montant"]
@@ -19,8 +19,8 @@ class Promotion:
     date_fin: date | None = None
     is_active: bool = True
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def is_currently_active(self) -> bool:

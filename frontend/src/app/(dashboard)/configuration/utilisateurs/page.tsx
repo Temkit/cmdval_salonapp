@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Pencil, Trash2, User, Check, X, Filter, Search } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, User as UserIcon, Check, X, Filter, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import type { User, Role, CreateUserRequest, UpdateUserRequest } from "@/types";
 
 interface UserForm {
   email: string;
@@ -50,7 +51,7 @@ export default function UsersConfigPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<UserForm>(initialFormState);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -67,13 +68,13 @@ export default function UsersConfigPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.createUser(data),
+    mutationFn: (data: CreateUserRequest) => api.createUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "Utilisateur créé" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -83,14 +84,14 @@ export default function UsersConfigPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateUserRequest }) =>
       api.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "Utilisateur mis à jour" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -106,7 +107,7 @@ export default function UsersConfigPage() {
       toast({ title: "Utilisateur supprimé" });
       setDeleteUserId(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -121,10 +122,10 @@ export default function UsersConfigPage() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (user: any) => {
+  const handleOpenEdit = (user: User) => {
     setEditingUser(user);
     setFormData({
-      email: user.email,
+      email: user.username,  // username is email
       nom: user.nom,
       prenom: user.prenom,
       password: "",
@@ -141,18 +142,13 @@ export default function UsersConfigPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data: any = {
-      email: formData.email,
-      nom: formData.nom,
-      prenom: formData.prenom,
-      role_id: formData.role_id,
-    };
-
-    if (formData.password) {
-      data.password = formData.password;
-    }
 
     if (editingUser) {
+      const data: UpdateUserRequest = {
+        nom: formData.nom,
+        prenom: formData.prenom,
+        role_id: formData.role_id,
+      };
       updateMutation.mutate({ id: editingUser.id, data });
     } else {
       if (!formData.password) {
@@ -163,6 +159,13 @@ export default function UsersConfigPage() {
         });
         return;
       }
+      const data: CreateUserRequest = {
+        username: formData.email,
+        password: formData.password,
+        nom: formData.nom,
+        prenom: formData.prenom,
+        role_id: formData.role_id,
+      };
       createMutation.mutate(data);
     }
   };
@@ -170,7 +173,7 @@ export default function UsersConfigPage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   // Filter users based on role and search
-  const filteredUsers = (users?.users || []).filter((user: any) => {
+  const filteredUsers = (users?.users || []).filter((user: User) => {
     const matchesRole = roleFilter === "all" || user.role_id === roleFilter;
     const matchesSearch = !search ||
       `${user.prenom} ${user.nom}`.toLowerCase().includes(search.toLowerCase()) ||
@@ -220,7 +223,7 @@ export default function UsersConfigPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les rôles</SelectItem>
-                {roles?.roles?.map((role: any) => (
+                {roles?.roles?.map((role: Role) => (
                   <SelectItem key={role.id} value={role.id}>
                     {role.nom}
                   </SelectItem>
@@ -273,14 +276,14 @@ export default function UsersConfigPage() {
             </div>
           ) : filteredUsers.length > 0 ? (
             <div className="space-y-2">
-              {filteredUsers.map((user: any) => (
+              {filteredUsers.map((user: User) => (
                 <div
                   key={user.id}
                   className="flex items-center justify-between p-4 border rounded-xl"
                 >
                   <div className="flex items-center gap-4">
                     <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <User className="h-5 w-5 text-primary" />
+                      <UserIcon className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                       <p className="font-medium">
@@ -316,7 +319,7 @@ export default function UsersConfigPage() {
                 </div>
               ))}
             </div>
-          ) : users?.users?.length > 0 && (roleFilter !== "all" || search) ? (
+          ) : (users?.users?.length ?? 0) > 0 && (roleFilter !== "all" || search) ? (
             <EmptyState
               icon={search ? Search : Filter}
               title="Aucun résultat"
@@ -331,7 +334,7 @@ export default function UsersConfigPage() {
             />
           ) : (
             <EmptyState
-              icon={User}
+              icon={UserIcon}
               title="Aucun utilisateur"
               description="Créez votre premier utilisateur pour commencer"
               action={{
@@ -420,7 +423,7 @@ export default function UsersConfigPage() {
                     <SelectValue placeholder="Sélectionner un rôle" />
                   </SelectTrigger>
                   <SelectContent>
-                    {roles?.roles?.map((role: any) => (
+                    {roles?.roles?.map((role: Role) => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.nom}
                       </SelectItem>
@@ -453,9 +456,9 @@ export default function UsersConfigPage() {
         description="Cette action est irréversible. L'utilisateur perdra l'accès à l'application."
         itemName={
           deleteUserId
-            ? users?.users?.find((u: any) => u.id === deleteUserId)?.prenom +
+            ? users?.users?.find((u: User) => u.id === deleteUserId)?.prenom +
               " " +
-              users?.users?.find((u: any) => u.id === deleteUserId)?.nom
+              users?.users?.find((u: User) => u.id === deleteUserId)?.nom
             : undefined
         }
         confirmLabel="Supprimer"

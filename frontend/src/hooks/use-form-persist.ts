@@ -7,7 +7,7 @@ interface UseFormPersistOptions<T> {
   exclude?: (keyof T)[];
 }
 
-export function useFormPersist<T extends Record<string, unknown>>(
+export function useFormPersist<T extends object>(
   key: string,
   state: T,
   setState: (val: T) => void,

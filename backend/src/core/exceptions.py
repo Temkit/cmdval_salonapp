@@ -1,8 +1,11 @@
 """HTTP exceptions and handlers for FastAPI."""
 
+import structlog
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+
+logger = structlog.get_logger()
 
 
 class AppHTTPException(HTTPException):
@@ -88,7 +91,12 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions."""
-    # Log the error in production
+    await logger.exception(
+        "unhandled_exception",
+        path=str(request.url.path),
+        method=request.method,
+        exc_type=type(exc).__name__,
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "Une erreur interne est survenue"},

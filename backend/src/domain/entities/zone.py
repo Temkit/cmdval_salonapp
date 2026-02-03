@@ -1,7 +1,7 @@
 """Zone domain entities."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 ZONE_CATEGORIES = ["visage", "bras", "jambes", "corps", "homme"]
@@ -21,7 +21,7 @@ class ZoneDefinition:
     is_homme: bool = False
     is_active: bool = True
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # Default zone definitions (35 zones from PPT/Excel)
@@ -252,8 +252,8 @@ class PatientZone:
     seances_used: int = 0
     notes: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def seances_restantes(self) -> int:

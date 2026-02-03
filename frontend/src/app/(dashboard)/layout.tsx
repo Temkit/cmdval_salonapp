@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -16,6 +16,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, refreshUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -23,14 +24,21 @@ export default function DashboardLayout({
   useEffect(() => {
     const checkAuth = async () => {
       await refreshUser();
-      const isAuth = useAuthStore.getState().isAuthenticated;
-      if (!isAuth) {
+      const state = useAuthStore.getState();
+      if (!state.isAuthenticated) {
         router.replace("/login");
+      } else if (
+        state.user &&
+        state.user.role_nom === "Praticien" &&
+        !state.user.box_id &&
+        pathname !== "/select-box"
+      ) {
+        router.replace("/select-box");
       }
       setIsLoading(false);
     };
     checkAuth();
-  }, [router, refreshUser]);
+  }, [router, refreshUser, pathname]);
 
   if (isLoading) {
     return (

@@ -1,8 +1,9 @@
 """API dependencies for dependency injection."""
 
-from typing import Annotated
+from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException, status
+import jwt as pyjwt
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,13 +20,17 @@ from src.application.services import (
     ZoneDefinitionService,
 )
 from src.application.services.alert_service import AlertService
+from src.application.services.box_service import BoxService
 from src.application.services.pack_service import PackService, SubscriptionService
 from src.application.services.paiement_service import PaiementService
 from src.application.services.pre_consultation_service import PreConsultationService
 from src.application.services.promotion_service import PromotionService
 from src.application.services.schedule_service import ScheduleService
 from src.infrastructure.database.connection import get_session
+from src.domain.exceptions import AuthenticationError
 from src.infrastructure.database.repositories import (
+    BoxAssignmentRepository,
+    BoxRepository,
     PackRepository,
     PaiementRepository,
     PatientRepository,
@@ -45,7 +50,7 @@ from src.infrastructure.database.repositories import (
 )
 from src.infrastructure.security.jwt import decode_access_token
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 # Database session
@@ -142,6 +147,18 @@ def get_promotion_repository(
 ) -> PromotionRepository:
     """Get promotion repository."""
     return PromotionRepository(session)
+
+
+def get_box_repository(session: Annotated[AsyncSession, Depends(get_db)]) -> BoxRepository:
+    """Get box repository."""
+    return BoxRepository(session)
+
+
+def get_box_assignment_repository(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> BoxAssignmentRepository:
+    """Get box assignment repository."""
+    return BoxAssignmentRepository(session)
 
 
 def get_schedule_repository(
@@ -300,24 +317,53 @@ def get_promotion_service(
     return PromotionService(promotion_repo)
 
 
+def get_box_service(
+    box_repo: Annotated[BoxRepository, Depends(get_box_repository)],
+    assignment_repo: Annotated[BoxAssignmentRepository, Depends(get_box_assignment_repository)],
+) -> BoxService:
+    """Get box service."""
+    return BoxService(box_repo, assignment_repo)
+
+
 def get_schedule_service(
     schedule_repo: Annotated[ScheduleRepository, Depends(get_schedule_repository)],
     queue_repo: Annotated[WaitingQueueRepository, Depends(get_waiting_queue_repository)],
     patient_repo: Annotated[PatientRepository, Depends(get_patient_repository)],
     user_repo: Annotated[UserRepository, Depends(get_user_repository)],
+    box_assignment_repo: Annotated[BoxAssignmentRepository, Depends(get_box_assignment_repository)],
 ) -> ScheduleService:
     """Get schedule service."""
-    return ScheduleService(schedule_repo, queue_repo, patient_repo, user_repo)
+    return ScheduleService(schedule_repo, queue_repo, patient_repo, user_repo, box_assignment_repo)
 
 
 # Authentication dependency
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    request: Request,
+    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    session_token: Annotated[Optional[str], Cookie()] = None,
 ) -> dict:
-    """Get current authenticated user."""
+    """Get current authenticated user from cookie or Authorization header."""
+    # Extract token: cookie first, then Authorization header
+    token: str | None = None
+    if session_token:
+        token = session_token
+    elif credentials:
+        token = credentials.credentials
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentification requise",
+        )
+
     try:
-        payload = decode_access_token(credentials.credentials)
+        payload = decode_access_token(token)
+        if payload is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token invalide ou expiré",
+            )
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(
@@ -325,10 +371,27 @@ async def get_current_user(
                 detail="Token invalide",
             )
         return await auth_service.get_current_user(user_id)
-    except Exception as e:
+    except HTTPException:
+        raise
+    except pyjwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            detail="Token expiré",
+        )
+    except pyjwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide",
+        )
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Erreur d'authentification",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Erreur d'authentification",
         )
 
 

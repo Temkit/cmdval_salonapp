@@ -1,5 +1,13 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, MicOff, Square, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +29,7 @@ export function VoiceNotes({
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
   const [isSupported, setIsSupported] = useState(true);
 
   // Check for speech recognition support
@@ -39,7 +47,7 @@ export function VoiceNotes({
     recognition.interimResults = true;
     recognition.lang = "fr-FR";
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: any) => {
       let finalTranscript = "";
       let interimTranscript = "";
 
@@ -58,7 +66,7 @@ export function VoiceNotes({
       }
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
       if (event.error === "not-allowed") {
         setError("Permission microphone refusée");
@@ -207,7 +215,7 @@ export function VoiceNotes({
 export function useVoiceInput() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -220,7 +228,7 @@ export function useVoiceInput() {
     recognition.interimResults = false;
     recognition.lang = "fr-FR";
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: any) => {
       const result = event.results[event.results.length - 1];
       if (result.isFinal) {
         setTranscript((prev) => prev + result[0].transcript + " ");

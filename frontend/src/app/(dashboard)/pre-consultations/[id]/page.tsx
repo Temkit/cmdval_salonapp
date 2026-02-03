@@ -29,9 +29,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { api } from "@/lib/api";
 import { formatDate, cn } from "@/lib/utils";
-import type { PreConsultation } from "@/types";
+import type { PreConsultation, PreConsultationZone, Patient, CreatePatientFromPreConsultationRequest } from "@/types";
+import type { LucideIcon } from "lucide-react";
 
-const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: LucideIcon }> = {
   draft: { label: "Brouillon", variant: "secondary", icon: FileText },
   pending_validation: { label: "En attente de validation", variant: "default", icon: Clock },
   validated: { label: "Validee", variant: "outline", icon: CheckCircle },
@@ -69,7 +70,7 @@ export default function PreConsultationDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["pre-consultation", id] });
       toast({ title: "Pre-consultation soumise pour validation" });
     },
-    onError: (error: any) => toast({ variant: "destructive", title: error.message }),
+    onError: (error: Error) => toast({ variant: "destructive", title: error.message }),
   });
 
   const validateMutation = useMutation({
@@ -78,7 +79,7 @@ export default function PreConsultationDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["pre-consultation", id] });
       toast({ title: "Pre-consultation validee" });
     },
-    onError: (error: any) => toast({ variant: "destructive", title: error.message }),
+    onError: (error: Error) => toast({ variant: "destructive", title: error.message }),
   });
 
   const rejectMutation = useMutation({
@@ -88,17 +89,17 @@ export default function PreConsultationDetailPage() {
       setShowRejectDialog(false);
       toast({ title: "Pre-consultation refusee" });
     },
-    onError: (error: any) => toast({ variant: "destructive", title: error.message }),
+    onError: (error: Error) => toast({ variant: "destructive", title: error.message }),
   });
 
   const createPatientMutation = useMutation({
-    mutationFn: (data: any) => api.createPatientFromPreConsultation(id, data),
-    onSuccess: (result: any) => {
+    mutationFn: (data: CreatePatientFromPreConsultationRequest) => api.createPatientFromPreConsultation(id, data),
+    onSuccess: (result: Patient) => {
       queryClient.invalidateQueries({ queryKey: ["pre-consultation", id] });
       toast({ title: "Patient cree avec succes" });
       router.push(`/patients/${result.id}`);
     },
-    onError: (error: any) => toast({ variant: "destructive", title: error.message }),
+    onError: (error: Error) => toast({ variant: "destructive", title: error.message }),
   });
 
   const deleteMutation = useMutation({
@@ -108,7 +109,7 @@ export default function PreConsultationDetailPage() {
       toast({ title: "Pre-consultation supprimee" });
       router.push("/pre-consultations");
     },
-    onError: (error: any) => toast({ variant: "destructive", title: error.message }),
+    onError: (error: Error) => toast({ variant: "destructive", title: error.message }),
   });
 
   if (isLoading) {
@@ -171,8 +172,8 @@ export default function PreConsultationDetailPage() {
 
   const statusConfig = STATUS_CONFIG[pc.status] || STATUS_CONFIG.draft;
   const StatusIcon = statusConfig.icon;
-  const eligibleZones = pc.zones?.filter((z: any) => z.is_eligible) || [];
-  const ineligibleZones = pc.zones?.filter((z: any) => !z.is_eligible) || [];
+  const eligibleZones = pc.zones?.filter((z: PreConsultationZone) => z.is_eligible) || [];
+  const ineligibleZones = pc.zones?.filter((z: PreConsultationZone) => !z.is_eligible) || [];
 
   const handleCreatePatient = () => {
     createPatientMutation.mutate({
@@ -429,7 +430,7 @@ export default function PreConsultationDetailPage() {
             <div>
               <p className="text-sm font-medium text-green-600 mb-2">Zones eligibles</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {eligibleZones.map((zone: any) => (
+                {eligibleZones.map((zone: PreConsultationZone) => (
                   <div key={zone.id} className="p-3 border border-green-500/30 bg-green-50/50 dark:bg-green-950/20 rounded-xl flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center shrink-0">
                       <Check className="h-5 w-5 text-green-600" />
@@ -445,7 +446,7 @@ export default function PreConsultationDetailPage() {
             <div>
               <p className="text-sm font-medium text-destructive mb-2">Zones non eligibles</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {ineligibleZones.map((zone: any) => (
+                {ineligibleZones.map((zone: PreConsultationZone) => (
                   <div key={zone.id} className="p-3 border border-destructive/30 bg-destructive/10 rounded-xl">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-xl bg-destructive/20 flex items-center justify-center shrink-0">
@@ -587,7 +588,7 @@ export default function PreConsultationDetailPage() {
           <div>
             <Label className="text-sm text-muted-foreground">Zones a traiter (eligibles uniquement)</Label>
             <div className="grid gap-2 mt-2 sm:grid-cols-2">
-              {eligibleZones.map((zone: any) => (
+              {eligibleZones.map((zone: PreConsultationZone) => (
                 <label
                   key={zone.zone_id}
                   className={cn(

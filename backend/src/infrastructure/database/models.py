@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for all database tables."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
@@ -35,9 +35,9 @@ class RoleModel(Base):
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     permissions: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Relationships
@@ -56,9 +56,9 @@ class UserModel(Base):
     prenom: Mapped[str] = mapped_column(String(100), nullable=False)
     role_id: Mapped[str] = mapped_column(String(36), ForeignKey("roles.id"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Relationships
@@ -85,9 +85,9 @@ class PatientModel(Base):
     phototype: Mapped[str | None] = mapped_column(String(10), nullable=True)
     # Workflow status: en_attente_evaluation, actif, ineligible
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="actif")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
     created_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=True
@@ -120,7 +120,7 @@ class ZoneDefinitionModel(Base):
     categorie: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_homme: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
 
 class PatientZoneModel(Base):
@@ -146,9 +146,9 @@ class PatientZoneModel(Base):
     seances_total: Mapped[int] = mapped_column(Integer, nullable=False)
     seances_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Relationships
@@ -175,9 +175,9 @@ class QuestionModel(Base):
     options: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # For choice types
     obligatoire: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
 
@@ -197,9 +197,9 @@ class QuestionResponseModel(Base):
     )
     question_id: Mapped[str] = mapped_column(String(36), ForeignKey("questions.id"), nullable=False)
     reponse: Mapped[dict] = mapped_column(JSON, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Relationships
@@ -231,9 +231,9 @@ class SessionModel(Base):
     pulse_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     frequency_hz: Mapped[float | None] = mapped_column(Float, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    date_seance: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    date_seance: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     duree_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     # Relationships
     patient: Mapped["PatientModel"] = relationship(back_populates="sessions")
@@ -257,7 +257,7 @@ class SessionPhotoModel(Base):
     )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     filepath: Mapped[str] = mapped_column(String(500), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     # Relationships
     session: Mapped["SessionModel"] = relationship(back_populates="photos")
@@ -337,9 +337,9 @@ class PreConsultationModel(Base):
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Relationships
@@ -378,9 +378,9 @@ class PreConsultationZoneModel(Base):
     )
     is_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     observations: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Relationships
@@ -401,7 +401,7 @@ class SessionSideEffectModel(Base):
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     # Relationships
     session: Mapped["SessionModel"] = relationship()
@@ -423,7 +423,7 @@ class SideEffectPhotoModel(Base):
     )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     filepath: Mapped[str] = mapped_column(String(500), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     # Relationships
     side_effect: Mapped["SessionSideEffectModel"] = relationship(back_populates="photos")
@@ -442,9 +442,9 @@ class PackModel(Base):
     duree_jours: Mapped[int | None] = mapped_column(Integer, nullable=True)
     seances_per_zone: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Relationships
@@ -467,9 +467,9 @@ class PatientSubscriptionModel(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     montant_paye: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Relationships
@@ -505,9 +505,9 @@ class PaiementModel(Base):
         String(36), ForeignKey("users.id"), nullable=True
     )
     date_paiement: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     # Relationships
     patient: Mapped["PatientModel"] = relationship(back_populates="paiements")
@@ -526,10 +526,40 @@ class PromotionModel(Base):
     date_debut: Mapped[date | None] = mapped_column(Date, nullable=True)
     date_fin: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
+
+
+class BoxModel(Base):
+    """Treatment rooms (boxes)."""
+
+    __tablename__ = "boxes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    nom: Mapped[str] = mapped_column(String(50), nullable=False)
+    numero: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
+
+
+class BoxAssignmentModel(Base):
+    """Tracks which doctor is currently in which box."""
+
+    __tablename__ = "box_assignments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    box_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("boxes.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
 
 class DailyScheduleModel(Base):
@@ -557,9 +587,9 @@ class DailyScheduleModel(Base):
     uploaded_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
 
@@ -578,8 +608,10 @@ class WaitingQueueModel(Base):
     patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
     doctor_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     doctor_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    box_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("boxes.id"), nullable=True)
+    box_nom: Mapped[str | None] = mapped_column(String(50), nullable=True)
     checked_in_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(
@@ -587,7 +619,7 @@ class WaitingQueueModel(Base):
     )  # waiting, in_treatment, done
     called_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )

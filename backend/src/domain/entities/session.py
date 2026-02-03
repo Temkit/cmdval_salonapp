@@ -1,7 +1,7 @@
 """Session domain entities."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 # Default laser types
@@ -21,7 +21,7 @@ class SessionPhoto:
     filename: str
     filepath: str
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -45,8 +45,8 @@ class Session:
     duree_minutes: int | None = None
     photos: list[SessionPhoto] = field(default_factory=list)
     id: str = field(default_factory=lambda: str(uuid4()))
-    date_seance: datetime = field(default_factory=datetime.utcnow)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    date_seance: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def add_photo(self, filename: str, filepath: str) -> SessionPhoto:
         """Add a photo to the session."""

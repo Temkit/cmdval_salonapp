@@ -17,6 +17,7 @@ import { haptics } from "@/lib/haptics";
 import { api } from "@/lib/api";
 import { formatDistanceToNow, isValid } from "date-fns";
 import { fr } from "date-fns/locale";
+import { ActivityItem } from "@/types";
 
 // Safe date formatter
 function safeFormatDistance(dateStr: string | null | undefined): string {
@@ -231,10 +232,10 @@ export default function HomePage() {
                 ))}
               </CardContent>
             </Card>
-          ) : activity?.activities?.filter((a: any) => a.description)?.length > 0 ? (
+          ) : (activity?.activities?.filter((a: ActivityItem) => a.description) ?? []).length > 0 ? (
             <Card>
               <CardContent className="p-0 divide-y">
-                {activity.activities.filter((a: any) => a.description).slice(0, 5).map((item: any, i: number) => (
+                {activity?.activities?.filter((a: ActivityItem) => a.description).slice(0, 5).map((item: ActivityItem, i: number) => (
                   <div
                     key={i}
                     className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
@@ -256,7 +257,7 @@ export default function HomePage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{item.description}</p>
                       <p className="text-sm text-muted-foreground">
-                        {safeFormatDistance(item.timestamp)}
+                        {safeFormatDistance(item.timestamp ?? item.date)}
                       </p>
                     </div>
                   </div>

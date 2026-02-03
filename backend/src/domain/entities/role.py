@@ -1,7 +1,7 @@
 """Role and Permission domain entities."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import uuid4
 
@@ -43,6 +43,11 @@ class Permission(str, Enum):
     CONFIG_QUESTIONNAIRE = "config.questionnaire"
     CONFIG_ZONES = "config.zones"
 
+    # Boxes
+    BOXES_VIEW = "boxes.view"
+    BOXES_ASSIGN = "boxes.assign"
+    CONFIG_BOXES = "config.boxes"
+
     # Dashboard
     DASHBOARD_VIEW = "dashboard.view"
     DASHBOARD_FULL = "dashboard.full"
@@ -61,6 +66,7 @@ DEFAULT_SECRETAIRE_PERMISSIONS = [
     Permission.SESSIONS_VIEW.value,
     Permission.PRE_CONSULTATIONS_VIEW.value,
     Permission.PRE_CONSULTATIONS_CREATE.value,
+    Permission.BOXES_VIEW.value,
     Permission.DASHBOARD_VIEW.value,
 ]
 
@@ -73,6 +79,8 @@ DEFAULT_PRATICIEN_PERMISSIONS = [
     Permission.PRE_CONSULTATIONS_VIEW.value,
     Permission.PRE_CONSULTATIONS_CREATE.value,
     Permission.PRE_CONSULTATIONS_VALIDATE.value,
+    Permission.BOXES_VIEW.value,
+    Permission.BOXES_ASSIGN.value,
     Permission.DASHBOARD_VIEW.value,
 ]
 
@@ -90,6 +98,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PRE_CONSULTATIONS_VIEW,
         Permission.PRE_CONSULTATIONS_CREATE,
         Permission.PRE_CONSULTATIONS_EDIT,
+        Permission.BOXES_VIEW,
         Permission.DASHBOARD_VIEW,
     ],
     "Praticien": [
@@ -101,6 +110,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PRE_CONSULTATIONS_VIEW,
         Permission.PRE_CONSULTATIONS_CREATE,
         Permission.PRE_CONSULTATIONS_VALIDATE,
+        Permission.BOXES_VIEW,
+        Permission.BOXES_ASSIGN,
         Permission.DASHBOARD_VIEW,
     ],
 }
@@ -114,8 +125,8 @@ class Role:
     permissions: list[str]
     is_system: bool = False
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def has_permission(self, permission: str | Permission) -> bool:
         """Check if role has a specific permission."""

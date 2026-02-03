@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { useSessionStore, SideEffect, PhotoRef } from "@/stores/session-store";
+import { useSessionStore, SideEffect, PhotoRef, PendingZone } from "@/stores/session-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,9 @@ export default function SeanceActivePage() {
   const addSideEffect = useSessionStore((s) => s.addSideEffect);
   const endSession = useSessionStore((s) => s.endSession);
   const getElapsedSeconds = useSessionStore((s) => s.getElapsedSeconds);
+  const popNextZone = useSessionStore((s) => s.popNextZone);
+  const pendingZones = useSessionStore((s) => s.pendingZones);
+  const startSession = useSessionStore((s) => s.startSession);
 
   // Get active session for current user (only after hydration)
   const activeSession = hasHydrated && user ? getSession(user.id) : null;
@@ -285,6 +288,33 @@ export default function SeanceActivePage() {
       // Reset state and navigate
       setShowEndConfirm(false);
       setEndNotes("");
+
+      // Check for pending zones in the queue
+      const nextZone = popNextZone(targetPraticienId);
+      if (nextZone && !selectedPraticienId) {
+        // Auto-start next zone session
+        const praticienName = session.praticienName;
+        startSession(targetPraticienId, praticienName, {
+          patientId: nextZone.patientId,
+          patientName: nextZone.patientName,
+          patientZoneId: nextZone.patientZoneId,
+          zoneName: nextZone.zoneName,
+          sessionNumber: nextZone.sessionNumber,
+          totalSessions: nextZone.totalSessions,
+          typeLaser: nextZone.typeLaser,
+          spotSize: nextZone.spotSize,
+          fluence: nextZone.fluence,
+          pulseDurationMs: nextZone.pulseDurationMs,
+          frequencyHz: nextZone.frequencyHz,
+          sideEffects: [],
+        });
+        toast({
+          title: "Zone suivante",
+          description: `Seance demarree pour ${nextZone.zoneName}`,
+        });
+        return;
+      }
+
       if (selectedPraticienId) {
         // Admin ended another's session - stay on page
         setSelectedPraticienId(null);
@@ -292,11 +322,11 @@ export default function SeanceActivePage() {
         // Ended own session - go to patient
         router.push(`/patients/${session.patientId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: error.message || "Impossible d'enregistrer la séance.",
+        description: error instanceof Error ? error.message : "Impossible d'enregistrer la séance.",
       });
       setIsSaving(false);
     }
@@ -629,6 +659,32 @@ export default function SeanceActivePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pending Zones Queue */}
+      {(() => {
+        const targetPid = activeSession ? user?.id : selectedPraticienId;
+        const remaining = targetPid ? (pendingZones[targetPid] || []) : [];
+        if (remaining.length === 0) return null;
+        return (
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-sm font-medium mb-2">
+                Zones suivantes ({remaining.length})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {remaining.map((zone, i) => (
+                  <span
+                    key={zone.patientZoneId}
+                    className="px-3 py-1.5 rounded-lg text-sm bg-muted font-medium"
+                  >
+                    {i + 1}. {zone.zoneName}
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Side Effects */}
       {displaySession.sideEffects && displaySession.sideEffects.length > 0 && (

@@ -81,7 +81,7 @@ CardFooter.displayName = "CardFooter";
 // Stat Card - specialized for dashboard stats
 interface StatCardProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
-  value: string | number;
+  value: React.ReactNode;
   description?: string;
   icon?: React.ReactNode;
   trend?: {

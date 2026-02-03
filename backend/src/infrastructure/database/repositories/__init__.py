@@ -1,5 +1,9 @@
 """Database repositories."""
 
+from src.infrastructure.database.repositories.box_repository import (
+    BoxAssignmentRepository,
+    BoxRepository,
+)
 from src.infrastructure.database.repositories.pack_repository import (
     PackRepository,
     PatientSubscriptionRepository,
@@ -38,6 +42,8 @@ from src.infrastructure.database.repositories.zone_repository import (
 )
 
 __all__ = [
+    "BoxRepository",
+    "BoxAssignmentRepository",
     "RoleRepository",
     "UserRepository",
     "PatientRepository",

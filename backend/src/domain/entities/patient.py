@@ -1,7 +1,7 @@
 """Patient domain entity."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 # Patient status values
@@ -29,8 +29,8 @@ class Patient:
     status: str = PATIENT_STATUS_EN_ATTENTE  # en_attente_evaluation, actif, ineligible
     created_by: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def age(self) -> int | None:

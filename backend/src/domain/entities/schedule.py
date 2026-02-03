@@ -1,7 +1,7 @@
 """Schedule and waiting queue domain entities."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 from uuid import uuid4
 
 SCHEDULE_STATUSES = ["expected", "checked_in", "in_treatment", "completed", "no_show"]
@@ -26,8 +26,8 @@ class DailyScheduleEntry:
     status: str = "expected"
     uploaded_by: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -39,11 +39,13 @@ class WaitingQueueEntry:
     schedule_id: str | None = None
     patient_id: str | None = None
     doctor_id: str | None = None
-    checked_in_at: datetime = field(default_factory=datetime.utcnow)
+    box_id: str | None = None
+    box_nom: str | None = None
+    checked_in_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     position: int = 0
     status: str = "waiting"
     called_at: datetime | None = None
     completed_at: datetime | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))

@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import type { Question, CreateQuestionRequest, UpdateQuestionRequest } from "@/types";
 
 interface QuestionForm {
   texte: string;
@@ -63,7 +64,7 @@ export default function QuestionnaireConfigPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState<any>(null);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [formData, setFormData] = useState<QuestionForm>(initialFormState);
   const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
 
@@ -73,13 +74,13 @@ export default function QuestionnaireConfigPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.createQuestion(data),
+    mutationFn: (data: CreateQuestionRequest) => api.createQuestion(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
       toast({ title: "Question créée" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -89,14 +90,14 @@ export default function QuestionnaireConfigPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateQuestionRequest }) =>
       api.updateQuestion(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
       toast({ title: "Question mise à jour" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -112,7 +113,7 @@ export default function QuestionnaireConfigPage() {
       toast({ title: "Question supprimée" });
       setDeleteQuestionId(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -127,7 +128,7 @@ export default function QuestionnaireConfigPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -142,7 +143,7 @@ export default function QuestionnaireConfigPage() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (question: any) => {
+  const handleOpenEdit = (question: Question) => {
     setEditingQuestion(question);
     setFormData({
       texte: question.texte,
@@ -161,9 +162,9 @@ export default function QuestionnaireConfigPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data: any = {
+    const data: CreateQuestionRequest = {
       texte: formData.texte,
-      type_reponse: formData.type_reponse,
+      type_reponse: formData.type_reponse as CreateQuestionRequest["type_reponse"],
       obligatoire: formData.obligatoire,
     };
 
@@ -185,19 +186,19 @@ export default function QuestionnaireConfigPage() {
 
   const moveQuestion = (index: number, direction: "up" | "down") => {
     if (!questions?.questions) return;
-    const sorted = [...questions.questions].sort((a: any, b: any) => a.ordre - b.ordre);
+    const sorted = [...questions.questions].sort((a: Question, b: Question) => a.ordre - b.ordre);
     const newIndex = direction === "up" ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= sorted.length) return;
 
     const newOrder = [...sorted];
     [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
-    reorderMutation.mutate({ question_ids: newOrder.map((q: any) => q.id) });
+    reorderMutation.mutate({ question_ids: newOrder.map((q: Question) => q.id) });
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const sortedQuestions = questions?.questions?.sort(
-    (a: any, b: any) => a.ordre - b.ordre
+    (a: Question, b: Question) => a.ordre - b.ordre
   ) || [];
 
   return (
@@ -257,7 +258,7 @@ export default function QuestionnaireConfigPage() {
             </div>
           ) : sortedQuestions.length > 0 ? (
             <div className="space-y-2">
-              {sortedQuestions.map((question: any, index: number) => (
+              {sortedQuestions.map((question: Question, index: number) => (
                 <div
                   key={question.id}
                   className="flex items-center gap-3 p-4 border rounded-xl"
@@ -455,8 +456,8 @@ export default function QuestionnaireConfigPage() {
         description="Les réponses existantes seront conservées mais cette question ne sera plus affichée."
         itemName={
           deleteQuestionId
-            ? questions?.questions?.find((q: any) => q.id === deleteQuestionId)?.texte?.slice(0, 50) +
-              (questions?.questions?.find((q: any) => q.id === deleteQuestionId)?.texte?.length > 50 ? "..." : "")
+            ? questions?.questions?.find((q: Question) => q.id === deleteQuestionId)?.texte?.slice(0, 50) +
+              ((questions?.questions?.find((q: Question) => q.id === deleteQuestionId)?.texte?.length ?? 0) > 50 ? "..." : "")
             : undefined
         }
         confirmLabel="Supprimer"

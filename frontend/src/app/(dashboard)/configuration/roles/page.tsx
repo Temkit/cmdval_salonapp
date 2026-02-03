@@ -21,6 +21,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import type { Role, CreateRoleRequest, UpdateRoleRequest } from "@/types";
 
 interface RoleForm {
   nom: string;
@@ -62,7 +63,7 @@ export default function RolesConfigPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingRole, setEditingRole] = useState<any>(null);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [formData, setFormData] = useState<RoleForm>(initialFormState);
   const [deleteRoleId, setDeleteRoleId] = useState<string | null>(null);
 
@@ -72,13 +73,13 @@ export default function RolesConfigPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.createRole(data),
+    mutationFn: (data: CreateRoleRequest) => api.createRole(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       toast({ title: "Rôle créé" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -88,14 +89,14 @@ export default function RolesConfigPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateRoleRequest }) =>
       api.updateRole(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       toast({ title: "Rôle mis à jour" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -111,7 +112,7 @@ export default function RolesConfigPage() {
       toast({ title: "Rôle supprimé" });
       setDeleteRoleId(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -126,7 +127,7 @@ export default function RolesConfigPage() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (role: any) => {
+  const handleOpenEdit = (role: Role) => {
     setEditingRole(role);
     setFormData({
       nom: role.nom,
@@ -153,15 +154,18 @@ export default function RolesConfigPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      nom: formData.nom,
-      description: formData.description || null,
-      permissions: formData.permissions,
-    };
 
     if (editingRole) {
+      const data: UpdateRoleRequest = {
+        nom: formData.nom,
+        permissions: formData.permissions,
+      };
       updateMutation.mutate({ id: editingRole.id, data });
     } else {
+      const data: CreateRoleRequest = {
+        nom: formData.nom,
+        permissions: formData.permissions,
+      };
       createMutation.mutate(data);
     }
   };
@@ -220,9 +224,9 @@ export default function RolesConfigPage() {
                 </div>
               ))}
             </div>
-          ) : roles?.roles?.length > 0 ? (
+          ) : (roles?.roles?.length ?? 0) > 0 ? (
             <div className="space-y-3">
-              {roles.roles.map((role: any) => (
+              {roles?.roles?.map((role: Role) => (
                 <div
                   key={role.id}
                   className="p-4 border rounded-xl space-y-3"
@@ -393,7 +397,7 @@ export default function RolesConfigPage() {
         description="Les utilisateurs associés perdront les permissions de ce rôle."
         itemName={
           deleteRoleId
-            ? roles?.roles?.find((r: any) => r.id === deleteRoleId)?.nom
+            ? roles?.roles?.find((r: Role) => r.id === deleteRoleId)?.nom
             : undefined
         }
         confirmLabel="Supprimer"

@@ -21,6 +21,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import type { ZoneDefinition, CreateZoneRequest, UpdateZoneRequest } from "@/types";
 
 interface ZoneForm {
   nom: string;
@@ -38,7 +39,7 @@ export default function ZonesConfigPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingZone, setEditingZone] = useState<any>(null);
+  const [editingZone, setEditingZone] = useState<ZoneDefinition | null>(null);
   const [formData, setFormData] = useState<ZoneForm>(initialFormState);
   const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -49,13 +50,13 @@ export default function ZonesConfigPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.createZone(data),
+    mutationFn: (data: CreateZoneRequest) => api.createZone(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["zones"] });
       toast({ title: "Zone créée" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -65,14 +66,14 @@ export default function ZonesConfigPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateZoneRequest }) =>
       api.updateZone(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["zones"] });
       toast({ title: "Zone mise à jour" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -88,7 +89,7 @@ export default function ZonesConfigPage() {
       toast({ title: "Zone supprimée" });
       setDeleteZoneId(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Erreur",
@@ -103,7 +104,7 @@ export default function ZonesConfigPage() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (zone: any) => {
+  const handleOpenEdit = (zone: ZoneDefinition) => {
     setEditingZone(zone);
     setFormData({
       nom: zone.nom,
@@ -121,22 +122,26 @@ export default function ZonesConfigPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      nom: formData.nom,
-      description: formData.description || null,
-      seances_recommandees: formData.seances_recommandees,
-    };
 
     if (editingZone) {
+      const data: UpdateZoneRequest = {
+        nom: formData.nom,
+        description: formData.description || null,
+      };
       updateMutation.mutate({ id: editingZone.id, data });
     } else {
+      const data: CreateZoneRequest = {
+        code: formData.nom.toLowerCase().replace(/\s+/g, "_"),
+        nom: formData.nom,
+        description: formData.description || null,
+      };
       createMutation.mutate(data);
     }
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
   const allZones = zones?.zones || [];
-  const filteredZones = allZones.filter((zone: any) =>
+  const filteredZones = allZones.filter((zone: ZoneDefinition) =>
     zone.nom.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -207,7 +212,7 @@ export default function ZonesConfigPage() {
             </div>
           ) : filteredZones.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {filteredZones.map((zone: any) => (
+              {filteredZones.map((zone: ZoneDefinition) => (
                 <div
                   key={zone.id}
                   className="p-4 border rounded-xl space-y-2"
@@ -362,7 +367,7 @@ export default function ZonesConfigPage() {
         description="Les zones déjà assignées aux patients ne seront pas supprimées."
         itemName={
           deleteZoneId
-            ? zones?.zones?.find((z: any) => z.id === deleteZoneId)?.nom
+            ? zones?.zones?.find((z: ZoneDefinition) => z.id === deleteZoneId)?.nom
             : undefined
         }
         confirmLabel="Supprimer"

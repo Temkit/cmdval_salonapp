@@ -1,6 +1,6 @@
 """Schedule and waiting queue repository implementations."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -121,6 +121,8 @@ class WaitingQueueRepository:
             patient_name=entry.patient_name,
             doctor_id=entry.doctor_id,
             doctor_name=entry.doctor_name,
+            box_id=entry.box_id,
+            box_nom=entry.box_nom,
             checked_in_at=entry.checked_in_at,
             position=entry.position,
             status=entry.status,
@@ -163,12 +165,22 @@ class WaitingQueueRepository:
         if db:
             db.status = status
             if status == "in_treatment":
-                db.called_at = datetime.utcnow()
+                db.called_at = datetime.now(UTC)
             elif status == "done":
-                db.completed_at = datetime.utcnow()
+                db.completed_at = datetime.now(UTC)
             await self.session.flush()
             return self._to_entity(db)
         return None
+
+    async def update_box(self, entry_id: str, box_id: str, box_nom: str) -> None:
+        result = await self.session.execute(
+            select(WaitingQueueModel).where(WaitingQueueModel.id == entry_id)
+        )
+        db = result.scalar_one_or_none()
+        if db:
+            db.box_id = box_id
+            db.box_nom = box_nom
+            await self.session.flush()
 
     def _to_entity(self, model: WaitingQueueModel) -> WaitingQueueEntry:
         return WaitingQueueEntry(
@@ -178,6 +190,8 @@ class WaitingQueueRepository:
             patient_name=model.patient_name,
             doctor_id=model.doctor_id,
             doctor_name=model.doctor_name,
+            box_id=model.box_id,
+            box_nom=model.box_nom,
             checked_in_at=model.checked_in_at,
             position=model.position,
             status=model.status,

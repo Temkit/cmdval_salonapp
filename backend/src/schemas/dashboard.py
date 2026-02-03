@@ -120,6 +120,8 @@ class DoctorPerformanceItem(AppBaseModel):
     avg_duration_minutes: float
     total_sessions: int
     comparison_to_avg: float
+    expected_avg_duration: float = 0.0
+    status: str = "normal"  # "normal", "trop_lent", "trop_rapide"
 
 
 class DoctorPerformanceResponse(AppBaseModel):
@@ -150,6 +152,10 @@ class RevenueStatsResponse(AppBaseModel):
     total_revenue: int
     revenue_by_type: list[RevenueByTypeItem]
     revenue_by_period: list[RevenueByPeriodItem]
+    hors_carte_revenue: int = 0
+    hors_carte_count: int = 0
+    pack_revenue: int = 0
+    pack_count: int = 0
 
 
 class AgeDistributionItem(AppBaseModel):
@@ -171,3 +177,31 @@ class DemographicsResponse(AppBaseModel):
 
     age_distribution: list[AgeDistributionItem]
     city_distribution: list[CityDistributionItem]
+
+
+class LostTimeItem(AppBaseModel):
+    """Lost time per doctor."""
+
+    doctor_id: str
+    doctor_name: str
+    total_expected_minutes: float
+    total_actual_minutes: float
+    lost_minutes: float
+    session_count: int
+
+
+class LostTimeByLaserItem(AppBaseModel):
+    """Lost time per laser type."""
+
+    type_laser: str
+    total_expected_minutes: float
+    total_actual_minutes: float
+    lost_minutes: float
+    session_count: int
+
+
+class LostTimeStatsResponse(AppBaseModel):
+    """Lost time statistics response."""
+
+    by_doctor: list[LostTimeItem]
+    by_laser: list[LostTimeByLaserItem]

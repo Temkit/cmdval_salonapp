@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from src.api.v1.endpoints import (
     alerts,
     auth,
+    boxes,
     dashboard,
     documents,
     packs,
@@ -37,4 +38,5 @@ router.include_router(packs.router)
 router.include_router(paiements.router)
 router.include_router(promotions.router)
 router.include_router(schedule.router)
+router.include_router(boxes.router)
 router.include_router(documents.router)

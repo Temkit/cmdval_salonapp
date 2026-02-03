@@ -1,9 +1,9 @@
 """Dashboard endpoints."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.api.v1.dependencies import get_dashboard_service, require_permission
 from src.application.services import DashboardService
@@ -11,6 +11,7 @@ from src.schemas.dashboard import (
     DashboardStatsResponse,
     DemographicsResponse,
     DoctorPerformanceResponse,
+    LostTimeStatsResponse,
     PeriodStatsResponse,
     PraticienStatsItem,
     PraticienStatsResponse,
@@ -59,11 +60,16 @@ async def get_sessions_by_praticien(
 async def get_sessions_by_period(
     _: Annotated[dict, Depends(require_permission("dashboard.view"))],
     dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
-    date_from: datetime = Query(default_factory=lambda: datetime.utcnow() - timedelta(days=30)),
-    date_to: datetime = Query(default_factory=datetime.utcnow),
-    group_by: str = Query("day", regex="^(day|week|month)$"),
+    date_from: datetime = Query(default_factory=lambda: datetime.now(UTC) - timedelta(days=30)),
+    date_to: datetime = Query(default_factory=lambda: datetime.now(UTC)),
+    group_by: str = Query("day", pattern="^(day|week|month)$"),
 ):
     """Get session count by time period."""
+    if date_from > date_to:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="date_from doit être antérieure à date_to",
+        )
     data = await dashboard_service.get_sessions_by_period(
         date_from=date_from,
         date_to=date_to,
@@ -116,6 +122,18 @@ async def get_revenue_stats(
     """Get revenue statistics with optional date range filter."""
     data = await dashboard_service.get_revenue_stats(date_from=date_from, date_to=date_to)
     return RevenueStatsResponse(**data)
+
+
+@router.get("/lost-time", response_model=LostTimeStatsResponse)
+async def get_lost_time_stats(
+    _: Annotated[dict, Depends(require_permission("dashboard.view"))],
+    dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
+):
+    """Get lost/overtime statistics per doctor and per laser type."""
+    data = await dashboard_service.get_lost_time_stats(date_from=date_from, date_to=date_to)
+    return LostTimeStatsResponse(**data)
 
 
 @router.get("/demographics", response_model=DemographicsResponse)

@@ -20,6 +20,7 @@ import {
   Clock,
   Camera,
   X,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
 import { formatDate, formatDateTime, cn } from "@/lib/utils";
+import type { PatientZone, Session, PatientSubscription, SessionPhoto } from "@/types";
 import { AddZoneDialog } from "@/components/features/patients/add-zone-dialog";
 import { PreConsultationTab } from "@/components/features/patients/pre-consultation-tab";
 import { AlertBanner } from "@/components/features/alerts/alert-banner";
@@ -68,8 +70,13 @@ export default function PatientDetailPage({
     queryFn: () => api.getPatientSessions(id, { page: 1, size: 10 }),
   });
 
+  const { data: subscriptionsData } = useQuery({
+    queryKey: ["patient-subscriptions", id],
+    queryFn: () => api.getPatientSubscriptions(id),
+  });
+
   // State for session detail dialog and tabs
-  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   if (isLoading) {
@@ -349,6 +356,80 @@ export default function PatientDetailPage({
             </Card>
           </div>
 
+          {/* Subscriptions */}
+          {subscriptionsData?.subscriptions && subscriptionsData.subscriptions.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Abonnements
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {subscriptionsData.subscriptions.map((sub: PatientSubscription) => {
+                    const now = new Date();
+                    const endDate = sub.date_fin ? new Date(sub.date_fin) : null;
+                    const daysRemaining = endDate
+                      ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                      : null;
+                    const isExpired = daysRemaining !== null && daysRemaining < 0;
+
+                    let countdownVariant: "default" | "secondary" | "destructive" | "outline" = "default";
+                    let countdownClass = "";
+                    if (isExpired) {
+                      countdownVariant = "destructive";
+                    } else if (daysRemaining !== null && daysRemaining < 7) {
+                      countdownVariant = "destructive";
+                    } else if (daysRemaining !== null && daysRemaining <= 30) {
+                      countdownClass = "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
+                    }
+
+                    return (
+                      <div
+                        key={sub.id}
+                        className={cn(
+                          "flex items-center gap-4 p-3 -mx-3 rounded-xl",
+                          sub.is_active ? "bg-muted/50" : "bg-muted/20 opacity-60"
+                        )}
+                      >
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <Package className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium truncate">
+                              {sub.pack_nom || sub.type}
+                            </p>
+                            <Badge variant="secondary" size="sm">
+                              {sub.type}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {sub.date_debut && formatDate(sub.date_debut)}
+                            {sub.date_fin && ` → ${formatDate(sub.date_fin)}`}
+                          </p>
+                        </div>
+                        {daysRemaining !== null && (
+                          <Badge
+                            variant={countdownVariant}
+                            className={cn("shrink-0", countdownClass)}
+                          >
+                            {isExpired
+                              ? "Expire"
+                              : daysRemaining === 0
+                              ? "Aujourd'hui"
+                              : `${daysRemaining}j`}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Zones Progress */}
           {patient.zones?.length > 0 && (
             <Card>
@@ -357,7 +438,7 @@ export default function PatientDetailPage({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patient.zones.map((zone: any) => (
+                  {patient.zones.map((zone: PatientZone) => (
                     <div key={zone.id} className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium">{zone.zone_nom}</span>
@@ -385,7 +466,7 @@ export default function PatientDetailPage({
 
           {patient.zones?.length > 0 ? (
             <div className="space-y-3">
-              {patient.zones.map((zone: any) => (
+              {patient.zones.map((zone: PatientZone) => (
                 <Card key={zone.id}>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
@@ -442,9 +523,9 @@ export default function PatientDetailPage({
             </Button>
           </div>
 
-          {sessions?.sessions?.length > 0 ? (
+          {sessions?.sessions && sessions.sessions.length > 0 ? (
             <div className="space-y-3">
-              {sessions.sessions.map((session: any) => (
+              {sessions.sessions.map((session: Session) => (
                 <Card
                   key={session.id}
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -592,7 +673,7 @@ export default function PatientDetailPage({
                     <p className="text-sm font-medium">{selectedSession.photos.length} photo(s)</p>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    {selectedSession.photos.map((photo: any, index: number) => (
+                    {selectedSession.photos.map((photo: SessionPhoto, index: number) => (
                       <a
                         key={photo.id || index}
                         href={photo.url}

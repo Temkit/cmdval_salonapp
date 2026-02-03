@@ -1,7 +1,7 @@
 """Payment domain entity."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 PAYMENT_TYPES = ["encaissement", "prise_en_charge", "hors_carte"]
@@ -23,6 +23,6 @@ class Paiement:
     created_by: str | None = None
     patient_nom: str | None = None
     patient_prenom: str | None = None
-    date_paiement: datetime = field(default_factory=datetime.utcnow)
+    date_paiement: datetime = field(default_factory=lambda: datetime.now(UTC))
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

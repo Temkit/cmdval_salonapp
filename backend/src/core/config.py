@@ -1,8 +1,11 @@
 """Application configuration using Pydantic Settings."""
 
+import secrets
+import warnings
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,7 +29,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://salonapp:salonapp@localhost:5432/salonapp"
 
     # Security
-    secret_key: str = "change-this-to-a-very-long-random-string-in-production"
+    secret_key: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expire_hours: int = 24
 
@@ -39,8 +42,31 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3420"]
 
     # Admin
-    admin_username: str = "admin"
-    admin_password: str = "admin123"
+    admin_username: str | None = None
+    admin_password: str | None = None
+
+    # Logging
+    log_level: str = "INFO"
+
+    # Rate limiting
+    rate_limit_per_minute: int = 60
+    rate_limit_login_per_minute: int = 5
+
+    @model_validator(mode="after")
+    def validate_settings(self) -> "Settings":
+        if self.environment == "production":
+            if not self.secret_key:
+                raise ValueError("SECRET_KEY must be set in production")
+            if self.debug:
+                raise ValueError("DEBUG must be False in production")
+        elif not self.secret_key:
+            self.secret_key = secrets.token_urlsafe(32)
+            warnings.warn(
+                "SECRET_KEY not set — using random key. Sessions will not survive restarts.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return self
 
 
 @lru_cache

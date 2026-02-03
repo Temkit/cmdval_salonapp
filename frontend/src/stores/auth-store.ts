@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { api } from "@/lib/api";
 
 interface User {
@@ -12,78 +11,83 @@ interface User {
   role_id: string;
   role_nom: string;
   permissions: string[];
+  box_id: string | null;
+  box_nom: string | null;
 }
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
+  selectBox: (boxId: string) => Promise<void>;
+  clearBox: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      token: null,
-      isLoading: false,
-      isAuthenticated: false,
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  user: null,
+  isLoading: false,
+  isAuthenticated: false,
 
-      login: async (username: string, password: string) => {
-        set({ isLoading: true });
-        try {
-          const { access_token } = await api.login(username, password);
-          localStorage.setItem("token", access_token);
-          const user = await api.getCurrentUser();
-          set({
-            token: access_token,
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
-      },
-
-      logout: () => {
-        localStorage.removeItem("token");
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-        });
-      },
-
-      refreshUser: async () => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          set({ isAuthenticated: false, user: null, token: null });
-          return;
-        }
-        try {
-          const user = await api.getCurrentUser();
-          set({ user, isAuthenticated: true, token });
-        } catch {
-          localStorage.removeItem("token");
-          set({ isAuthenticated: false, user: null, token: null });
-        }
-      },
-
-      hasPermission: (permission: string) => {
-        const user = get().user;
-        if (!user) return false;
-        return user.permissions.includes(permission);
-      },
-    }),
-    {
-      name: "auth-storage",
-      partialize: (state) => ({ token: state.token }),
+  login: async (username: string, password: string) => {
+    set({ isLoading: true });
+    try {
+      await api.login(username, password);
+      const user = await api.getCurrentUser();
+      set({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
     }
-  )
-);
+  },
+
+  logout: async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Clear state even if API call fails
+    }
+    set({
+      user: null,
+      isAuthenticated: false,
+    });
+  },
+
+  refreshUser: async () => {
+    try {
+      const user = await api.getCurrentUser();
+      set({ user, isAuthenticated: true });
+    } catch {
+      set({ isAuthenticated: false, user: null });
+    }
+  },
+
+  hasPermission: (permission: string) => {
+    const user = get().user;
+    if (!user) return false;
+    return user.permissions.includes(permission);
+  },
+
+  selectBox: async (boxId: string) => {
+    const result = await api.assignBox(boxId);
+    const user = get().user;
+    if (user) {
+      set({ user: { ...user, box_id: result.box_id, box_nom: result.box_nom } });
+    }
+  },
+
+  clearBox: async () => {
+    await api.unassignBox();
+    const user = get().user;
+    if (user) {
+      set({ user: { ...user, box_id: null, box_nom: null } });
+    }
+  },
+}));

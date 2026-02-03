@@ -36,3 +36,5 @@ class CurrentUserResponse(AppBaseModel):
     role_id: str
     role_nom: str
     permissions: list[str]
+    box_id: str | None = None
+    box_nom: str | None = None

@@ -1,7 +1,7 @@
 """Database seed script for demo data."""
 
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from random import choice, randint
 from uuid import uuid4
 
@@ -117,30 +117,36 @@ async def seed_database():
         roles = await create_roles(session)
         print(f"Created {len(roles)} roles")
 
-        # 2. Create admin user
-        await create_admin_user(session, roles["Admin"])
-        print(f"Created admin user: {settings.admin_username}")
+        # 2. Create admin user (only if credentials are configured)
+        if settings.admin_username and settings.admin_password:
+            await create_admin_user(session, roles["Admin"])
+            print(f"Created admin user: {settings.admin_username}")
+        else:
+            print("Skipping admin user (ADMIN_USERNAME/ADMIN_PASSWORD not set)")
 
-        # 3. Create praticien and secretary users
-        await create_user(
-            session,
-            username="praticien",
-            password="praticien123",
-            nom="Dupont",
-            prenom="Jean",
-            role_id=roles["Praticien"],
-        )
-        print("Created praticien user")
+        # 3. Create demo users (development only)
+        if settings.environment == "development":
+            await create_user(
+                session,
+                username="praticien",
+                password="praticien123",
+                nom="Dupont",
+                prenom="Jean",
+                role_id=roles["Praticien"],
+            )
+            print("Created praticien user")
 
-        await create_user(
-            session,
-            username="secretaire",
-            password="secretaire123",
-            nom="Martin",
-            prenom="Sophie",
-            role_id=roles["Secrétaire"],
-        )
-        print("Created secretaire user")
+            await create_user(
+                session,
+                username="secretaire",
+                password="secretaire123",
+                nom="Martin",
+                prenom="Sophie",
+                role_id=roles["Secrétaire"],
+            )
+            print("Created secretaire user")
+        else:
+            print("Skipping demo users (not in development environment)")
 
         # 4. Create zone definitions
         zones = await create_zone_definitions(session)
@@ -329,7 +335,7 @@ async def create_patient_zones_and_sessions(
             # Create sessions for completed treatments
             for j in range(seances_used):
                 days_ago = (seances_used - j) * randint(21, 35)
-                session_date = datetime.utcnow() - timedelta(days=days_ago)
+                session_date = datetime.now(UTC) - timedelta(days=days_ago)
 
                 session_obj = SessionModel(
                     id=str(uuid4()),

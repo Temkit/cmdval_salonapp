@@ -14,6 +14,20 @@ export interface SideEffect {
   photos: string[]; // base64 for side-effect photos (small, few)
 }
 
+export interface PendingZone {
+  patientId: string;
+  patientName: string;
+  patientZoneId: string;
+  zoneName: string;
+  sessionNumber: number;
+  totalSessions: number;
+  typeLaser: string;
+  spotSize?: string;
+  fluence?: string;
+  pulseDurationMs?: string;
+  frequencyHz?: string;
+}
+
 export interface ActiveSession {
   // Practitioner info
   praticienId: string;
@@ -45,6 +59,8 @@ export interface ActiveSession {
   sideEffects: SideEffect[];
   // Additional
   tolerance?: string;
+  frequence?: string;
+  effetsImmediats?: string;
 }
 
 interface SessionState {
@@ -54,6 +70,12 @@ interface SessionState {
 
   // Sessions keyed by practitioner ID
   activeSessions: Record<string, ActiveSession>;
+
+  // Pending zones queue keyed by practitioner ID
+  pendingZones: Record<string, PendingZone[]>;
+  setPendingZones: (praticienId: string, zones: PendingZone[]) => void;
+  popNextZone: (praticienId: string) => PendingZone | null;
+  clearPendingZones: (praticienId: string) => void;
 
   // Start a new session for a practitioner
   startSession: (
@@ -98,6 +120,30 @@ export const useSessionStore = create<SessionState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
 
       activeSessions: {},
+      pendingZones: {},
+
+      setPendingZones: (praticienId, zones) => {
+        set((state) => ({
+          pendingZones: { ...state.pendingZones, [praticienId]: zones },
+        }));
+      },
+
+      popNextZone: (praticienId) => {
+        const zones = get().pendingZones[praticienId];
+        if (!zones || zones.length === 0) return null;
+        const [next, ...rest] = zones;
+        set((state) => ({
+          pendingZones: { ...state.pendingZones, [praticienId]: rest },
+        }));
+        return next;
+      },
+
+      clearPendingZones: (praticienId) => {
+        set((state) => {
+          const { [praticienId]: _, ...rest } = state.pendingZones;
+          return { pendingZones: rest };
+        });
+      },
 
       startSession: (praticienId, praticienName, sessionData) => {
         set((state) => ({

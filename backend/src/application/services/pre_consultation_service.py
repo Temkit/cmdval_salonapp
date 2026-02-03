@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from src.domain.entities.patient import Patient
@@ -250,7 +250,7 @@ class PreConsultationService:
         # Update pre-consultation status
         pre_consultation.status = "validated"
         pre_consultation.validated_by = validated_by
-        pre_consultation.validated_at = datetime.utcnow()
+        pre_consultation.validated_at = datetime.now(UTC)
         result = await self.pre_consultation_repo.update(pre_consultation)
 
         # Update patient status to active
@@ -276,7 +276,7 @@ class PreConsultationService:
         pre_consultation.status = "rejected"
         pre_consultation.rejection_reason = reason
         pre_consultation.validated_by = rejected_by
-        pre_consultation.validated_at = datetime.utcnow()
+        pre_consultation.validated_at = datetime.now(UTC)
         result = await self.pre_consultation_repo.update(pre_consultation)
 
         # Update patient status to ineligible

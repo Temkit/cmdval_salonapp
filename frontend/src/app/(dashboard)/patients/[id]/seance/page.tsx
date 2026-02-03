@@ -22,7 +22,7 @@ import { ButtonGroup, NumberStepper, ZoneCard } from "@/components/ui/button-gro
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { haptics } from "@/lib/haptics";
-import { useSessionStore } from "@/stores/session-store";
+import { useSessionStore, PendingZone } from "@/stores/session-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { AddZoneDialog } from "@/components/features/patients/add-zone-dialog";
 import {
@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import type { PatientZone, User as UserType, Alert } from "@/types";
 
 // Optiskin specific parameters
 const LASER_TYPES = [
@@ -42,15 +43,6 @@ const LASER_TYPES = [
 
 const SPOT_SIZES = [12, 15, 16, 18, 20, 22, 25];
 const PULSE_DURATIONS_MS = [1, 2, 3, 5, 10];
-
-interface ZoneAlert {
-  type: string;
-  severity: "error" | "warning";
-  message: string;
-  zone_id?: string;
-  zone_nom?: string;
-  details?: Record<string, any>;
-}
 
 export default function NewSessionPage({
   params,
@@ -63,17 +55,22 @@ export default function NewSessionPage({
   const user = useAuthStore((s) => s.user);
   const startSession = useSessionStore((s) => s.startSession);
   const getSession = useSessionStore((s) => s.getSession);
+  const setPendingZones = useSessionStore((s) => s.setPendingZones);
 
   const isAdmin = user?.role_nom === "Admin";
 
-  const [selectedZone, setSelectedZone] = useState<any>(null);
+  const [selectedZones, setSelectedZones] = useState<PatientZone[]>([]);
+  const [activeConfigZone, setActiveConfigZone] = useState<PatientZone | null>(null);
   const [typeLaser, setTypeLaser] = useState("");
   const [spotSize, setSpotSize] = useState<number | null>(null);
   const [fluence, setFluence] = useState("");
   const [pulseDuration, setPulseDuration] = useState<number | null>(null);
   const [frequencyHz, setFrequencyHz] = useState("");
   const [selectedPraticien, setSelectedPraticien] = useState<string>("");
-  const [zoneAlerts, setZoneAlerts] = useState<ZoneAlert[]>([]);
+  const [zoneAlerts, setAlerts] = useState<Alert[]>([]);
+
+  // Alias for backwards-compat with alert logic
+  const selectedZone = activeConfigZone;
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
@@ -87,11 +84,11 @@ export default function NewSessionPage({
     enabled: !!id,
   });
 
-  // Fetch last session params for selected zone (quick-start)
+  // Fetch last session params for active config zone (quick-start)
   const { data: lastParams } = useQuery({
-    queryKey: ["last-session-params", id, selectedZone?.id],
-    queryFn: () => api.getLastSessionParams(id, selectedZone!.id),
-    enabled: !!selectedZone,
+    queryKey: ["last-session-params", id, activeConfigZone?.id],
+    queryFn: () => api.getLastSessionParams(id, activeConfigZone!.id),
+    enabled: !!activeConfigZone,
     retry: false,
   });
 
@@ -108,10 +105,10 @@ export default function NewSessionPage({
     haptics.medium();
   };
 
-  // Reset paramsApplied when zone changes
+  // Reset paramsApplied when active config zone changes
   useEffect(() => {
     setParamsApplied(false);
-  }, [selectedZone?.id]);
+  }, [activeConfigZone?.id]);
 
   // Fetch practitioners for admin to assign sessions
   const { data: usersData } = useQuery({
@@ -122,19 +119,19 @@ export default function NewSessionPage({
 
   const practitioners = usersData?.users || [];
 
-  // Update zone alerts when zone is selected
+  // Update zone alerts when active config zone is selected
   useEffect(() => {
-    if (selectedZone && alertsData?.alerts) {
+    if (activeConfigZone && alertsData?.alerts) {
       const alerts = alertsData.alerts.filter(
-        (a: ZoneAlert) =>
-          a.zone_id === selectedZone.zone_definition_id ||
+        (a: Alert) =>
+          a.zone_id === activeConfigZone.zone_definition_id ||
           a.type === "contraindication"
       );
-      setZoneAlerts(alerts);
+      setAlerts(alerts);
     } else {
-      setZoneAlerts([]);
+      setAlerts([]);
     }
-  }, [selectedZone, alertsData]);
+  }, [activeConfigZone, alertsData]);
 
   // For non-admin: redirect if they already have an active session
   const activeSession = user ? getSession(user.id) : null;
@@ -143,9 +140,25 @@ export default function NewSessionPage({
     return null;
   }
 
-  const handleZoneSelect = (zone: any) => {
+  const handleZoneSelect = (zone: PatientZone) => {
     haptics.selection();
-    setSelectedZone(zone);
+    setSelectedZones((prev) => {
+      const isSelected = prev.some((z: PatientZone) => z.id === zone.id);
+      if (isSelected) {
+        const updated = prev.filter((z: PatientZone) => z.id !== zone.id);
+        // If we just removed the active config zone, switch to first remaining
+        if (activeConfigZone?.id === zone.id) {
+          setActiveConfigZone(updated[0] || null);
+        }
+        return updated;
+      }
+      const updated = [...prev, zone];
+      // Auto-select first zone as active config zone
+      if (!activeConfigZone) {
+        setActiveConfigZone(zone);
+      }
+      return updated;
+    });
   };
 
   const handleStartSession = () => {
@@ -159,11 +172,11 @@ export default function NewSessionPage({
       return;
     }
 
-    if (!selectedZone) {
+    if (selectedZones.length === 0) {
       toast({
         variant: "destructive",
         title: "Zone requise",
-        description: "Veuillez selectionner une zone de traitement.",
+        description: "Veuillez selectionner au moins une zone de traitement.",
       });
       return;
     }
@@ -241,7 +254,7 @@ export default function NewSessionPage({
 
     if (isAdmin && selectedPraticien) {
       const selectedUser = practitioners.find(
-        (p: any) => p.id === selectedPraticien
+        (p: UserType) => p.id === selectedPraticien
       );
       if (selectedUser) {
         praticienId = selectedUser.id;
@@ -262,19 +275,41 @@ export default function NewSessionPage({
 
     haptics.heavy();
 
+    // First zone starts immediately
+    const firstZone = selectedZones[0];
+
+    // Remaining zones go to pending queue (all share same laser params)
+    if (selectedZones.length > 1) {
+      const remaining: PendingZone[] = selectedZones.slice(1).map((zone: PatientZone) => ({
+        patientId: id,
+        patientName: `${patient!.prenom} ${patient!.nom}`,
+        patientZoneId: zone.id,
+        zoneName: zone.zone_nom,
+        sessionNumber: zone.seances_effectuees + 1,
+        totalSessions: zone.seances_prevues,
+        typeLaser,
+        spotSize: spotSize?.toString(),
+        fluence,
+        pulseDurationMs: pulseDuration?.toString(),
+        frequencyHz: frequencyHz || undefined,
+      }));
+      setPendingZones(praticienId, remaining);
+    }
+
     // Start session in store with Optiskin parameters
     startSession(praticienId, praticienName, {
       patientId: id,
-      patientName: `${patient.prenom} ${patient.nom}`,
-      patientZoneId: selectedZone.id,
-      zoneName: selectedZone.zone_nom,
-      sessionNumber: selectedZone.seances_effectuees + 1,
-      totalSessions: selectedZone.seances_prevues,
+      patientName: `${patient!.prenom} ${patient!.nom}`,
+      patientZoneId: firstZone.id,
+      zoneName: firstZone.zone_nom,
+      sessionNumber: firstZone.seances_effectuees + 1,
+      totalSessions: firstZone.seances_prevues,
       typeLaser,
       spotSize: spotSize?.toString(),
       fluence,
       pulseDurationMs: pulseDuration?.toString(),
       frequencyHz: frequencyHz || undefined,
+      sideEffects: [],
     });
 
     // Navigate to active session
@@ -311,17 +346,17 @@ export default function NewSessionPage({
   }
 
   const activeZones =
-    patient.zones?.filter((z: any) => z.seances_restantes > 0) || [];
+    patient.zones?.filter((z: PatientZone) => z.seances_restantes > 0) || [];
 
   // Check if patient has pre-consultation
   const hasNoPreConsultation = alertsData?.alerts?.some(
-    (a: ZoneAlert) => a.type === "no_pre_consultation" || a.type === "pre_consultation_pending"
+    (a: Alert) => a.type === "no_pre_consultation" || a.type === "pre_consultation_pending"
   );
 
   // Check if patient has global contraindications
   const globalAlerts =
     alertsData?.alerts?.filter(
-      (a: ZoneAlert) => a.type === "contraindication"
+      (a: Alert) => a.type === "contraindication"
     ) || [];
   const hasErrors = alertsData?.has_errors || false;
 
@@ -374,7 +409,7 @@ export default function NewSessionPage({
                 Contre-indications detectees
               </p>
               <ul className="mt-1 space-y-1">
-                {globalAlerts.map((alert: ZoneAlert, i: number) => (
+                {globalAlerts.map((alert: Alert, i: number) => (
                   <li key={i} className="text-sm text-muted-foreground">
                     {alert.message}
                   </li>
@@ -393,23 +428,23 @@ export default function NewSessionPage({
         </h2>
         {activeZones.length > 0 ? (
           <div className="space-y-2">
-            {activeZones.map((zone: any) => {
+            {activeZones.map((zone: PatientZone) => {
               const zoneSpecificAlerts =
                 alertsData?.alerts?.filter(
-                  (a: ZoneAlert) => a.zone_id === zone.zone_definition_id
+                  (a: Alert) => a.zone_id === zone.zone_definition_id
                 ) || [];
               const hasZoneError = zoneSpecificAlerts.some(
-                (a: ZoneAlert) => a.severity === "error"
+                (a: Alert) => a.severity === "error"
               );
               const hasZoneWarning = zoneSpecificAlerts.some(
-                (a: ZoneAlert) => a.severity === "warning"
+                (a: Alert) => a.severity === "warning"
               );
 
               return (
                 <div key={zone.id} className="relative">
                   <ZoneCard
                     zone={zone}
-                    selected={selectedZone?.id === zone.id}
+                    selected={selectedZones.some((z: PatientZone) => z.id === zone.id)}
                     onSelect={() => handleZoneSelect(zone)}
                   />
                   {(hasZoneError || hasZoneWarning) && (
@@ -442,7 +477,7 @@ export default function NewSessionPage({
                 <AddZoneDialog
                   patientId={id}
                   existingZones={
-                    patient.zones?.map((z: any) => ({
+                    patient.zones?.map((z: PatientZone) => ({
                       zone_definition_id: z.zone_definition_id,
                     })) || []
                   }
@@ -452,6 +487,37 @@ export default function NewSessionPage({
           </Card>
         )}
       </div>
+
+      {/* Multi-zone Queue */}
+      {selectedZones.length > 1 && (
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium mb-2">
+              {selectedZones.length} zones selectionnees
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {selectedZones.map((zone: PatientZone, index: number) => (
+                <button
+                  key={zone.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveConfigZone(zone);
+                    haptics.selection();
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                    activeConfigZone?.id === zone.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted hover:bg-muted/80"
+                  )}
+                >
+                  {index + 1}. {zone.zone_nom}
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Zone-specific Alerts */}
       {zoneAlerts.length > 0 && (
@@ -482,10 +548,10 @@ export default function NewSessionPage({
                 >
                   {alert.message}
                 </p>
-                {alert.type === "spacing" && alert.details?.days_since && (
+                {alert.type === "spacing" && (alert.details as Record<string, number> | undefined)?.days_since && (
                   <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {alert.details.days_since} jours depuis la derniere seance
+                    {(alert.details as Record<string, number>).days_since} jours depuis la derniere seance
                   </p>
                 )}
               </div>
@@ -531,7 +597,7 @@ export default function NewSessionPage({
               <SelectValue placeholder="Selectionner un praticien" />
             </SelectTrigger>
             <SelectContent>
-              {practitioners.map((p: any) => (
+              {practitioners.map((p: UserType) => (
                 <SelectItem key={p.id} value={p.id} className="py-3">
                   {p.prenom} {p.nom}
                   {getSession(p.id) && (
@@ -657,10 +723,12 @@ export default function NewSessionPage({
         size="lg"
         className="w-full h-14 text-lg font-semibold"
         onClick={handleStartSession}
-        disabled={activeZones.length === 0 || hasErrors || hasNoPreConsultation}
+        disabled={selectedZones.length === 0 || hasErrors || hasNoPreConsultation}
       >
         <Zap className="h-6 w-6 mr-2" />
-        Demarrer la seance
+        {selectedZones.length > 1
+          ? `Demarrer ${selectedZones.length} zones`
+          : "Demarrer la seance"}
         <ChevronRight className="h-5 w-5 ml-2" />
       </Button>
     </div>

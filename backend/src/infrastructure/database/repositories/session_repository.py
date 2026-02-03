@@ -1,6 +1,6 @@
 """Session repository implementation."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -190,7 +190,7 @@ class SessionRepository(SessionRepositoryInterface):
 
     async def count_today(self) -> int:
         """Count sessions today."""
-        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         result = await self.session.execute(
             select(func.count(SessionModel.id)).where(SessionModel.date_seance >= today)
         )
@@ -198,7 +198,7 @@ class SessionRepository(SessionRepositoryInterface):
 
     async def count_this_month(self) -> int:
         """Count sessions this month."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         result = await self.session.execute(
             select(func.count(SessionModel.id)).where(SessionModel.date_seance >= start_of_month)

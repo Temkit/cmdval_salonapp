@@ -11,21 +11,13 @@ import { ToggleButton, ButtonGroup } from "@/components/ui/button-group";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import type { Question } from "@/types";
 
 interface QuestionnaireTabProps {
   patientId: string;
 }
 
-interface Question {
-  id: string;
-  texte: string;
-  type_reponse: "boolean" | "text" | "number" | "choice";
-  options: string[] | null;
-  obligatoire: boolean;
-  ordre: number;
-}
-
-interface Response {
+interface QuestionnaireResponse {
   question_id: string;
   reponse: string | null;
 }
@@ -50,7 +42,7 @@ export function QuestionnaireTab({ patientId }: QuestionnaireTabProps) {
   useEffect(() => {
     if (patientResponses?.responses) {
       const initialResponses: Record<string, string> = {};
-      patientResponses.responses.forEach((r: Response) => {
+      patientResponses.responses.forEach((r: QuestionnaireResponse) => {
         if (r.reponse !== null) {
           initialResponses[r.question_id] = r.reponse;
         }

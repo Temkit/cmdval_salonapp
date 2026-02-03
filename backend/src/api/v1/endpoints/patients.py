@@ -41,7 +41,7 @@ async def list_patients(
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    q: str | None = Query(None, description="Recherche par nom, téléphone ou code carte"),
+    q: str | None = Query(None, max_length=100, description="Recherche par nom, téléphone ou code carte"),
 ):
     """List patients with optional search."""
     if q:

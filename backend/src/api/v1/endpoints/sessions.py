@@ -111,14 +111,26 @@ async def create_session(
     """Create a new session."""
     try:
         # Parse parameters JSON
-        params = json.loads(parametres)
+        try:
+            params = json.loads(parametres)
+        except (json.JSONDecodeError, TypeError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Format JSON invalide pour les paramètres",
+            )
 
         # Read photo files from uploads or temp photo IDs
         photo_files = []
 
         # Handle temp photo IDs (already uploaded)
         if photo_ids:
-            temp_ids = json.loads(photo_ids)
+            try:
+                temp_ids = json.loads(photo_ids)
+            except (json.JSONDecodeError, TypeError):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Format JSON invalide pour les IDs de photos",
+                )
             temp_dir = os.path.join(settings.photos_path, "temp-photos")
             for temp_id in temp_ids:
                 if os.path.exists(temp_dir):

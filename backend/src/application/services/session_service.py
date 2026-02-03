@@ -1,7 +1,7 @@
 """Session service."""
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -86,7 +86,7 @@ class SessionService:
             praticien_nom=f"{praticien.prenom} {praticien.nom}",
             notes=notes,
             duree_minutes=duree_minutes,
-            date_seance=date_seance or datetime.utcnow(),
+            date_seance=date_seance or datetime.now(UTC),
         )
 
         # Handle photo uploads

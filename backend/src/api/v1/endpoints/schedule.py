@@ -1,12 +1,16 @@
 """Schedule and waiting queue endpoints."""
 
+import asyncio
+import json
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from sse_starlette.sse import EventSourceResponse
 
 from src.api.v1.dependencies import CurrentUser, get_schedule_service
 from src.application.services.schedule_service import ScheduleService
+from src.infrastructure.events import event_bus
 from src.schemas.schedule import (
     QueueDisplayResponse,
     QueueEntryResponse,
@@ -46,6 +50,8 @@ def _queue_response(e) -> QueueEntryResponse:
         patient_name=e.patient_name,
         doctor_id=e.doctor_id,
         doctor_name=e.doctor_name,
+        box_id=e.box_id,
+        box_nom=e.box_nom,
         checked_in_at=e.checked_in_at,
         position=e.position,
         status=e.status,
@@ -108,7 +114,7 @@ async def call_patient(
     current_user: CurrentUser,
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
-    entry = await schedule_service.call_patient(entry_id)
+    entry = await schedule_service.call_patient(entry_id, caller_user_id=current_user.get("id"))
     return _queue_response(entry)
 
 
@@ -120,6 +126,34 @@ async def complete_patient(
 ):
     entry = await schedule_service.complete_patient(entry_id)
     return _queue_response(entry)
+
+
+@router.get("/queue/events", tags=["queue"])
+async def queue_events(
+    doctor_id: str | None = Query(None, min_length=36, max_length=36),
+):
+    """SSE endpoint for real-time queue notifications."""
+    channel = f"queue:{doctor_id}" if doctor_id else "queue:all"
+    queue = event_bus.subscribe(channel)
+
+    async def event_generator():
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield {
+                        "event": event.get("type", "message"),
+                        "data": json.dumps(event),
+                    }
+                except asyncio.TimeoutError:
+                    # Send keepalive
+                    yield {"event": "ping", "data": ""}
+        except asyncio.CancelledError:
+            pass
+        finally:
+            event_bus.unsubscribe(channel, queue)
+
+    return EventSourceResponse(event_generator())
 
 
 # Dynamic path route MUST be last
