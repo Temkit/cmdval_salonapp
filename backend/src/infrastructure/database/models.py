@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 
 def _utcnow() -> datetime:
     """Return current UTC time as naive datetime (no tzinfo) for TIMESTAMP WITHOUT TIME ZONE columns."""
-    return _utcnow().replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
