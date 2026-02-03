@@ -250,7 +250,7 @@ class PreConsultationService:
         # Update pre-consultation status
         pre_consultation.status = "validated"
         pre_consultation.validated_by = validated_by
-        pre_consultation.validated_at = datetime.now(UTC)
+        pre_consultation.validated_at = datetime.now(UTC).replace(tzinfo=None)
         result = await self.pre_consultation_repo.update(pre_consultation)
 
         # Update patient status to active
@@ -276,7 +276,7 @@ class PreConsultationService:
         pre_consultation.status = "rejected"
         pre_consultation.rejection_reason = reason
         pre_consultation.validated_by = rejected_by
-        pre_consultation.validated_at = datetime.now(UTC)
+        pre_consultation.validated_at = datetime.now(UTC).replace(tzinfo=None)
         result = await self.pre_consultation_repo.update(pre_consultation)
 
         # Update patient status to ineligible
