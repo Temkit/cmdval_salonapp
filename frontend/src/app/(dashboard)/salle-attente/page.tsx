@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Phone, CheckCircle, Users, Stethoscope, RefreshCw, DoorOpen } from "lucide-react";
+import { Phone, CheckCircle, Users, Stethoscope, RefreshCw, DoorOpen, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { useQueueEvents } from "@/hooks/use-queue-events";
+import { useAuthStore } from "@/stores/auth-store";
 
 const queueStatusConfig: Record<string, { label: string; variant: "info" | "warning" | "success"; pulse?: boolean }> = {
   waiting: { label: "En attente", variant: "info", pulse: true },
@@ -39,7 +41,11 @@ interface QueueEntry {
 export default function SalleAttentePage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuthStore();
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [reassignEntry, setReassignEntry] = useState<QueueEntry | null>(null);
+  const [selectedDoctorId, setSelectedDoctorId] = useState("");
+  const canReassign = user?.role_nom === "Admin" || user?.role_nom === "Secretaire";
   const { newCheckInCount: newCheckIns, resetCount } = useQueueEvents({
     showToasts: true,
     invalidateQueries: true,
@@ -72,6 +78,29 @@ export default function SalleAttentePage() {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
   });
+
+  const { data: usersData } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api.getUsers(),
+    enabled: canReassign,
+  });
+
+  const reassignMutation = useMutation({
+    mutationFn: ({ entryId, doctorId }: { entryId: string; doctorId: string }) =>
+      api.reassignPatient(entryId, doctorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+      toast({ title: "Patient reassigne" });
+      setReassignEntry(null);
+      setSelectedDoctorId("");
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    },
+  });
+
+  const allUsers = usersData?.users || [];
+  const doctors = allUsers.filter((u) => u.role_nom === "Praticien");
 
   const entries: QueueEntry[] = queueData?.entries || [];
 
@@ -260,6 +289,19 @@ export default function SalleAttentePage() {
 
                           {/* Actions */}
                           <div className="flex gap-1 shrink-0">
+                            {canReassign && isWaiting && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  setReassignEntry(entry);
+                                  setSelectedDoctorId(entry.doctor_id || "");
+                                }}
+                                title="Reassigner"
+                              >
+                                <ArrowRightLeft className="h-4 w-4" />
+                              </Button>
+                            )}
                             {isWaiting && (
                               <Button
                                 size="sm"
@@ -309,6 +351,57 @@ export default function SalleAttentePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Reassign dialog */}
+      <Dialog open={!!reassignEntry} onOpenChange={(open) => { if (!open) setReassignEntry(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Reassigner {reassignEntry ? getPatientDisplayName(reassignEntry) : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Choisir un medecin :</p>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {doctors.map((doc: { id: string; prenom?: string; nom?: string }) => (
+                <button
+                  key={doc.id}
+                  onClick={() => setSelectedDoctorId(doc.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
+                    selectedDoctorId === doc.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-muted/50"
+                  }`}
+                >
+                  <Stethoscope className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium">
+                    Dr. {doc.prenom} {doc.nom}
+                  </span>
+                  {selectedDoctorId === doc.id && (
+                    <CheckCircle className="h-4 w-4 text-primary ml-auto" />
+                  )}
+                </button>
+              ))}
+              {doctors.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucun praticien disponible</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignEntry(null)}>Annuler</Button>
+            <Button
+              disabled={!selectedDoctorId || reassignMutation.isPending}
+              onClick={() => {
+                if (reassignEntry && selectedDoctorId) {
+                  reassignMutation.mutate({ entryId: reassignEntry.id, doctorId: selectedDoctorId });
+                }
+              }}
+            >
+              {reassignMutation.isPending ? "Reassignation..." : "Confirmer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

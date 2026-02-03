@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   User,
@@ -21,23 +21,38 @@ import {
   Camera,
   X,
   Package,
+  QrCode,
+  Download,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatDateTime, cn } from "@/lib/utils";
-import type { PatientZone, Session, PatientSubscription, SessionPhoto } from "@/types";
+import type { PatientZone, Session, PatientSubscription, SessionPhoto, Pack, Paiement, PaiementType, ModePaiement } from "@/types";
 import { AddZoneDialog } from "@/components/features/patients/add-zone-dialog";
 import { PreConsultationTab } from "@/components/features/patients/pre-consultation-tab";
 import { AlertBanner } from "@/components/features/alerts/alert-banner";
@@ -75,9 +90,54 @@ export default function PatientDetailPage({
     queryFn: () => api.getPatientSubscriptions(id),
   });
 
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: paiementsData } = useQuery({
+    queryKey: ["patient-paiements", id],
+    queryFn: () => api.getPatientPaiements(id),
+  });
+
+  const { data: packsData } = useQuery({
+    queryKey: ["packs"],
+    queryFn: () => api.getPacks(),
+  });
+
   // State for session detail dialog and tabs
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [subDialogOpen, setSubDialogOpen] = useState(false);
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [subForm, setSubForm] = useState({ type: "pack" as string, pack_id: "", montant_paye: "" });
+  const [payForm, setPayForm] = useState({ montant: "", type: "encaissement" as PaiementType, mode_paiement: "especes" as ModePaiement, reference: "", notes: "" });
+
+  const createSubMutation = useMutation({
+    mutationFn: (data: { type: string; pack_id?: string | null; montant_paye: number }) =>
+      api.createSubscription(id, { type: data.type as "gold" | "pack" | "seance", pack_id: data.pack_id || null, montant_paye: data.montant_paye }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-subscriptions", id] });
+      queryClient.invalidateQueries({ queryKey: ["patient", id] });
+      toast({ title: "Souscription créée" });
+      setSubDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    },
+  });
+
+  const createPayMutation = useMutation({
+    mutationFn: (data: { montant: number; type: PaiementType; mode_paiement: ModePaiement; reference?: string; notes?: string }) =>
+      api.createPaiement({ patient_id: id, ...data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-paiements", id] });
+      toast({ title: "Paiement enregistré" });
+      setPayDialogOpen(false);
+      setPayForm({ montant: "", type: "encaissement", mode_paiement: "especes", reference: "", notes: "" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -196,13 +256,40 @@ export default function PatientDetailPage({
               </div>
             </div>
 
-            {/* Action Button */}
-            <Button asChild size="lg" className="w-full sm:w-auto shrink-0">
-              <Link href={`/patients/${id}/seance`}>
-                <Zap className="h-5 w-5 mr-2" />
-                Nouvelle séance
-              </Link>
-            </Button>
+            {/* QR + Docs + Action */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={api.getPatientQRCodeUrl(id)}
+                alt="QR Code patient"
+                className="h-14 w-14 rounded-lg border hidden sm:block"
+              />
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-1">
+                  <Button variant="outline" size="icon-sm" asChild title="Consentement">
+                    <a href={api.getPatientConsentUrl(id)} target="_blank" rel="noopener noreferrer">
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="icon-sm" asChild title="Règlement">
+                    <a href={api.getPatientRulesUrl(id)} target="_blank" rel="noopener noreferrer">
+                      <FileText className="h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="icon-sm" asChild title="Précautions">
+                    <a href={api.getPatientPrecautionsUrl(id)} target="_blank" rel="noopener noreferrer">
+                      <QrCode className="h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                </div>
+                <Button asChild size="sm" className="w-full">
+                  <Link href={`/patients/${id}/seance`}>
+                    <Zap className="h-4 w-4 mr-1" />
+                    Séance
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -255,6 +342,10 @@ export default function PatientDetailPage({
           <TabsTrigger value="sessions" className="gap-2 flex-1 sm:flex-none">
             <History className="h-4 w-4 shrink-0" />
             <span className="hidden md:inline">Séances</span>
+          </TabsTrigger>
+          <TabsTrigger value="paiements" className="gap-2 flex-1 sm:flex-none">
+            <Wallet className="h-4 w-4 shrink-0" />
+            <span className="hidden md:inline">Paiements</span>
           </TabsTrigger>
         </TabsList>
 
@@ -357,14 +448,20 @@ export default function PatientDetailPage({
           </div>
 
           {/* Subscriptions */}
-          {subscriptionsData?.subscriptions && subscriptionsData.subscriptions.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Package className="h-4 w-4" />
                   Abonnements
                 </CardTitle>
-              </CardHeader>
+                <Button size="sm" variant="outline" onClick={() => { setSubForm({ type: "pack", pack_id: "", montant_paye: "" }); setSubDialogOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nouvelle souscription
+                </Button>
+              </div>
+            </CardHeader>
+            {subscriptionsData?.subscriptions && subscriptionsData.subscriptions.length > 0 ? (
               <CardContent>
                 <div className="space-y-3">
                   {subscriptionsData.subscriptions.map((sub: PatientSubscription) => {
@@ -427,8 +524,14 @@ export default function PatientDetailPage({
                   })}
                 </div>
               </CardContent>
-            </Card>
-          )}
+            ) : (
+              <CardContent>
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Aucun abonnement actif
+                </p>
+              </CardContent>
+            )}
+          </Card>
 
           {/* Zones Progress */}
           {patient.zones?.length > 0 && (
@@ -577,7 +680,159 @@ export default function PatientDetailPage({
             />
           )}
         </TabsContent>
+        {/* Paiements Tab */}
+        <TabsContent value="paiements" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {paiementsData?.paiements?.length || 0} paiement{(paiementsData?.paiements?.length || 0) !== 1 ? "s" : ""}
+            </p>
+            <Button onClick={() => { setPayForm({ montant: "", type: "encaissement", mode_paiement: "especes", reference: "", notes: "" }); setPayDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau paiement
+            </Button>
+          </div>
+
+          {paiementsData?.paiements && paiementsData.paiements.length > 0 ? (
+            <div className="space-y-2">
+              {paiementsData.paiements.map((pay: Paiement) => (
+                <Card key={pay.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Wallet className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{pay.montant.toLocaleString()} DA</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(pay.date_paiement)}
+                          {pay.reference && ` - Réf: ${pay.reference}`}
+                        </p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Badge variant="secondary" size="sm">{pay.type}</Badge>
+                        {pay.mode_paiement && (
+                          <Badge variant="outline" size="sm">{pay.mode_paiement}</Badge>
+                        )}
+                      </div>
+                    </div>
+                    {pay.notes && (
+                      <p className="text-sm text-muted-foreground mt-2 pl-14">{pay.notes}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Wallet}
+              title="Aucun paiement"
+              description="Les paiements du patient apparaîtront ici"
+            />
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* Subscription Dialog */}
+      <Dialog open={subDialogOpen} onOpenChange={setSubDialogOpen}>
+        <DialogContent>
+          <form onSubmit={(e) => { e.preventDefault(); createSubMutation.mutate({ type: subForm.type, pack_id: subForm.pack_id || null, montant_paye: parseFloat(subForm.montant_paye) || 0 }); }}>
+            <DialogHeader>
+              <DialogTitle>Nouvelle souscription</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select value={subForm.type} onValueChange={(v) => setSubForm((p) => ({ ...p, type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gold">Gold</SelectItem>
+                    <SelectItem value="pack">Pack</SelectItem>
+                    <SelectItem value="seance">Séance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {subForm.type === "pack" && (
+                <div className="space-y-2">
+                  <Label>Pack</Label>
+                  <Select value={subForm.pack_id} onValueChange={(v) => setSubForm((p) => ({ ...p, pack_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner un pack" /></SelectTrigger>
+                    <SelectContent>
+                      {packsData?.packs?.map((pack: Pack) => (
+                        <SelectItem key={pack.id} value={pack.id}>{pack.nom} - {pack.prix} DA</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Montant payé (DA)</Label>
+                <Input type="number" min="0" value={subForm.montant_paye} onChange={(e) => setSubForm((p) => ({ ...p, montant_paye: e.target.value }))} required />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setSubDialogOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={createSubMutation.isPending}>
+                {createSubMutation.isPending ? "Création..." : "Créer"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Dialog */}
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent>
+          <form onSubmit={(e) => { e.preventDefault(); createPayMutation.mutate({ montant: parseFloat(payForm.montant) || 0, type: payForm.type, mode_paiement: payForm.mode_paiement, reference: payForm.reference || undefined, notes: payForm.notes || undefined }); }}>
+            <DialogHeader>
+              <DialogTitle>Nouveau paiement</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Montant (DA)</Label>
+                <Input type="number" min="0" value={payForm.montant} onChange={(e) => setPayForm((p) => ({ ...p, montant: e.target.value }))} required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <Select value={payForm.type} onValueChange={(v) => setPayForm((p) => ({ ...p, type: v as PaiementType }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="encaissement">Encaissement</SelectItem>
+                      <SelectItem value="prise_en_charge">Prise en charge</SelectItem>
+                      <SelectItem value="hors_carte">Hors carte</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Mode</Label>
+                  <Select value={payForm.mode_paiement} onValueChange={(v) => setPayForm((p) => ({ ...p, mode_paiement: v as ModePaiement }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="especes">Espèces</SelectItem>
+                      <SelectItem value="carte">Carte</SelectItem>
+                      <SelectItem value="virement">Virement</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Référence (optionnel)</Label>
+                <Input value={payForm.reference} onChange={(e) => setPayForm((p) => ({ ...p, reference: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Notes (optionnel)</Label>
+                <Textarea value={payForm.notes} onChange={(e) => setPayForm((p) => ({ ...p, notes: e.target.value }))} rows={2} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPayDialogOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={createPayMutation.isPending}>
+                {createPayMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Session Detail Dialog */}
       <Dialog open={!!selectedSession} onOpenChange={(open) => !open && setSelectedSession(null)}>

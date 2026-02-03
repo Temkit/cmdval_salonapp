@@ -172,6 +172,18 @@ class WaitingQueueRepository:
             return self._to_entity(db)
         return None
 
+    async def update_doctor(self, entry_id: str, doctor_id: str, doctor_name: str) -> WaitingQueueEntry | None:
+        result = await self.session.execute(
+            select(WaitingQueueModel).where(WaitingQueueModel.id == entry_id)
+        )
+        db = result.scalar_one_or_none()
+        if db:
+            db.doctor_id = doctor_id
+            db.doctor_name = doctor_name
+            await self.session.flush()
+            return self._to_entity(db)
+        return None
+
     async def update_box(self, entry_id: str, box_id: str, box_nom: str) -> None:
         result = await self.session.execute(
             select(WaitingQueueModel).where(WaitingQueueModel.id == entry_id)

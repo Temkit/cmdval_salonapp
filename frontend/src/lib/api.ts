@@ -44,6 +44,7 @@ import type {
   AddPreConsultationZoneRequest,
   QuestionnaireResponseInput,
   CreatePatientFromPreConsultationRequest,
+  ManualScheduleEntryRequest,
   UsersResponse,
   RolesResponse,
   PermissionsResponse,
@@ -742,12 +743,28 @@ export const api = {
     return handleResponse<MessageResponse>(response);
   },
 
-  async getZonePrice(zoneId: string) {
-    const response = await wrapFetch(`${API_BASE}/promotions/zones/${zoneId}/price`);
+  async getZonePrice(zoneId: string, originalPrice: number) {
+    const response = await wrapFetch(`${API_BASE}/promotions/zones/${zoneId}/price?original_price=${originalPrice}`);
     return handleResponse<ZonePriceResponse>(response);
   },
 
   // Schedule
+  async createManualScheduleEntry(data: ManualScheduleEntryRequest) {
+    const response = await wrapFetch(`${API_BASE}/schedule/manual`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<DailyScheduleEntry>(response);
+  },
+
+  async reassignPatient(entryId: string, doctorId: string) {
+    const response = await wrapFetch(`${API_BASE}/schedule/queue/${entryId}/reassign?doctor_id=${doctorId}`, {
+      method: "PUT",
+    });
+    return handleResponse<WaitingQueueEntry>(response);
+  },
+
   async uploadSchedule(file: File) {
     const formData = new FormData();
     formData.append("file", file);

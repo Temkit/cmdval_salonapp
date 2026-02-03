@@ -5,13 +5,15 @@ import json
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sse_starlette.sse import EventSourceResponse
 
 from src.api.v1.dependencies import CurrentUser, get_schedule_service
 from src.application.services.schedule_service import ScheduleService
+from src.domain.exceptions import NotFoundError
 from src.infrastructure.events import event_bus
 from src.schemas.schedule import (
+    ManualScheduleEntryCreate,
     QueueDisplayResponse,
     QueueEntryResponse,
     QueueListResponse,
@@ -154,6 +156,44 @@ async def queue_events(
             event_bus.unsubscribe(channel, queue)
 
     return EventSourceResponse(event_generator())
+
+
+@router.post("/manual", response_model=ScheduleEntryResponse, status_code=status.HTTP_201_CREATED)
+async def create_manual_entry(
+    request: ManualScheduleEntryCreate,
+    current_user: CurrentUser,
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+):
+    """Create a manual schedule entry (walk-in patient)."""
+    entry = await schedule_service.create_manual_entry(
+        entry_date=request.date,
+        patient_nom=request.patient_nom,
+        patient_prenom=request.patient_prenom,
+        doctor_name=request.doctor_name,
+        start_time=request.start_time,
+        end_time=request.end_time,
+        duration_type=request.duration_type,
+        notes=request.notes,
+    )
+    return _schedule_response(entry)
+
+
+@router.put("/queue/{entry_id}/reassign", response_model=QueueEntryResponse, tags=["queue"])
+async def reassign_patient(
+    entry_id: str,
+    current_user: CurrentUser,
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+    doctor_id: str = Query(..., description="New doctor ID"),
+):
+    """Reassign a waiting queue patient to a different doctor."""
+    try:
+        entry = await schedule_service.reassign_patient(entry_id, doctor_id)
+        return _queue_response(entry)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 # Dynamic path route MUST be last

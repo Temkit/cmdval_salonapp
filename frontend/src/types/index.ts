@@ -506,6 +506,17 @@ export interface CreatePromotionRequest {
 
 export interface UpdatePromotionRequest extends Partial<CreatePromotionRequest> {}
 
+export interface ManualScheduleEntryRequest {
+  date: string;
+  patient_nom: string;
+  patient_prenom: string;
+  doctor_name: string;
+  start_time: string;
+  end_time?: string;
+  duration_type?: string;
+  notes?: string;
+}
+
 export interface AddPreConsultationZoneRequest {
   zone_id: string;
   is_eligible?: boolean;

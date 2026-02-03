@@ -3,13 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Pencil, Trash2, Tag, Percent, X, Search } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Percent, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -23,75 +29,36 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
+import type { Promotion, ZoneDefinition, CreatePromotionRequest, UpdatePromotionRequest, PromotionType } from "@/types";
 
-interface PromotionForm {
+interface PromoForm {
   nom: string;
-  description: string;
-  type: "pourcentage" | "montant";
-  valeur: number;
+  type: PromotionType;
+  valeur: string;
+  zone_ids: string[];
   date_debut: string;
   date_fin: string;
-  zone_ids: string[];
 }
 
-const initialFormState: PromotionForm = {
+const initialFormState: PromoForm = {
   nom: "",
-  description: "",
   type: "pourcentage",
-  valeur: 0,
+  valeur: "",
+  zone_ids: [],
   date_debut: "",
   date_fin: "",
-  zone_ids: [],
 };
-
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat("fr-FR").format(price) + " DA";
-}
-
-function getPromotionStatus(promo: any): { label: string; variant: "success" | "info" | "muted" } {
-  const now = new Date();
-  const start = promo.date_debut ? new Date(promo.date_debut) : null;
-  const end = promo.date_fin ? new Date(promo.date_fin) : null;
-
-  if (promo.is_active === false) {
-    return { label: "Inactive", variant: "muted" };
-  }
-
-  if (end && end < now) {
-    return { label: "Expiree", variant: "muted" };
-  }
-
-  if (start && start > now) {
-    return { label: "A venir", variant: "info" };
-  }
-
-  return { label: "Active", variant: "success" };
-}
-
-function formatDateForInput(dateStr: string): string {
-  if (!dateStr) return "";
-  try {
-    const d = new Date(dateStr);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  } catch {
-    return "";
-  }
-}
 
 export default function PromotionsConfigPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingPromo, setEditingPromo] = useState<any>(null);
-  const [formData, setFormData] = useState<PromotionForm>(initialFormState);
+  const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
+  const [formData, setFormData] = useState<PromoForm>(initialFormState);
   const [deletePromoId, setDeletePromoId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
 
-  const { data: promotionsData, isLoading: promosLoading } = useQuery({
-    queryKey: ["promotions"],
+  const { data: promosData, isLoading } = useQuery({
+    queryKey: ["promotions-config"],
     queryFn: () => api.getPromotions(true),
   });
 
@@ -101,25 +68,26 @@ export default function PromotionsConfigPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.createPromotion(data),
+    mutationFn: (data: CreatePromotionRequest) => api.createPromotion(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["promotions"] });
-      toast({ title: "Promotion creee" });
+      queryClient.invalidateQueries({ queryKey: ["promotions-config"] });
+      toast({ title: "Promotion créée" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => api.updatePromotion(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdatePromotionRequest }) =>
+      api.updatePromotion(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["promotions"] });
-      toast({ title: "Promotion mise a jour" });
+      queryClient.invalidateQueries({ queryKey: ["promotions-config"] });
+      toast({ title: "Promotion mise à jour" });
       handleCloseDialog();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
   });
@@ -127,11 +95,11 @@ export default function PromotionsConfigPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deletePromotion(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["promotions"] });
-      toast({ title: "Promotion desactivee" });
+      queryClient.invalidateQueries({ queryKey: ["promotions-config"] });
+      toast({ title: "Promotion supprimée" });
       setDeletePromoId(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
   });
@@ -142,16 +110,15 @@ export default function PromotionsConfigPage() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (promo: any) => {
+  const handleOpenEdit = (promo: Promotion) => {
     setEditingPromo(promo);
     setFormData({
-      nom: promo.nom || "",
-      description: promo.description || "",
-      type: promo.type || "pourcentage",
-      valeur: promo.valeur || 0,
-      date_debut: formatDateForInput(promo.date_debut || ""),
-      date_fin: formatDateForInput(promo.date_fin || ""),
-      zone_ids: promo.zone_ids || promo.zones?.map((z: any) => z.id || z.zone_id) || [],
+      nom: promo.nom,
+      type: promo.type,
+      valeur: String(promo.valeur),
+      zone_ids: promo.zone_ids || [],
+      date_debut: promo.date_debut ? promo.date_debut.split("T")[0] : "",
+      date_fin: promo.date_fin ? promo.date_fin.split("T")[0] : "",
     });
     setDialogOpen(true);
   };
@@ -162,26 +129,7 @@ export default function PromotionsConfigPage() {
     setFormData(initialFormState);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const data = {
-      nom: formData.nom,
-      description: formData.description || null,
-      type: formData.type,
-      valeur: formData.valeur,
-      date_debut: formData.date_debut || null,
-      date_fin: formData.date_fin || null,
-      zone_ids: formData.zone_ids,
-    };
-
-    if (editingPromo) {
-      updateMutation.mutate({ id: editingPromo.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  const handleToggleZone = (zoneId: string) => {
+  const toggleZone = (zoneId: string) => {
     setFormData((prev) => ({
       ...prev,
       zone_ids: prev.zone_ids.includes(zoneId)
@@ -190,27 +138,37 @@ export default function PromotionsConfigPage() {
     }));
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const shared = {
+      nom: formData.nom,
+      type: formData.type,
+      valeur: parseFloat(formData.valeur) || 0,
+      zone_ids: formData.zone_ids,
+      date_debut: formData.date_debut || null,
+      date_fin: formData.date_fin || null,
+    };
+
+    if (editingPromo) {
+      updateMutation.mutate({ id: editingPromo.id, data: shared });
+    } else {
+      createMutation.mutate(shared);
+    }
+  };
+
   const isPending = createMutation.isPending || updateMutation.isPending;
-  const promotions = promotionsData?.promotions || [];
+  const promotions = promosData?.promotions || [];
   const zones = zonesData?.zones || [];
-  const filteredPromotions = promotions.filter((promo: any) =>
-    promo.nom.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="icon-sm">
-          <Link href="/configuration">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <Link href="/configuration"><ArrowLeft className="h-5 w-5" /></Link>
         </Button>
         <div className="flex-1">
           <h1 className="heading-2">Promotions</h1>
-          <p className="text-sm text-muted-foreground">
-            Gerer les promotions et reductions
-          </p>
+          <p className="text-sm text-muted-foreground">Gérer les promotions actives</p>
         </div>
         <Button onClick={handleOpenCreate}>
           <Plus className="h-4 w-4 mr-2" />
@@ -218,338 +176,151 @@ export default function PromotionsConfigPage() {
         </Button>
       </div>
 
-      {/* Promotions Table */}
       <Card>
-        <CardHeader className="pb-3 space-y-3">
-          <CardTitle className="text-base">Liste des promotions</CardTitle>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Rechercher une promotion..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded hover:bg-muted transition-colors"
-                aria-label="Effacer la recherche"
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
-          </div>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Promotions</CardTitle>
         </CardHeader>
         <CardContent>
-          {promosLoading ? (
-            <div className="space-y-3" aria-busy="true" aria-label="Chargement des promotions">
+          {isLoading ? (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-4 p-3 border rounded-lg">
+                <div key={i} className="p-4 border rounded-xl space-y-2">
                   <div className="h-5 w-32 skeleton rounded" />
-                  <div className="h-5 w-24 skeleton rounded" />
-                  <div className="flex-1" />
-                  <div className="h-6 w-16 skeleton rounded-full" />
+                  <div className="h-4 w-24 skeleton rounded" />
                 </div>
               ))}
             </div>
-          ) : filteredPromotions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nom</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Type</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Valeur</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground hidden md:table-cell">Periode</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground hidden lg:table-cell">Zones</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPromotions.map((promo: any) => {
-                    const status = getPromotionStatus(promo);
-                    const promoZones = promo.zones || [];
-
-                    return (
-                      <tr key={promo.id} className="border-b last:border-b-0 hover:bg-muted/50 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Tag className="h-4 w-4 text-rose-500 shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium">{promo.nom}</p>
-                              {promo.description && (
-                                <p className="text-xs text-muted-foreground line-clamp-1">{promo.description}</p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant="secondary">
-                            {promo.type === "pourcentage" ? "Pourcentage" : "Montant fixe"}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-sm font-bold text-primary">
-                            {promo.type === "pourcentage"
-                              ? `${promo.valeur}%`
-                              : formatPrice(promo.valeur)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 hidden md:table-cell">
-                          <div className="text-sm text-muted-foreground">
-                            {promo.date_debut ? formatDate(promo.date_debut) : "-"}
-                            {" - "}
-                            {promo.date_fin ? formatDate(promo.date_fin) : "-"}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 hidden lg:table-cell">
-                          <div className="flex flex-wrap gap-1 max-w-[200px]">
-                            {promoZones.length > 0 ? (
-                              promoZones.slice(0, 3).map((z: any) => (
-                                <Badge key={z.id || z.zone_id} variant="secondary" size="sm">
-                                  {z.nom || z.zone_nom}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Toutes</span>
-                            )}
-                            {promoZones.length > 3 && (
-                              <Badge variant="muted" size="sm">
-                                +{promoZones.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant={status.variant} dot>
-                            {status.label}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenEdit(promo)}
-                              aria-label={`Modifier ${promo.nom}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {promo.is_active !== false && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeletePromoId(promo.id)}
-                                aria-label={`Desactiver ${promo.nom}`}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          ) : promotions.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {promotions.map((promo: Promotion) => (
+                <div key={promo.id} className="p-4 border rounded-xl space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Percent className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{promo.nom}</p>
+                        <p className="text-sm font-semibold text-primary">
+                          {promo.type === "pourcentage" ? `-${promo.valeur}%` : `-${promo.valeur} DA`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(promo)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeletePromoId(promo.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {promo.is_currently_active ? (
+                      <Badge variant="success" size="sm" dot>Active</Badge>
+                    ) : (
+                      <Badge variant="secondary" size="sm">Inactive</Badge>
+                    )}
+                    <Badge variant="outline" size="sm">{promo.zone_ids?.length || 0} zones</Badge>
+                  </div>
+                  {(promo.date_debut || promo.date_fin) && (
+                    <p className="text-xs text-muted-foreground">
+                      {promo.date_debut && formatDate(promo.date_debut)}
+                      {promo.date_fin && ` → ${formatDate(promo.date_fin)}`}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-          ) : promotions.length > 0 && search ? (
-            <EmptyState
-              icon={Search}
-              title="Aucun resultat"
-              description={`Aucune promotion ne correspond a "${search}"`}
-              action={{
-                label: "Effacer la recherche",
-                onClick: () => setSearch(""),
-              }}
-            />
           ) : (
             <EmptyState
-              icon={Tag}
+              icon={Percent}
               title="Aucune promotion"
-              description="Creez des promotions pour offrir des reductions sur les zones de traitement"
-              action={{
-                label: "Creer une promotion",
-                onClick: handleOpenCreate,
-              }}
+              description="Créez des promotions pour vos zones de traitement"
+              action={{ label: "Créer une promotion", onClick: handleOpenCreate }}
             />
           )}
         </CardContent>
       </Card>
 
-      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>
-                {editingPromo ? "Modifier la promotion" : "Nouvelle promotion"}
-              </DialogTitle>
+              <DialogTitle>{editingPromo ? "Modifier la promotion" : "Nouvelle promotion"}</DialogTitle>
               <DialogDescription>
-                {editingPromo
-                  ? "Modifiez les informations de la promotion."
-                  : "Definissez une nouvelle promotion."}
+                {editingPromo ? "Modifiez les paramètres de la promotion." : "Créez une nouvelle promotion."}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="nom">Nom de la promotion</Label>
-                <Input
-                  id="nom"
-                  value={formData.nom}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nom: e.target.value }))}
-                  placeholder="Ex: Promo ete 2026"
-                  required
-                />
+                <Label htmlFor="nom">Nom</Label>
+                <Input id="nom" value={formData.nom} onChange={(e) => setFormData((p) => ({ ...p, nom: e.target.value }))} required />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (optionnel)</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Details de la promotion..."
-                  rows={2}
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type">Type de reduction</Label>
-                  <select
-                    id="type"
-                    value={formData.type}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value as "pourcentage" | "montant" }))}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="pourcentage">Pourcentage (%)</option>
-                    <option value="montant">Montant fixe (DA)</option>
-                  </select>
+                  <Label>Type</Label>
+                  <Select value={formData.type} onValueChange={(v) => setFormData((p) => ({ ...p, type: v as PromotionType }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pourcentage">Pourcentage (%)</SelectItem>
+                      <SelectItem value="montant">Montant (DA)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="valeur">
-                    Valeur {formData.type === "pourcentage" ? "(%)" : "(DA)"}
-                  </Label>
-                  <Input
-                    id="valeur"
-                    type="number"
-                    min="0"
-                    max={formData.type === "pourcentage" ? 100 : undefined}
-                    step={formData.type === "pourcentage" ? 1 : 100}
-                    value={formData.valeur}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, valeur: parseFloat(e.target.value) || 0 }))}
-                    required
-                  />
+                  <Label htmlFor="valeur">Valeur</Label>
+                  <Input id="valeur" type="number" min="0" value={formData.valeur} onChange={(e) => setFormData((p) => ({ ...p, valeur: e.target.value }))} required />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="date_debut">Date de debut</Label>
-                  <Input
-                    id="date_debut"
-                    type="date"
-                    value={formData.date_debut}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, date_debut: e.target.value }))}
-                  />
+                  <Label htmlFor="date_debut">Date début</Label>
+                  <Input id="date_debut" type="date" value={formData.date_debut} onChange={(e) => setFormData((p) => ({ ...p, date_debut: e.target.value }))} />
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="date_fin">Date de fin</Label>
-                  <Input
-                    id="date_fin"
-                    type="date"
-                    value={formData.date_fin}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, date_fin: e.target.value }))}
-                  />
+                  <Label htmlFor="date_fin">Date fin</Label>
+                  <Input id="date_fin" type="date" value={formData.date_fin} onChange={(e) => setFormData((p) => ({ ...p, date_fin: e.target.value }))} />
                 </div>
               </div>
-
               <div className="space-y-2">
-                <Label>Zones concernees (optionnel)</Label>
-                <p className="text-xs text-muted-foreground">
-                  Laissez vide pour appliquer a toutes les zones
-                </p>
-                {zones.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
-                    {zones.map((zone: any) => {
-                      const isSelected = formData.zone_ids.includes(zone.id);
-                      return (
-                        <button
-                          key={zone.id}
-                          type="button"
-                          onClick={() => handleToggleZone(zone.id)}
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border text-left text-sm transition-colors ${
-                            isSelected
-                              ? "border-primary bg-primary/5 text-primary font-medium"
-                              : "border-border hover:bg-muted"
-                          }`}
-                        >
-                          <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
-                            isSelected ? "bg-primary border-primary" : "border-muted-foreground"
-                          }`}>
-                            {isSelected && (
-                              <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="truncate">{zone.nom}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Aucune zone disponible</p>
-                )}
-                {formData.zone_ids.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-muted-foreground">
-                      {formData.zone_ids.length} zone(s) selectionnee(s)
-                    </p>
+                <Label>Zones concernées</Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-xl max-h-40 overflow-y-auto">
+                  {zones.length > 0 ? zones.map((zone: ZoneDefinition) => (
                     <button
+                      key={zone.id}
                       type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, zone_ids: [] }))}
-                      className="text-xs text-primary hover:underline"
+                      onClick={() => toggleZone(zone.id)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm transition-colors ${
+                        formData.zone_ids.includes(zone.id)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
                     >
-                      Tout deselectionner
+                      <Target className="h-3 w-3" />
+                      {zone.nom}
                     </button>
-                  </div>
-                )}
+                  )) : <p className="text-sm text-muted-foreground">Aucune zone disponible</p>}
+                </div>
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                Annuler
-              </Button>
+              <Button type="button" variant="outline" onClick={handleCloseDialog}>Annuler</Button>
               <Button type="submit" disabled={isPending}>
-                {isPending
-                  ? "Enregistrement..."
-                  : editingPromo
-                  ? "Enregistrer"
-                  : "Creer"}
+                {isPending ? "Enregistrement..." : editingPromo ? "Enregistrer" : "Créer"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deletePromoId}
         onOpenChange={() => setDeletePromoId(null)}
-        title="Desactiver la promotion"
-        description="La promotion sera desactivee et ne sera plus appliquee sur les prix."
-        itemName={
-          deletePromoId
-            ? promotions.find((p: any) => p.id === deletePromoId)?.nom
-            : undefined
-        }
-        confirmLabel="Desactiver"
+        title="Supprimer la promotion"
+        description="La promotion sera désactivée."
+        itemName={deletePromoId ? promotions.find((p: Promotion) => p.id === deletePromoId)?.nom : undefined}
+        confirmLabel="Supprimer"
         onConfirm={() => deletePromoId && deleteMutation.mutate(deletePromoId)}
         isLoading={deleteMutation.isPending}
         variant="danger"

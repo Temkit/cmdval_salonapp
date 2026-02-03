@@ -14,6 +14,7 @@ import {
   Calendar,
   Clock,
   DoorOpen,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -26,6 +27,7 @@ const navigation = [
   { name: "Agenda", href: "/agenda", icon: Calendar, permission: "patients.view" },
   { name: "Salle d'attente", href: "/salle-attente", icon: Clock, permission: "patients.view" },
   { name: "Patients", href: "/patients", icon: Users, permission: "patients.view" },
+  { name: "Paiements", href: "/paiements", icon: CreditCard, permission: "dashboard.view" },
   { name: "Analytiques", href: "/analytiques", icon: BarChart3, permission: "dashboard.view" },
   { name: "Configuration", href: "/configuration", icon: Settings, permission: "config.questionnaire" },
 ];

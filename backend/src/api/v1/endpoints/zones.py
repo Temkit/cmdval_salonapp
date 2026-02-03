@@ -34,6 +34,10 @@ async def list_zones(
                 nom=z.nom,
                 description=z.description,
                 ordre=z.ordre,
+                prix=z.prix,
+                duree_minutes=z.duree_minutes,
+                categorie=z.categorie,
+                is_homme=z.is_homme,
                 is_active=z.is_active,
                 created_at=z.created_at,
             )
@@ -55,6 +59,10 @@ async def create_zone(
             nom=request.nom,
             description=request.description,
             ordre=request.ordre,
+            prix=request.prix,
+            duree_minutes=request.duree_minutes,
+            categorie=request.categorie,
+            is_homme=request.is_homme,
         )
         return ZoneDefinitionResponse(
             id=zone.id,
@@ -62,6 +70,10 @@ async def create_zone(
             nom=zone.nom,
             description=zone.description,
             ordre=zone.ordre,
+            prix=zone.prix,
+            duree_minutes=zone.duree_minutes,
+            categorie=zone.categorie,
+            is_homme=zone.is_homme,
             is_active=zone.is_active,
             created_at=zone.created_at,
         )
@@ -87,6 +99,10 @@ async def get_zone(
             nom=zone.nom,
             description=zone.description,
             ordre=zone.ordre,
+            prix=zone.prix,
+            duree_minutes=zone.duree_minutes,
+            categorie=zone.categorie,
+            is_homme=zone.is_homme,
             is_active=zone.is_active,
             created_at=zone.created_at,
         )
@@ -111,6 +127,10 @@ async def update_zone(
             nom=request.nom,
             description=request.description,
             ordre=request.ordre,
+            prix=request.prix,
+            duree_minutes=request.duree_minutes,
+            categorie=request.categorie,
+            is_homme=request.is_homme,
             is_active=request.is_active,
         )
         return ZoneDefinitionResponse(
@@ -119,6 +139,10 @@ async def update_zone(
             nom=zone.nom,
             description=zone.description,
             ordre=zone.ordre,
+            prix=zone.prix,
+            duree_minutes=zone.duree_minutes,
+            categorie=zone.categorie,
+            is_homme=zone.is_homme,
             is_active=zone.is_active,
             created_at=zone.created_at,
         )

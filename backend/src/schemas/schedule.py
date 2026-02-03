@@ -2,7 +2,22 @@
 
 import datetime as dt
 
+from pydantic import Field
+
 from src.schemas.base import AppBaseModel
+
+
+class ManualScheduleEntryCreate(AppBaseModel):
+    """Schema for creating a manual schedule entry (walk-in)."""
+
+    date: dt.date
+    patient_nom: str = Field(min_length=1)
+    patient_prenom: str = Field(min_length=1)
+    doctor_name: str = Field(min_length=1)
+    start_time: dt.time
+    end_time: dt.time | None = None
+    duration_type: str | None = None
+    notes: str | None = None
 
 
 class ScheduleEntryResponse(AppBaseModel):

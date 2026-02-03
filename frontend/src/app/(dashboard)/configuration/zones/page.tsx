@@ -3,12 +3,20 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Pencil, Trash2, Target, Search, X } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Target, Search, X, Clock, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -21,18 +29,32 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import type { ZoneDefinition, CreateZoneRequest, UpdateZoneRequest } from "@/types";
+import type { ZoneDefinition, CreateZoneRequest, UpdateZoneRequest, ZoneCategorie } from "@/types";
+
+const CATEGORIES: { value: ZoneCategorie; label: string }[] = [
+  { value: "visage", label: "Visage" },
+  { value: "bras", label: "Bras" },
+  { value: "jambes", label: "Jambes" },
+  { value: "corps", label: "Corps" },
+  { value: "homme", label: "Homme" },
+];
 
 interface ZoneForm {
   nom: string;
   description: string;
-  seances_recommandees: number;
+  prix: string;
+  duree_minutes: string;
+  categorie: string;
+  is_homme: boolean;
 }
 
 const initialFormState: ZoneForm = {
   nom: "",
   description: "",
-  seances_recommandees: 6,
+  prix: "",
+  duree_minutes: "",
+  categorie: "",
+  is_homme: false,
 };
 
 export default function ZonesConfigPage() {
@@ -109,7 +131,10 @@ export default function ZonesConfigPage() {
     setFormData({
       nom: zone.nom,
       description: zone.description || "",
-      seances_recommandees: zone.seances_recommandees || 6,
+      prix: zone.prix != null ? String(zone.prix) : "",
+      duree_minutes: zone.duree_minutes != null ? String(zone.duree_minutes) : "",
+      categorie: zone.categorie || "",
+      is_homme: zone.is_homme,
     });
     setDialogOpen(true);
   };
@@ -120,20 +145,32 @@ export default function ZonesConfigPage() {
     setFormData(initialFormState);
   };
 
+  const handleCategorieChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      categorie: value,
+      is_homme: value === "homme" ? true : prev.is_homme,
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const shared = {
+      nom: formData.nom,
+      description: formData.description || null,
+      prix: formData.prix ? parseInt(formData.prix) : null,
+      duree_minutes: formData.duree_minutes ? parseInt(formData.duree_minutes) : null,
+      categorie: (formData.categorie || null) as ZoneCategorie | null,
+      is_homme: formData.is_homme,
+    };
+
     if (editingZone) {
-      const data: UpdateZoneRequest = {
-        nom: formData.nom,
-        description: formData.description || null,
-      };
-      updateMutation.mutate({ id: editingZone.id, data });
+      updateMutation.mutate({ id: editingZone.id, data: shared });
     } else {
       const data: CreateZoneRequest = {
         code: formData.nom.toLowerCase().replace(/\s+/g, "_"),
-        nom: formData.nom,
-        description: formData.description || null,
+        ...shared,
       };
       createMutation.mutate(data);
     }
@@ -224,9 +261,20 @@ export default function ZonesConfigPage() {
                       </div>
                       <div>
                         <p className="font-medium">{zone.nom}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {zone.seances_recommandees} seances recommandees
-                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {zone.prix != null && (
+                            <span className="text-sm text-muted-foreground flex items-center gap-0.5">
+                              <DollarSign className="h-3 w-3" />
+                              {zone.prix} DA
+                            </span>
+                          )}
+                          {zone.duree_minutes != null && (
+                            <span className="text-sm text-muted-foreground flex items-center gap-0.5">
+                              <Clock className="h-3 w-3" />
+                              {zone.duree_minutes} min
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-1">
@@ -247,6 +295,14 @@ export default function ZonesConfigPage() {
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1 pl-13">
+                    {zone.categorie && (
+                      <Badge variant="secondary" size="sm">{zone.categorie}</Badge>
+                    )}
+                    {zone.is_homme && (
+                      <Badge variant="outline" size="sm">Homme</Badge>
+                    )}
                   </div>
                   {zone.description && (
                     <p className="text-sm text-muted-foreground pl-13">
@@ -308,23 +364,73 @@ export default function ZonesConfigPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="prix">Prix (DA)</Label>
+                  <Input
+                    id="prix"
+                    type="number"
+                    min="0"
+                    value={formData.prix}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, prix: e.target.value }))
+                    }
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duree_minutes">Durée (min)</Label>
+                  <Input
+                    id="duree_minutes"
+                    type="number"
+                    min="1"
+                    value={formData.duree_minutes}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, duree_minutes: e.target.value }))
+                    }
+                    placeholder="30"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="seances_recommandees">
-                  Nombre de séances recommandées
+                <Label htmlFor="categorie">Catégorie</Label>
+                <Select
+                  value={formData.categorie}
+                  onValueChange={handleCategorieChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une catégorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={formData.is_homme}
+                  onClick={() => setFormData((prev) => ({ ...prev, is_homme: !prev.is_homme }))}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                    formData.is_homme ? "bg-primary" : "bg-muted"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition-transform ${
+                      formData.is_homme ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <Label className="cursor-pointer" onClick={() => setFormData((prev) => ({ ...prev, is_homme: !prev.is_homme }))}>
+                  Homme uniquement
                 </Label>
-                <Input
-                  id="seances_recommandees"
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={formData.seances_recommandees}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      seances_recommandees: parseInt(e.target.value) || 6,
-                    }))
-                  }
-                />
               </div>
 
               <div className="space-y-2">

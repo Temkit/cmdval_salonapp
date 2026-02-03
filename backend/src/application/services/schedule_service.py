@@ -106,6 +106,39 @@ class ScheduleService:
 
         return await self.schedule_repo.create_batch(entries)
 
+    async def create_manual_entry(
+        self,
+        entry_date: date,
+        patient_nom: str,
+        patient_prenom: str,
+        doctor_name: str,
+        start_time: time,
+        end_time: time | None = None,
+        duration_type: str | None = None,
+        notes: str | None = None,
+    ) -> DailyScheduleEntry:
+        """Create a manual schedule entry (walk-in patient)."""
+        entry = DailyScheduleEntry(
+            date=entry_date,
+            patient_nom=patient_nom,
+            patient_prenom=patient_prenom,
+            doctor_name=doctor_name,
+            start_time=start_time,
+            end_time=end_time,
+            duration_type=duration_type,
+            notes=notes,
+        )
+
+        # Try to match patient by name
+        matched, _ = await self.patient_repo.search(patient_nom, page=1, size=10)
+        for p in matched:
+            if p.prenom and p.prenom.lower() == patient_prenom.lower():
+                entry.patient_id = p.id
+                break
+
+        created = await self.schedule_repo.create_batch([entry])
+        return created[0]
+
     async def get_schedule(self, target_date: date) -> list[DailyScheduleEntry]:
         return await self.schedule_repo.find_by_date(target_date)
 
@@ -168,6 +201,21 @@ class ScheduleService:
         # Also update schedule
         if result.schedule_id:
             await self.schedule_repo.update_status(result.schedule_id, "in_treatment")
+        return result
+
+    async def reassign_patient(self, entry_id: str, doctor_id: str) -> WaitingQueueEntry:
+        """Reassign a waiting queue patient to a different doctor."""
+        entry = await self.queue_repo.find_by_id(entry_id)
+        if not entry:
+            raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
+
+        # Resolve doctor name
+        doctor = await self.user_repo.find_by_id(doctor_id)
+        doctor_name = f"{doctor.prenom} {doctor.nom}" if doctor else ""
+
+        result = await self.queue_repo.update_doctor(entry_id, doctor_id, doctor_name)
+        if not result:
+            raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
         return result
 
     async def complete_patient(self, entry_id: str) -> WaitingQueueEntry:

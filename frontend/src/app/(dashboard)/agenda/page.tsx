@@ -2,12 +2,14 @@
 
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Calendar, Upload, CheckCircle, Clock, User, Stethoscope, RefreshCw } from "lucide-react";
+import { AlertTriangle, Calendar, Upload, CheckCircle, Clock, User, Stethoscope, RefreshCw, Plus } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 
@@ -41,6 +43,15 @@ export default function AgendaPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [uploading, setUploading] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addForm, setAddForm] = useState({
+    patient_prenom: "",
+    patient_nom: "",
+    doctor_name: "",
+    start_time: "",
+    duration_type: "",
+    notes: "",
+  });
 
   const dateStr = formatDateForApi(selectedDate);
   const isToday = dateStr === formatDateForApi(new Date());
@@ -57,6 +68,28 @@ export default function AgendaPage() {
       toast({ title: "Patient enregistre" });
     },
     onError: (error: any) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    },
+  });
+
+  const addEntryMutation = useMutation({
+    mutationFn: (data: typeof addForm) =>
+      api.createManualScheduleEntry({
+        date: dateStr,
+        patient_prenom: data.patient_prenom,
+        patient_nom: data.patient_nom,
+        doctor_name: data.doctor_name,
+        start_time: data.start_time,
+        duration_type: data.duration_type || undefined,
+        notes: data.notes || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
+      toast({ title: "Rendez-vous ajoute" });
+      setAddDialogOpen(false);
+      setAddForm({ patient_prenom: "", patient_nom: "", doctor_name: "", start_time: "", duration_type: "", notes: "" });
+    },
+    onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     },
   });
@@ -122,6 +155,10 @@ export default function AgendaPage() {
           >
             <Upload className="h-4 w-4 mr-2" />
             {uploading ? "Import en cours..." : "Importer"}
+          </Button>
+          <Button onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter
           </Button>
         </div>
       </div>
@@ -271,6 +308,84 @@ export default function AgendaPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add manual entry dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajouter un rendez-vous</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              addEntryMutation.mutate(addForm);
+            }}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Prenom</Label>
+                <Input
+                  required
+                  value={addForm.patient_prenom}
+                  onChange={(e) => setAddForm((f) => ({ ...f, patient_prenom: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nom</Label>
+                <Input
+                  required
+                  value={addForm.patient_nom}
+                  onChange={(e) => setAddForm((f) => ({ ...f, patient_nom: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Medecin</Label>
+                <Input
+                  required
+                  value={addForm.doctor_name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, doctor_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Heure debut</Label>
+                <Input
+                  type="time"
+                  required
+                  value={addForm.start_time}
+                  onChange={(e) => setAddForm((f) => ({ ...f, start_time: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Type de duree</Label>
+              <Input
+                placeholder="Ex: 30min, 1h..."
+                value={addForm.duration_type}
+                onChange={(e) => setAddForm((f) => ({ ...f, duration_type: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Input
+                placeholder="Notes optionnelles"
+                value={addForm.notes}
+                onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={addEntryMutation.isPending}>
+                {addEntryMutation.isPending ? "Ajout..." : "Ajouter"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -16,6 +16,8 @@ import {
   Timer,
   ArrowUpRight,
   ArrowDownRight,
+  MapPin,
+  UserCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +34,7 @@ import type {
   DoctorPerformanceItem,
   DoctorPerformanceResponse,
   RevenueBreakdown,
+  DemographicsResponse,
 } from "@/types";
 
 interface LostTimeItem {
@@ -628,6 +631,75 @@ export default function AnalyticsPage() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+      {/* Demographics */}
+      {demographicsData && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {/* Age Distribution */}
+          {(demographicsData as DemographicsResponse).age_distribution?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <UserCircle className="h-5 w-5 text-primary" />
+                  Repartition par age
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const ageData = (demographicsData as DemographicsResponse).age_distribution;
+                  const maxCount = Math.max(...ageData.map((a) => a.count), 1);
+                  return (
+                    <div className="space-y-3">
+                      {ageData.map((item) => (
+                        <div key={item.range} className="space-y-1.5">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium">{item.range}</span>
+                            <span className="text-muted-foreground">{item.count}</span>
+                          </div>
+                          <Progress value={(item.count / maxCount) * 100} className="h-2.5" />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* City Distribution */}
+          {(demographicsData as DemographicsResponse).city_distribution?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Repartition par ville
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const cityData = (demographicsData as DemographicsResponse).city_distribution;
+                  const maxCount = Math.max(...cityData.map((c) => c.count), 1);
+                  return (
+                    <div className="space-y-3">
+                      {cityData.slice(0, 10).map((item, index) => (
+                        <div key={item.city} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground w-5 text-right">{index + 1}.</span>
+                              <span className="font-medium">{item.city || "Non renseigne"}</span>
+                            </div>
+                            <span className="text-muted-foreground">{item.count}</span>
+                          </div>
+                          <Progress value={(item.count / maxCount) * 100} className="h-2.5" />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
