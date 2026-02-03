@@ -21,7 +21,7 @@ class ZoneDefinition:
     is_homme: bool = False
     is_active: bool = True
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
 
 # Default zone definitions (35 zones from PPT/Excel)
@@ -252,8 +252,8 @@ class PatientZone:
     seances_used: int = 0
     notes: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     @property
     def seances_restantes(self) -> int:

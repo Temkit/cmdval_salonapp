@@ -21,7 +21,7 @@ class SessionPhoto:
     filename: str
     filepath: str
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
 
 @dataclass
@@ -45,8 +45,8 @@ class Session:
     duree_minutes: int | None = None
     photos: list[SessionPhoto] = field(default_factory=list)
     id: str = field(default_factory=lambda: str(uuid4()))
-    date_seance: datetime = field(default_factory=lambda: datetime.now(UTC))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    date_seance: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     def add_photo(self, filename: str, filepath: str) -> SessionPhoto:
         """Add a photo to the session."""

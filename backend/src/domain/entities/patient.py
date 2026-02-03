@@ -29,8 +29,8 @@ class Patient:
     status: str = PATIENT_STATUS_EN_ATTENTE  # en_attente_evaluation, actif, ineligible
     created_by: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     @property
     def age(self) -> int | None:

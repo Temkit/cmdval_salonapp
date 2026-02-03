@@ -111,7 +111,7 @@ class AlertService:
         # 3. Session spacing alerts (per zone)
         zones_last_session = await self._get_last_session_per_zone(patient_id)
         for zone_id, (last_session_date, zone_nom) in zones_last_session.items():
-            days_since = (datetime.now(timezone.utc) - last_session_date).days
+            days_since = (datetime.now(timezone.utc).replace(tzinfo=None) - last_session_date).days
             if days_since > SESSION_SPACING_WARNING_DAYS:
                 alerts.append(
                     Alert(

@@ -12,7 +12,7 @@ class SideEffectPhoto:
     filename: str
     filepath: str
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
 
 @dataclass
@@ -31,7 +31,7 @@ class SideEffect:
 
     # Metadata
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     @property
     def is_severe(self) -> bool:

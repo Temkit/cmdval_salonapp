@@ -125,8 +125,8 @@ class Role:
     permissions: list[str]
     is_system: bool = False
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     def has_permission(self, permission: str | Permission) -> bool:
         """Check if role has a specific permission."""

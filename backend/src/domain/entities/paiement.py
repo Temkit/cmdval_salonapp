@@ -23,6 +23,6 @@ class Paiement:
     created_by: str | None = None
     patient_nom: str | None = None
     patient_prenom: str | None = None
-    date_paiement: datetime = field(default_factory=lambda: datetime.now(UTC))
+    date_paiement: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))

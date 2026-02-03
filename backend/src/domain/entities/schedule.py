@@ -26,8 +26,8 @@ class DailyScheduleEntry:
     status: str = "expected"
     uploaded_by: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
 
 @dataclass
@@ -41,11 +41,11 @@ class WaitingQueueEntry:
     doctor_id: str | None = None
     box_id: str | None = None
     box_nom: str | None = None
-    checked_in_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    checked_in_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
     position: int = 0
     status: str = "waiting"
     called_at: datetime | None = None
     completed_at: datetime | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))

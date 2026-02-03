@@ -60,8 +60,8 @@ async def get_sessions_by_praticien(
 async def get_sessions_by_period(
     _: Annotated[dict, Depends(require_permission("dashboard.view"))],
     dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
-    date_from: datetime = Query(default_factory=lambda: datetime.now(UTC) - timedelta(days=30)),
-    date_to: datetime = Query(default_factory=lambda: datetime.now(UTC)),
+    date_from: datetime = Query(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None) - timedelta(days=30)),
+    date_to: datetime = Query(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None)),
     group_by: str = Query("day", pattern="^(day|week|month)$"),
 ):
     """Get session count by time period."""

@@ -335,7 +335,7 @@ async def create_patient_zones_and_sessions(
             # Create sessions for completed treatments
             for j in range(seances_used):
                 days_ago = (seances_used - j) * randint(21, 35)
-                session_date = datetime.now(UTC) - timedelta(days=days_ago)
+                session_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago)
 
                 session_obj = SessionModel(
                     id=str(uuid4()),

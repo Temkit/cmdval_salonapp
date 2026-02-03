@@ -146,7 +146,7 @@ class PatientRepository(PatientRepositoryInterface):
         """Count patients created this month."""
         from datetime import UTC, datetime
 
-        now = datetime.now(UTC)
+        now = datetime.now(UTC).replace(tzinfo=None)
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         result = await self.session.execute(
             select(func.count(PatientModel.id)).where(PatientModel.created_at >= start_of_month)

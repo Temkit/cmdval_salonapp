@@ -17,8 +17,8 @@ class Pack:
     seances_per_zone: int = 6
     is_active: bool = True
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
 
 SUBSCRIPTION_TYPES = ["gold", "pack", "seance"]
@@ -38,8 +38,8 @@ class PatientSubscription:
     notes: str | None = None
     pack_nom: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     @property
     def is_expired(self) -> bool:

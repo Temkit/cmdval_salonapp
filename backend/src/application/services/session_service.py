@@ -86,7 +86,7 @@ class SessionService:
             praticien_nom=f"{praticien.prenom} {praticien.nom}",
             notes=notes,
             duree_minutes=duree_minutes,
-            date_seance=date_seance or datetime.now(UTC),
+            date_seance=date_seance or datetime.now(UTC).replace(tzinfo=None),
         )
 
         # Handle photo uploads

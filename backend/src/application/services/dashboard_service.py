@@ -114,7 +114,7 @@ class DashboardService:
         ]
 
         # Monthly trend (last 6 months)
-        six_months_ago = datetime.now(UTC) - relativedelta(months=6)
+        six_months_ago = datetime.now(UTC).replace(tzinfo=None) - relativedelta(months=6)
         month_col = func.date_trunc("month", SessionSideEffectModel.created_at).label("month")
         trend_result = await db.execute(
             select(
