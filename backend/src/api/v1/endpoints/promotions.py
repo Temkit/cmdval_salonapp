@@ -55,7 +55,7 @@ async def list_active_promotions(
 @router.post("", response_model=PromotionResponse, status_code=201)
 async def create_promotion(
     data: PromotionCreate,
-    current_user: Annotated[dict, Depends(require_permission("config:manage"))],
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     promotion_service: Annotated[PromotionService, Depends(get_promotion_service)],
 ):
     promo = await promotion_service.create_promotion(
@@ -73,7 +73,7 @@ async def create_promotion(
 async def update_promotion(
     promotion_id: str,
     data: PromotionUpdate,
-    current_user: Annotated[dict, Depends(require_permission("config:manage"))],
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     promotion_service: Annotated[PromotionService, Depends(get_promotion_service)],
 ):
     promo = await promotion_service.update_promotion(
@@ -85,7 +85,7 @@ async def update_promotion(
 @router.delete("/{promotion_id}")
 async def delete_promotion(
     promotion_id: str,
-    current_user: Annotated[dict, Depends(require_permission("config:manage"))],
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     promotion_service: Annotated[PromotionService, Depends(get_promotion_service)],
 ):
     await promotion_service.delete_promotion(promotion_id)

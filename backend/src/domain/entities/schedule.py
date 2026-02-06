@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, time
 from uuid import uuid4
 
 SCHEDULE_STATUSES = ["expected", "checked_in", "in_treatment", "completed", "no_show"]
-QUEUE_STATUSES = ["waiting", "in_treatment", "done"]
+QUEUE_STATUSES = ["waiting", "in_treatment", "done", "no_show", "left"]
 
 
 @dataclass

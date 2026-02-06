@@ -130,6 +130,26 @@ async def complete_patient(
     return _queue_response(entry)
 
 
+@router.put("/queue/{entry_id}/no-show", response_model=QueueEntryResponse, tags=["queue"])
+async def mark_no_show(
+    entry_id: str,
+    current_user: CurrentUser,
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+):
+    entry = await schedule_service.mark_no_show(entry_id)
+    return _queue_response(entry)
+
+
+@router.put("/queue/{entry_id}/left", response_model=QueueEntryResponse, tags=["queue"])
+async def mark_left(
+    entry_id: str,
+    current_user: CurrentUser,
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+):
+    entry = await schedule_service.mark_left(entry_id)
+    return _queue_response(entry)
+
+
 @router.get("/queue/events", tags=["queue"])
 async def queue_events(
     doctor_id: str | None = Query(None, min_length=36, max_length=36),

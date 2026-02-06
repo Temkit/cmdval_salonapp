@@ -166,7 +166,7 @@ class WaitingQueueRepository:
             db.status = status
             if status == "in_treatment":
                 db.called_at = datetime.now(UTC).replace(tzinfo=None)
-            elif status == "done":
+            elif status in ("done", "no_show", "left"):
                 db.completed_at = datetime.now(UTC).replace(tzinfo=None)
             await self.session.flush()
             return self._to_entity(db)

@@ -157,10 +157,22 @@ class ScheduleService:
         # Update schedule status
         await self.schedule_repo.update_status(entry_id, "checked_in")
 
+        # Resolve patient_id if not already set (patient may have been
+        # created after the schedule was uploaded)
+        patient_id = entry.patient_id
+        if not patient_id:
+            matched, _ = await self.patient_repo.search(
+                entry.patient_nom, page=1, size=10
+            )
+            for p in matched:
+                if p.prenom and p.prenom.lower() == entry.patient_prenom.lower():
+                    patient_id = p.id
+                    break
+
         # Create queue entry
         queue_entry = WaitingQueueEntry(
             schedule_id=entry_id,
-            patient_id=entry.patient_id,
+            patient_id=patient_id,
             patient_name=f"{entry.patient_prenom} {entry.patient_nom}",
             doctor_id=entry.doctor_id,
             doctor_name=entry.doctor_name,
@@ -168,14 +180,18 @@ class ScheduleService:
         result = await self.queue_repo.create(queue_entry)
 
         # Publish SSE event for real-time notifications
-        doctor_channel = f"queue:{entry.doctor_id}" if entry.doctor_id else "queue:all"
-        await event_bus.publish(doctor_channel, {
+        event_data = {
             "type": "patient_checked_in",
             "patient_name": f"{entry.patient_prenom} {entry.patient_nom}",
             "doctor_id": entry.doctor_id or "",
             "doctor_name": entry.doctor_name or "",
             "position": result.position,
-        })
+        }
+        # Always publish to queue:all so admins/secretaries see updates
+        await event_bus.publish("queue:all", event_data)
+        # Also publish to doctor-specific channel
+        if entry.doctor_id:
+            await event_bus.publish(f"queue:{entry.doctor_id}", event_data)
 
         return result
 
@@ -224,6 +240,30 @@ class ScheduleService:
             raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
         if result.schedule_id:
             await self.schedule_repo.update_status(result.schedule_id, "completed")
+        return result
+
+    async def mark_no_show(self, entry_id: str) -> WaitingQueueEntry:
+        entry = await self.queue_repo.find_by_id(entry_id)
+        if not entry:
+            raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
+        if entry.status != "waiting":
+            raise ValueError("Seuls les patients en attente peuvent être marqués absents")
+        result = await self.queue_repo.update_status(entry_id, "no_show")
+        if not result:
+            raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
+        if result.schedule_id:
+            await self.schedule_repo.update_status(result.schedule_id, "no_show")
+        return result
+
+    async def mark_left(self, entry_id: str) -> WaitingQueueEntry:
+        entry = await self.queue_repo.find_by_id(entry_id)
+        if not entry:
+            raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
+        if entry.status != "in_treatment":
+            raise ValueError("Seuls les patients en traitement peuvent être marqués partis")
+        result = await self.queue_repo.update_status(entry_id, "left")
+        if not result:
+            raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
         return result
 
     def _parse_time(self, value) -> time | None:

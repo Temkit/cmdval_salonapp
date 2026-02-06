@@ -1,10 +1,12 @@
 """FastAPI application entry point."""
 
+import logging
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
 
 from src.api.v1.router import router as api_router
 from src.core.config import get_settings
@@ -12,16 +14,41 @@ from src.core.exceptions import register_exception_handlers
 from src.core.logging import setup_logging
 from src.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from src.core.rate_limit import RateLimitMiddleware
+from src.domain.entities.role import DEFAULT_ROLE_PERMISSIONS, Permission
+from src.infrastructure.database.connection import async_session_factory
+from src.infrastructure.database.models import RoleModel
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+
+async def _sync_role_permissions() -> None:
+    """Ensure system roles in DB have latest permissions from code."""
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(RoleModel).where(RoleModel.is_system == True)  # noqa: E712
+        )
+        roles = result.scalars().all()
+        for role in roles:
+            expected = DEFAULT_ROLE_PERMISSIONS.get(role.name)
+            if expected is None:
+                continue
+            expected_values = sorted(p.value for p in expected)
+            current_values = sorted(role.permissions or [])
+            if current_values != expected_values:
+                role.permissions = expected_values
+                logger.info("Synced permissions for role '%s': added %s",
+                            role.name,
+                            set(expected_values) - set(current_values))
+        await session.commit()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    # Create photos directory if it doesn't exist
     os.makedirs(settings.photos_path, exist_ok=True)
+    await _sync_role_permissions()
     yield
     # Shutdown
     pass

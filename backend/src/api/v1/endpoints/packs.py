@@ -54,7 +54,7 @@ async def list_packs(
 @router.post("", response_model=PackResponse, status_code=201)
 async def create_pack(
     data: PackCreate,
-    current_user: Annotated[dict, Depends(require_permission("config:manage"))],
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     pack_service: Annotated[PackService, Depends(get_pack_service)],
 ):
     """Create a new pack (admin only)."""
@@ -84,7 +84,7 @@ async def create_pack(
 async def update_pack(
     pack_id: str,
     data: PackUpdate,
-    current_user: Annotated[dict, Depends(require_permission("config:manage"))],
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     pack_service: Annotated[PackService, Depends(get_pack_service)],
 ):
     """Update a pack (admin only)."""
@@ -106,7 +106,7 @@ async def update_pack(
 @router.delete("/{pack_id}")
 async def delete_pack(
     pack_id: str,
-    current_user: Annotated[dict, Depends(require_permission("config:manage"))],
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     pack_service: Annotated[PackService, Depends(get_pack_service)],
 ):
     """Deactivate a pack (admin only)."""

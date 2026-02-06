@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     secret_key: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expire_hours: int = 24
+    secure_cookies: bool = False  # Set True when using HTTPS
 
     # File Storage
     photos_path: str = "./data/photos"

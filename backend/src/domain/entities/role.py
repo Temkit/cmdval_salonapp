@@ -29,6 +29,7 @@ class Permission(str, Enum):
     PRE_CONSULTATIONS_VIEW = "pre_consultations.view"
     PRE_CONSULTATIONS_CREATE = "pre_consultations.create"
     PRE_CONSULTATIONS_EDIT = "pre_consultations.edit"
+    PRE_CONSULTATIONS_DELETE = "pre_consultations.delete"
     PRE_CONSULTATIONS_VALIDATE = "pre_consultations.validate"
 
     # Users
@@ -42,6 +43,7 @@ class Permission(str, Enum):
     # Configuration
     CONFIG_QUESTIONNAIRE = "config.questionnaire"
     CONFIG_ZONES = "config.zones"
+    CONFIG_MANAGE = "config.manage"
 
     # Boxes
     BOXES_VIEW = "boxes.view"

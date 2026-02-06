@@ -37,7 +37,7 @@ async def login(
             key=SESSION_COOKIE_NAME,
             value=token,
             httponly=True,
-            secure=not settings.debug,
+            secure=settings.secure_cookies,
             samesite="lax",
             max_age=SESSION_MAX_AGE,
             path="/",
@@ -62,7 +62,7 @@ async def logout(response: Response):
         key=SESSION_COOKIE_NAME,
         path="/",
         httponly=True,
-        secure=not settings.debug,
+        secure=settings.secure_cookies,
         samesite="lax",
     )
     return MessageResponse(message="Deconnexion reussie")
