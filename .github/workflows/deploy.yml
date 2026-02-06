@@ -1,24 +1,142 @@
-name: Deploy to AWS Lightsail
+name: Deploy to Production
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend-v2/**'
+      - 'docker-compose.yml'
+      - 'nginx/**'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
+
+env:
+  SERVER_IP: 10.0.2.144
+  SERVER_USER: sidali
+  DEPLOY_PATH: /home/sidali/salonapp
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: Deploy to Lightsail
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          host: ${{ secrets.LIGHTSAIL_HOST }}
-          username: ubuntu
-          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
-          script: |
-            cd ~/salonapp
-            git pull origin main
-            docker compose build --no-cache
-            docker compose up -d
-            docker system prune -f
+          fetch-depth: 2
+
+      - name: Install WireGuard
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wireguard
+
+      - name: Configure WireGuard
+        run: |
+          sudo tee /etc/wireguard/wg0.conf > /dev/null << EOF
+          [Interface]
+          PrivateKey = ${{ secrets.WG_PRIVATE_KEY }}
+          Address = 172.16.0.14/32
+
+          [Peer]
+          PublicKey = lo83SB8lMExrtuaXfyxiK+d+sLLM8XHIEw0cx5zSUSY=
+          AllowedIPs = 172.16.0.0/29, 10.0.2.0/23
+          Endpoint = val.cduval.org:51820
+          PersistentKeepalive = 25
+          EOF
+          sudo chmod 600 /etc/wireguard/wg0.conf
+
+      - name: Connect to VPN
+        run: |
+          sudo wg-quick up wg0
+          sleep 5
+          ping -c 3 ${{ env.SERVER_IP }}
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Determine services to deploy
+        id: services
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy=${{ github.event.inputs.service }}" >> $GITHUB_OUTPUT
+          else
+            BACKEND=$(git diff --name-only HEAD~1 HEAD | grep -c '^backend/' || true)
+            FRONTEND=$(git diff --name-only HEAD~1 HEAD | grep -c '^frontend-v2/' || true)
+
+            if [ "$BACKEND" -gt 0 ] && [ "$FRONTEND" -gt 0 ]; then
+              echo "deploy=all" >> $GITHUB_OUTPUT
+            elif [ "$BACKEND" -gt 0 ]; then
+              echo "deploy=backend" >> $GITHUB_OUTPUT
+            elif [ "$FRONTEND" -gt 0 ]; then
+              echo "deploy=frontend" >> $GITHUB_OUTPUT
+            else
+              echo "deploy=all" >> $GITHUB_OUTPUT
+            fi
+          fi
+          echo "Deploying: ${{ steps.services.outputs.deploy }}"
+
+      - name: Sync backend
+        if: steps.services.outputs.deploy == 'all' || steps.services.outputs.deploy == 'backend'
+        run: |
+          rsync -avz --delete \
+            --exclude='__pycache__' \
+            --exclude='.venv' \
+            --exclude='*.pyc' \
+            backend/ ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:${{ env.DEPLOY_PATH }}/backend/
+
+      - name: Sync frontend
+        if: steps.services.outputs.deploy == 'all' || steps.services.outputs.deploy == 'frontend'
+        run: |
+          rsync -avz --delete \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            --exclude='.next' \
+            frontend-v2/ ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:${{ env.DEPLOY_PATH }}/frontend-v2/
+
+      - name: Sync config files
+        run: |
+          rsync -avz docker-compose.yml ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:${{ env.DEPLOY_PATH }}/
+          rsync -avz nginx/ ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:${{ env.DEPLOY_PATH }}/nginx/
+
+      - name: Build and deploy
+        run: |
+          DEPLOY="${{ steps.services.outputs.deploy }}"
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} "cd ${{ env.DEPLOY_PATH }} && \
+            if [ '$DEPLOY' = 'all' ]; then \
+              docker compose build && docker compose up -d; \
+            elif [ '$DEPLOY' = 'backend' ]; then \
+              docker compose build backend && docker compose up -d backend; \
+            elif [ '$DEPLOY' = 'frontend' ]; then \
+              docker compose build frontend && docker compose up -d frontend; \
+            fi"
+
+      - name: Run migrations
+        if: steps.services.outputs.deploy == 'all' || steps.services.outputs.deploy == 'backend'
+        run: |
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} \
+            "cd ${{ env.DEPLOY_PATH }} && docker compose run --rm backend alembic upgrade head"
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -sf http://${{ env.SERVER_IP }}/health
+          echo "Deployment successful!"
+
+      - name: Disconnect VPN
+        if: always()
+        run: sudo wg-quick down wg0 || true

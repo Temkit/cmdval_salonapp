@@ -184,6 +184,77 @@ The following environment variables are configured in `docker-compose.yml`:
 └─────────────────┘
 ```
 
+## CI/CD with GitHub Actions
+
+Automatic deployment is configured via `.github/workflows/deploy.yml`.
+
+### Required GitHub Secrets
+
+Go to **Settings > Secrets and variables > Actions** and add:
+
+| Secret | Description | How to get |
+|--------|-------------|------------|
+| `WG_PRIVATE_KEY` | WireGuard private key for CI | Generate new key pair (see below) |
+| `SERVER_SSH_KEY` | SSH private key for server access | Generate ed25519 key (see below) |
+
+### Setup Steps
+
+#### 1. Generate WireGuard key pair for CI
+
+```bash
+# Generate new key pair
+wg genkey | tee ci-private.key | wg pubkey > ci-public.key
+
+# Show private key (add to GitHub Secrets as WG_PRIVATE_KEY)
+cat ci-private.key
+
+# Show public key (send to VPN admin to add as peer)
+cat ci-public.key
+```
+
+Ask the backend team to add the CI public key as a new peer with address `172.16.0.14/32`.
+
+#### 2. Generate SSH key for CI
+
+```bash
+# Generate SSH key
+ssh-keygen -t ed25519 -f ci-ssh-key -N ""
+
+# Show private key (add to GitHub Secrets as SERVER_SSH_KEY)
+cat ci-ssh-key
+
+# Add public key to server
+sshpass -p 'S1D@liY3t*-' ssh sidali@10.0.2.144 \
+  "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" < ci-ssh-key.pub
+```
+
+#### 3. Add secrets to GitHub
+
+1. Go to https://github.com/Temkit/cmdval_salonapp/settings/secrets/actions
+2. Click "New repository secret"
+3. Add `WG_PRIVATE_KEY` with the WireGuard private key
+4. Add `SERVER_SSH_KEY` with the SSH private key
+
+### Trigger Deployments
+
+**Automatic**: Push to `main` branch (only deploys changed services)
+
+**Manual**:
+1. Go to Actions tab
+2. Select "Deploy to Production"
+3. Click "Run workflow"
+4. Choose service (all/backend/frontend)
+
+### Workflow Features
+
+- Connects to VPN via WireGuard
+- Detects which services changed
+- Syncs only changed files via rsync
+- Builds and deploys Docker containers
+- Runs database migrations for backend changes
+- Health check after deployment
+- Auto-disconnects VPN on completion
+
 ## Troubleshooting
 
 ### Auth not working (401 errors after login)
@@ -197,3 +268,12 @@ The following environment variables are configured in `docker-compose.yml`:
 ### Frontend not loading
 - Check nginx logs: `docker compose logs nginx`
 - Verify frontend built: `docker compose logs frontend`
+
+### CI/CD VPN connection fails
+- Verify WireGuard key was added as peer by VPN admin
+- Check the endpoint `val.cduval.org:51820` is reachable
+- Ensure CI address `172.16.0.14/32` doesn't conflict with other peers
+
+### CI/CD SSH fails
+- Verify public key was added to `~/.ssh/authorized_keys` on server
+- Check SSH key format (should be ed25519 or RSA)
