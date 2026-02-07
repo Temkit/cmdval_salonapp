@@ -9,7 +9,7 @@
 1. [Connexion](#1-connexion)
 2. [File d'attente](#2-file-dattente)
 3. [Gestion des patients](#3-gestion-des-patients)
-4. [Pré-consultations](#4-pré-consultations)
+4. [Pré-consultations (8 étapes)](#4-pré-consultations-8-étapes)
 5. [Workflow quotidien](#5-workflow-quotidien)
 
 ---
@@ -28,25 +28,17 @@
 
 4. Cliquez sur **"Se connecter"**
 
-Après connexion, vous arrivez directement sur la **file d'attente**.
+Après connexion, vous arrivez sur la **file d'attente** (page d'accueil secrétaire).
 
 ---
 
 ## 2. File d'attente
 
-La file d'attente est votre écran principal de travail. Elle affiche tous les patients présents dans le centre.
+La file d'attente est votre écran principal de travail.
 
 ### Vue d'ensemble
 
 ![File d'attente secrétaire](./screenshots/secretaire/02-queue.png)
-
-### Sections de la file
-
-| Section | Description |
-|---------|-------------|
-| **En attente** | Patients arrivés, pas encore appelés |
-| **En cabine** | Patients en cours de traitement |
-| **Terminés** | Patients ayant fini leur séance |
 
 ### Ajouter un patient à la file
 
@@ -63,38 +55,25 @@ La file d'attente est votre écran principal de travail. Elle affiche tous les p
 #### Nouveau patient
 
 Si le patient n'existe pas :
-
 1. Cliquez sur **"Nouveau patient"**
 2. Vous serez redirigé vers le formulaire de pré-consultation
 
-### Gérer un patient dans la file
+### Carte patient dans la file
 
-Chaque carte patient affiche :
-
-![Carte patient file](./screenshots/secretaire/04-queue-card.png)
-
-- **Photo** (si disponible)
+Chaque carte affiche :
 - **Nom et prénom**
 - **Heure d'arrivée**
-- **Zones à traiter** avec le nombre de séances restantes
+- **Zones à traiter** avec séances restantes
 - **Temps d'attente**
 
-#### Actions disponibles
+![Carte patient](./screenshots/secretaire/04-queue-card.png)
 
-| Bouton | Action |
-|--------|--------|
-| **Voir fiche** | Ouvre le détail du patient |
-| **Reporter** | Replace le patient en fin de file |
-| **Retirer** | Retire le patient de la file |
-
-### Notifications en temps réel
+### Notifications temps réel
 
 La file se met à jour automatiquement quand :
 - Un praticien appelle un patient
 - Une séance est terminée
-- Un autre utilisateur ajoute un patient
-
-![Notification](./screenshots/secretaire/05-queue-notification.png)
+- Un autre utilisateur modifie la file
 
 ---
 
@@ -104,162 +83,156 @@ La file se met à jour automatiquement quand :
 
 1. Cliquez sur **"Patients"** dans le menu latéral
 
-![Liste patients](./screenshots/secretaire/06-patients-list.png)
+![Liste patients](./screenshots/secretaire/05-patients-list.png)
 
 ### Rechercher un patient
 
-Utilisez la barre de recherche en haut de page :
-
-- Tapez le **nom** ou **prénom**
-- Ou le **numéro de téléphone**
-- Ou le **code carte**
-
-Les résultats s'affichent en temps réel.
+Utilisez la barre de recherche :
+- Nom ou prénom
+- Numéro de téléphone
+- Code carte
 
 ### Consulter la fiche patient
 
-1. Cliquez sur le nom du patient dans la liste
+Cliquez sur le nom du patient pour voir sa fiche.
 
-![Fiche patient](./screenshots/secretaire/07-patient-detail.png)
+![Fiche patient](./screenshots/secretaire/06-patient-detail.png)
 
-#### Informations affichées
-
-**Onglet Informations**
-- Coordonnées complètes
-- Date de naissance
-- Phototype
-- Notes
-
-**Onglet Zones**
-
-![Zones patient](./screenshots/secretaire/08-patient-zones.png)
+**Onglet Zones :**
 
 Pour chaque zone :
 - Nom de la zone
 - Progression (séances effectuées / total)
 - Barre de progression visuelle
 
-**Onglet Séances**
-- Historique de toutes les séances
-- Date, zones traitées, praticien
-- Observations éventuelles
-
-**Onglet Paiements**
-- Historique des paiements
-- Type de paiement (carte, espèces, chèque)
-- Montants
-
-### Modifier les informations patient
-
-1. Ouvrez la fiche du patient
-2. Cliquez sur **"Modifier"**
-3. Mettez à jour les informations
-4. Cliquez sur **"Enregistrer"**
-
-![Modifier patient](./screenshots/secretaire/09-patient-edit.png)
-
-> **Note** : Certaines modifications (zones, séances) nécessitent des droits administrateur.
+![Zones patient](./screenshots/secretaire/07-patient-zones.png)
 
 ---
 
-## 4. Pré-consultations
+## 4. Pré-consultations (8 étapes)
 
-La pré-consultation est l'étape obligatoire avant de créer un patient dans le système.
+La pré-consultation est **obligatoire** avant de créer un patient. Elle comporte **8 étapes**.
 
 ### Pourquoi la pré-consultation ?
 
-Elle permet de :
 - Recueillir les informations médicales
 - Identifier les contre-indications
-- Déterminer les zones éligibles au traitement
-- Obtenir le consentement éclairé
+- Déterminer les zones éligibles
+- Remplir le questionnaire configurable
 
 ### Créer une pré-consultation
 
-#### Étape 1 : Accéder au formulaire
-
 1. Cliquez sur **"Patients"** → **"Nouveau"**
-2. Ou depuis la file d'attente → **"Nouveau patient"**
+2. Ou depuis la file → **"Nouveau patient"**
 
-Vous êtes redirigé vers le formulaire de pré-consultation.
+Vous êtes redirigé vers le formulaire en 8 étapes.
 
-![Intro pré-consultation](./screenshots/secretaire/10-preconsult-intro.png)
+### Indicateur de progression
 
-#### Étape 2 : Informations du patient
+En haut du formulaire, des points indiquent la progression :
+- Point allongé bleu = étape actuelle
+- Petits points bleus = étapes complétées
+- Petits points gris = étapes restantes
 
-![Étape patient](./screenshots/secretaire/11-preconsult-patient.png)
+![Progression](./screenshots/secretaire/08-preconsult-progress.png)
 
-**Pour un nouveau patient :**
-- Saisissez le prénom, nom, téléphone
-- Optionnel : email, code carte
+---
+
+### Étape 0/7 : Patient
+
+![Étape 0 - Patient](./screenshots/secretaire/09-preconsult-step0.png)
 
 **Pour un patient existant :**
-- Recherchez et sélectionnez le patient
-- Cliquez sur "Changer" pour modifier
+1. Tapez dans la barre de recherche
+2. Sélectionnez le patient
+3. Cliquez sur "Changer" pour modifier
 
-#### Étape 3 : Données démographiques
+**Pour un nouveau patient :**
+1. Cliquez sur **"Nouveau patient"**
+2. Remplissez :
+   - **Prénom** (obligatoire)
+   - **Nom** (obligatoire)
+   - **Téléphone**
+   - **Code carte** (généré automatiquement si vide)
+3. Cliquez sur **"Créer et continuer"**
 
-![Étape démographiques](./screenshots/secretaire/12-preconsult-demo.png)
+---
 
-Remplissez :
-- **Sexe** : Femme / Homme
-- **Âge** : En années
-- **Statut marital** : Célibataire, Marié(e), Divorcé(e), Veuf/Veuve
-- **Phototype** : I à VI (cliquez sur la couleur correspondante)
+### Étape 1/7 : Démographiques
 
-#### Étape 4 : Contre-indications (femmes uniquement)
+![Étape 1 - Démographiques](./screenshots/secretaire/10-preconsult-step1.png)
 
-![Étape contre-indications](./screenshots/secretaire/13-preconsult-contraind.png)
+| Champ | Type | Options |
+|-------|------|---------|
+| **Sexe** | Boutons | Femme / Homme |
+| **Âge** | Nombre | Champ numérique (obligatoire) |
+| **Statut marital** | Boutons | Célibataire, Marié(e), Divorcé(e), Veuf/Veuve |
+| **Phototype** | Grille | I, II, III, IV, V, VI |
 
-Vérifiez auprès de la patiente :
-- **Enceinte** : Grossesse en cours
-- **Allaitement** : Allaitement en cours
-- **Projet de grossesse** : Dans les 6 prochains mois
+---
 
-> **Attention** : Si l'une de ces cases est cochée, une alerte s'affiche. Le traitement laser est contre-indiqué.
+### Étape 2/7 : Contre-indications (femmes uniquement)
 
-#### Étape 5 : Historique laser
+**Cette étape s'affiche uniquement si Sexe = Femme.**
 
-![Étape historique laser](./screenshots/secretaire/14-preconsult-laser.png)
+![Étape 2 - Contre-indications](./screenshots/secretaire/11-preconsult-step2.png)
 
-Demandez au patient s'il a déjà fait des séances laser :
+Cases à cocher :
+- **Enceinte**
+- **Allaitement**
+- **Projet de grossesse**
 
-**Si oui :**
-- A-t-il utilisé le Clarity II ?
-- Combien de séances ?
-- Quelle marque d'appareil ?
+> **Attention** : Si une case est cochée, une alerte rouge s'affiche :
+> "Attention : une ou plusieurs contre-indications sont présentes."
 
-#### Étape 6 : Antécédents médicaux
+---
 
-![Étape antécédents](./screenshots/secretaire/15-preconsult-medical.png)
+### Étape 3/7 : Historique laser
 
-**Conditions médicales** (cochez si présent) :
+![Étape 3 - Historique laser](./screenshots/secretaire/12-preconsult-step3.png)
+
+1. Cochez **"A déjà fait du laser"** si oui
+
+Si coché, des champs supplémentaires apparaissent :
+- **Clarity II** : case à cocher
+- **Nombre de séances** : champ numérique
+- **Marque de l'appareil** : champ texte (ex: Soprano)
+
+---
+
+### Étape 4/7 : Antécédents médicaux
+
+![Étape 4 - Antécédents](./screenshots/secretaire/13-preconsult-step4.png)
+
+**Conditions médicales** (grille de cases) :
 - Épilepsie
-- SOPK (Syndrome des ovaires polykystiques)
-- Troubles hormonaux
+- SOPK
+- Trouble hormonal
 - Diabète
-- Maladies auto-immunes
-- Cicatrices chéloïdes
+- Maladie auto-immune
+- Kéloïdes
 - Herpès
+- Acné juvénile
+- Migraine photosensible
+- Mycose
+- Hyper-réactivité cutanée
+- Tumeur cutanée
 
 **Conditions dermatologiques** :
-- Eczéma
-- Psoriasis
-- Vitiligo
-- Acné
-- Rosacée
-- Mélasma
+- Eczéma, Psoriasis, Vitiligo, Acné, Rosacée, Mélasma
 
-**Traitements en cours** :
-- Toggle oui/non
-- Si oui, détaillez dans la zone de texte
+**Traitement en cours** :
+- Case à cocher
+- Si oui : zone de texte pour les détails
 
 **Peeling récent** :
-- Dans les 3 derniers mois ?
+- Case à cocher
 
-#### Étape 7 : Méthodes d'épilation
+---
 
-![Étape épilation](./screenshots/secretaire/16-preconsult-epilation.png)
+### Étape 5/7 : Méthodes d'épilation
+
+![Étape 5 - Méthodes épilation](./screenshots/secretaire/14-preconsult-step5.png)
 
 Cochez les méthodes utilisées par le patient :
 - Rasoir
@@ -267,121 +240,140 @@ Cochez les méthodes utilisées par le patient :
 - Crème dépilatoire
 - Fil
 - Pince à épiler
-- Épilateur électrique
+- Épilateur
 - Tondeuse
+- Laser
 
-#### Étape 8 : Zones éligibles
+---
 
-![Étape zones](./screenshots/secretaire/17-preconsult-zones.png)
+### Étape 6/7 : Zones éligibles
 
-1. Cliquez sur **"+ Ajouter une zone"**
-2. Sélectionnez la zone dans la liste
-3. Pour chaque zone ajoutée :
-   - **Éligible** : Toggle vert = traitement possible
-   - **Non éligible** : Toggle rouge + saisir les observations
+![Étape 6 - Zones](./screenshots/secretaire/15-preconsult-step6.png)
 
-![Zone non éligible](./screenshots/secretaire/18-preconsult-zone-ineligible.png)
+**Ajouter une zone :**
+1. Cliquez sur un bouton zone (ex: "+ Jambes")
+2. La zone s'ajoute à la liste
 
-4. Ajoutez des notes générales si nécessaire
+**Pour chaque zone ajoutée :**
+- Bouton **"Éligible"** (vert) / **"Non éligible"** (rouge)
+- Si non éligible : zone de texte pour les observations
+- Bouton corbeille pour supprimer
+
+![Zone non éligible](./screenshots/secretaire/16-preconsult-zone-ineligible.png)
+
+**Notes générales :**
+Zone de texte pour observations supplémentaires.
+
+> **Important** : Au moins une zone doit être ajoutée pour continuer.
+
+---
+
+### Étape 7/7 : Questionnaire
+
+![Étape 7 - Questionnaire](./screenshots/secretaire/17-preconsult-step7.png)
+
+Cette étape affiche les questions configurées par l'administrateur.
+
+**Types de questions :**
+
+| Type | Affichage |
+|------|-----------|
+| **Boolean** | Boutons "Oui" / "Non" |
+| **Texte** | Zone de texte |
+| **Nombre** | Champ numérique |
+| **Choix** | Boutons pour chaque option |
+| **Multiple** | Cases à cocher pour chaque option |
+
+Les questions obligatoires sont marquées d'un astérisque rouge (*).
+
+> **Note** : Si aucune question n'est configurée, le message "Aucune question configurée" s'affiche.
+
+---
 
 ### Soumettre la pré-consultation
 
-1. Vérifiez toutes les informations
-2. Cliquez sur **"Enregistrer"**
+Après l'étape 7, cliquez sur **"Créer la pré-consultation"**.
+
+![Soumettre](./screenshots/secretaire/18-preconsult-submit.png)
 
 La pré-consultation est créée en statut **"Brouillon"**.
 
-![Soumettre pré-consultation](./screenshots/secretaire/19-preconsult-submit.png)
+Vous êtes redirigé vers la page de détail où vous pouvez :
+1. Cliquez sur **"Soumettre pour validation"**
+2. Le statut passe à **"En attente de validation"**
 
-3. Cliquez sur **"Soumettre pour validation"**
+---
 
-Le statut passe à **"En attente de validation"**.
-
-### Suivre mes pré-consultations
+### Suivre les pré-consultations
 
 1. Cliquez sur **"Pré-consultations"** dans le menu
 
-![Liste pré-consultations](./screenshots/secretaire/20-preconsult-list.png)
+![Liste pré-consultations](./screenshots/secretaire/19-preconsult-list.png)
 
-Vous voyez toutes les pré-consultations avec leur statut :
+**Statuts :**
 
 | Badge | Signification |
 |-------|---------------|
-| 🟡 **Brouillon** | En cours de saisie |
-| 🔵 **En attente** | Soumise, attend validation admin |
-| 🟢 **Validée** | Approuvée par un admin |
-| 🔴 **Refusée** | Refusée (voir le motif) |
+| **Brouillon** | En cours, pas encore soumise |
+| **En attente** | Soumise, attend validation admin |
+| **Validée** | Approuvée |
+| **Refusée** | Refusée (voir le motif) |
 
 ### Pré-consultation refusée
 
-Si une pré-consultation est refusée :
-
+Si refusée :
 1. Ouvrez la pré-consultation
-2. Consultez le **motif du refus** en haut de page
-3. Vous pouvez créer une nouvelle pré-consultation avec les corrections
+2. Le motif du refus s'affiche en haut
+3. Créez une nouvelle pré-consultation si nécessaire
 
-![Pré-consultation refusée](./screenshots/secretaire/21-preconsult-rejected.png)
+![Refusée](./screenshots/secretaire/20-preconsult-rejected.png)
 
 ---
 
 ## 5. Workflow quotidien
 
-### Début de journée
-
-1. **Connexion** à l'application
-2. **Vérification** de la file d'attente
-3. **Accueil** des premiers patients
-
 ### Arrivée d'un patient
 
 ```
 Patient arrive
-     ↓
-Patient connu ? ──Non──→ Créer pré-consultation
-     ↓ Oui                      ↓
-Ajouter à la file      Soumettre pour validation
-     ↓                         ↓
-Patient en attente     Attendre validation admin
-                              ↓
-                       Patient créé
-                              ↓
-                       Ajouter à la file
+      ↓
+Patient connu ? ───Non───→ Créer pré-consultation (8 étapes)
+      ↓ Oui                         ↓
+Ajouter à la file           Soumettre pour validation
+      ↓                             ↓
+Patient en attente          Attendre validation admin
+                                    ↓
+                            Si validée → Patient créé
+                                    ↓
+                            Ajouter à la file
 ```
-
-![Workflow arrivée](./screenshots/secretaire/22-workflow-arrival.png)
 
 ### Pendant la journée
 
 - **Surveiller** la file d'attente
 - **Ajouter** les patients arrivants
-- **Gérer** les retards et reports
-- **Répondre** aux questions des patients
+- **Créer** les pré-consultations pour les nouveaux
 
-### Fin de journée
+### Conseils pratiques
 
-1. Vérifier que tous les patients sont traités
-2. Noter les rendez-vous manqués
-3. Préparer le planning du lendemain
+| Situation | Action |
+|-----------|--------|
+| Recherche rapide | Utilisez le code carte |
+| Nouveau patient | Commencez par la pré-consultation |
+| Contre-indication | Informez immédiatement un responsable |
+| Doute médical | Demandez à un administrateur |
 
 ---
 
-## Conseils pratiques
+## Navigation
 
-### Recherche rapide
-
-- Utilisez le **code carte** pour une recherche plus rapide
-- Le **numéro de téléphone** fonctionne aussi
-
-### Gestion des files longues
-
-- Informez les patients du temps d'attente estimé
-- Utilisez la fonction **"Reporter"** pour les urgences
-
-### Pré-consultations
-
-- Préparez le questionnaire **avant** l'arrivée du patient si possible
-- Soyez attentif aux **contre-indications** (grossesse, allaitement)
-- En cas de doute, demandez à un administrateur
+| Menu | Description |
+|------|-------------|
+| **File d'attente** | Page d'accueil, patients en attente |
+| **Patients** | Liste de tous les patients |
+| **Pré-consultations** | Liste des pré-consultations |
+| **Agenda** | Planning des rendez-vous |
+| **Paiements** | Historique des paiements |
 
 ---
 
@@ -394,4 +386,5 @@ En cas de problème :
 
 ---
 
-*Documentation Optiskin v2.2.0 - Janvier 2026*
+*Documentation Optiskin v2.2.0 - Février 2026*
+*Basée sur le code source frontend-v2*

@@ -8,7 +8,7 @@
 
 1. [Connexion et sélection de cabine](#1-connexion-et-sélection-de-cabine)
 2. [File d'attente](#2-file-dattente)
-3. [Réalisation d'une séance](#3-réalisation-dune-séance)
+3. [Assistant de séance (3 étapes)](#3-assistant-de-séance-3-étapes)
 4. [Séance active](#4-séance-active)
 5. [Workflow quotidien](#5-workflow-quotidien)
 
@@ -30,7 +30,7 @@
 
 ### Sélectionner votre cabine
 
-Après connexion, vous devez choisir votre cabine de travail.
+Après connexion, vous pouvez choisir votre cabine de travail.
 
 ![Sélection cabine](./screenshots/praticien/02-select-box.png)
 
@@ -43,14 +43,6 @@ Après connexion, vous devez choisir votre cabine de travail.
 3. Cliquez sur une cabine **disponible**
 4. Vous êtes redirigé vers la file d'attente
 
-> **Note** : Vous pouvez changer de cabine à tout moment via le menu.
-
-### Indicateur de cabine
-
-Une fois la cabine sélectionnée, son numéro s'affiche dans l'en-tête.
-
-![Indicateur cabine](./screenshots/praticien/03-box-indicator.png)
-
 ---
 
 ## 2. File d'attente
@@ -59,7 +51,7 @@ La file d'attente affiche les patients prêts pour leur séance.
 
 ### Vue d'ensemble
 
-![File d'attente praticien](./screenshots/praticien/04-queue.png)
+![File d'attente praticien](./screenshots/praticien/03-queue.png)
 
 ### Comprendre la file
 
@@ -68,7 +60,6 @@ Chaque carte patient affiche :
 | Information | Description |
 |-------------|-------------|
 | **Nom** | Nom et prénom du patient |
-| **Photo** | Photo du patient (si disponible) |
 | **Zones** | Zones à traiter avec séances restantes |
 | **Attente** | Temps écoulé depuis l'arrivée |
 | **Phototype** | Type de peau (I à VI) |
@@ -78,143 +69,177 @@ Chaque carte patient affiche :
 1. Repérez le patient suivant dans la file
 2. Cliquez sur le bouton **"Appeler"**
 
-![Appeler patient](./screenshots/praticien/05-queue-call.png)
+![Appeler patient](./screenshots/praticien/04-queue-call.png)
 
-3. Le patient est assigné à votre cabine
-4. Vous êtes redirigé vers l'écran de séance
-
-> **Conseil** : Respectez l'ordre de la file sauf indication contraire.
+3. Vous êtes redirigé vers l'assistant de séance
 
 ---
 
-## 3. Réalisation d'une séance
+## 3. Assistant de séance (3 étapes)
 
-### Écran de préparation de séance
+L'assistant de séance guide la préparation du traitement en **3 étapes**.
 
-Après avoir appelé un patient, vous voyez l'écran de préparation.
+### Étape 1/3 : Sélectionner les zones
 
-![Préparation séance](./screenshots/praticien/06-seance-prep.png)
+![Étape 1 - Zones](./screenshots/praticien/05-seance-step1.png)
 
-### Informations patient
-
-En haut de l'écran :
-- **Nom et prénom**
-- **Âge et phototype**
-- **Photo** du patient
-- **Alertes** éventuelles (contre-indications, notes)
-
-### Zones à traiter
-
-La liste affiche les zones du patient :
-
-![Zones à traiter](./screenshots/praticien/07-seance-zones.png)
+L'écran affiche toutes les zones du patient avec des séances restantes.
 
 Pour chaque zone :
 - **Nom de la zone**
-- **Progression** : X / Y séances (ex: 3/6)
-- **Case à cocher** : Sélectionner pour cette séance
+- **Progression** : Séance X/Y (ex: 3/6)
+- **Barre de progression** visuelle
+- **Case à cocher** : Cliquez pour sélectionner
 
-#### Sélectionner les zones
+**Actions :**
+1. Cliquez sur les cartes des zones à traiter
+2. Les zones sélectionnées ont une bordure bleue
+3. Cliquez sur **"Suivant"**
 
-1. Cochez les zones à traiter aujourd'hui
-2. Les zones déjà terminées (6/6) sont grisées
+> **Note** : Vous pouvez sélectionner plusieurs zones pour une séance multi-zones.
 
-![Sélection zones](./screenshots/praticien/08-seance-select-zones.png)
+### Étape 2/3 : Paramètres laser
 
-### Paramètres laser
+![Étape 2 - Paramètres](./screenshots/praticien/06-seance-step2.png)
 
-Pour chaque zone sélectionnée, configurez les paramètres :
+Pour chaque zone sélectionnée, configurez les paramètres laser.
 
-![Paramètres laser](./screenshots/praticien/09-seance-params.png)
+#### Type de laser
 
-| Paramètre | Description |
-|-----------|-------------|
-| **Fluence** | Énergie en J/cm² |
-| **Spot size** | Taille du spot |
-| **Fréquence** | Fréquence des impulsions |
-| **Durée d'impulsion** | En millisecondes |
+Deux boutons : **Alexandrite** ou **Yag**
 
-> **Note** : Les paramètres recommandés s'affichent selon le phototype.
+#### Taille du spot (mm)
 
-### Lancer la séance
+Boutons de sélection : 12, 15, 16, 18, 20, 22, 25
 
-1. Vérifiez les zones sélectionnées
-2. Vérifiez les paramètres laser
-3. Cliquez sur **"Démarrer la séance"**
+#### Paramètres numériques
 
-![Lancer séance](./screenshots/praticien/10-seance-start.png)
+| Champ | Unité | Description |
+|-------|-------|-------------|
+| **Fluence** | J/cm² | Énergie du laser |
+| **Pulse** | ms | Durée d'impulsion |
+| **Freq** | Hz | Fréquence |
+
+> **Astuce** : Les paramètres de la dernière séance sont chargés automatiquement.
+
+Cliquez sur **"Suivant"** pour continuer.
+
+### Étape 3/3 : Confirmer la séance
+
+![Étape 3 - Confirmation](./screenshots/praticien/07-seance-step3.png)
+
+L'écran de confirmation affiche :
+
+**Résumé patient :**
+- Initiales dans un cercle coloré
+- Nom complet
+- Phototype (badge)
+- Code carte (badge)
+
+**Résumé par zone :**
+- Nom de la zone
+- Numéro de séance (ex: 4/6)
+- Paramètres laser en badges :
+  - Type laser (Alexandrite/Yag)
+  - Spot (18mm)
+  - Fluence (J/cm²)
+  - Pulse (ms)
+  - Fréquence (Hz)
+
+**Action :**
+
+Cliquez sur le gros bouton **"Démarrer la séance"** pour lancer le traitement.
 
 ---
 
 ## 4. Séance active
 
-### Écran de séance en cours
+Après le démarrage, vous arrivez sur l'écran de séance active.
 
-![Séance active](./screenshots/praticien/11-active-session.png)
+### Écran principal
+
+![Séance active](./screenshots/praticien/08-active-session.png)
 
 L'écran affiche :
-- **Timer** : Temps écoulé depuis le début
-- **Patient** : Informations du patient
-- **Zones en cours** : Liste des zones sélectionnées
 
-### Pendant le traitement
+**En haut :**
+- Nom du patient
+- Badge de la zone en cours
+- Badge numéro de séance (ex: 4/6)
 
-#### Ajouter des observations
+**Au centre :**
+- **Chronomètre géant** : Temps écoulé (MM:SS ou H:MM:SS)
+- Indicateur **"EN PAUSE"** si en pause
 
-Pendant la séance, vous pouvez noter des observations :
+**Sous le chronomètre :**
+- Badges des paramètres laser configurés
 
-1. Cliquez sur **"+ Observation"**
-2. Sélectionnez le type :
-   - Réaction cutanée
-   - Douleur signalée
-   - Autre
+**Bouton rond :**
+- **Pause** (icône pause) : Met le chronomètre en pause
+- **Play** (icône lecture) : Reprend le chronomètre
 
-![Ajouter observation](./screenshots/praticien/12-session-observation.png)
+### Tiroir d'actions (drawer)
 
-3. Ajoutez un commentaire si nécessaire
-4. Validez
+En bas de l'écran, un tiroir coulissant permet d'accéder aux actions.
 
-#### Signaler un effet secondaire
+![Tiroir actions](./screenshots/praticien/09-active-drawer.png)
 
-En cas d'effet secondaire :
+**Tirez vers le haut** pour ouvrir le tiroir.
 
-1. Cliquez sur **"Signaler un effet"**
-2. Sélectionnez la sévérité :
-   - **Léger** : Rougeur normale
+#### Boutons d'action rapide
+
+| Bouton | Action |
+|--------|--------|
+| **Photo** | Prendre une photo avec l'appareil |
+| **Effet** | Signaler un effet secondaire |
+| **Note** | Ajouter une note |
+
+#### Formulaire effet secondaire
+
+![Effet secondaire](./screenshots/praticien/10-side-effect-form.png)
+
+1. Cliquez sur **"Effet"**
+2. Saisissez la description
+3. Sélectionnez la sévérité :
+   - **Léger** : Réaction normale
    - **Modéré** : Réaction plus importante
    - **Sévère** : Nécessite attention médicale
+4. Cliquez sur **"Ajouter"**
 
-![Effet secondaire](./screenshots/praticien/13-session-side-effect.png)
+#### Formulaire note
 
-3. Décrivez l'effet
-4. Validez
+1. Cliquez sur **"Note"**
+2. Saisissez votre observation
+3. Cliquez sur **"Ajouter"**
 
-> **Important** : Les effets sévères déclenchent une alerte automatique.
+#### Photos capturées
+
+Les photos prises s'affichent en miniature. Cliquez sur la corbeille pour supprimer.
+
+#### Effets enregistrés
+
+Liste des effets secondaires avec leur sévérité (badge coloré).
 
 ### Terminer la séance
 
-Quand le traitement est fini :
+1. Ouvrez le tiroir
+2. Cliquez sur **"Terminer la séance"**
 
-1. Cliquez sur **"Terminer la séance"**
+![Confirmation fin](./screenshots/praticien/11-end-confirm.png)
 
-![Terminer séance](./screenshots/praticien/14-session-end.png)
+3. Un dialogue de confirmation apparaît
+4. Cliquez sur **"Confirmer"**
 
-2. Confirmez la finalisation
+**Séance multi-zones :**
 
-### Écran de résumé
+Si plusieurs zones ont été sélectionnées, après la première zone :
+- Un toast affiche "Zone suivante: [nom]"
+- Le chronomètre repart à zéro
+- Répétez pour chaque zone
 
-Après validation, un résumé s'affiche :
-
-![Résumé séance](./screenshots/praticien/15-session-summary.png)
-
-- **Zones traitées** avec les paramètres utilisés
-- **Durée** de la séance
-- **Observations** enregistrées
-- **Prochaine séance** recommandée
-
-### Retour à la file
-
-Cliquez sur **"Patient suivant"** pour retourner à la file d'attente.
+Après la dernière zone :
+- Toast "Séance terminée et sauvegardée"
+- Retour automatique à la file d'attente
 
 ---
 
@@ -225,141 +250,100 @@ Cliquez sur **"Patient suivant"** pour retourner à la file d'attente.
 ```
 Connexion
     ↓
-Sélection de cabine
+Sélection de cabine (optionnel)
     ↓
-Vérifier la file d'attente
-    ↓
-Préparer le matériel
+File d'attente
 ```
-
-![Workflow début](./screenshots/praticien/16-workflow-start.png)
 
 ### Boucle de traitement
 
 ```
-┌─────────────────────────────┐
-│                             │
-│   Appeler patient suivant   │
-│            ↓                │
-│   Vérifier informations     │
-│            ↓                │
-│   Sélectionner les zones    │
-│            ↓                │
-│   Configurer paramètres     │
-│            ↓                │
-│   Réaliser le traitement    │
-│            ↓                │
-│   Noter les observations    │
-│            ↓                │
-│   Terminer la séance        │
-│            ↓                │
-└──────── Répéter ────────────┘
+┌─────────────────────────────────────┐
+│                                     │
+│   File d'attente                    │
+│        ↓                            │
+│   Cliquer "Appeler" sur un patient  │
+│        ↓                            │
+│   Étape 1: Sélectionner les zones   │
+│        ↓                            │
+│   Étape 2: Configurer paramètres    │
+│        ↓                            │
+│   Étape 3: Confirmer                │
+│        ↓                            │
+│   "Démarrer la séance"              │
+│        ↓                            │
+│   Traitement (chronomètre actif)    │
+│        ↓                            │
+│   "Terminer la séance"              │
+│        ↓                            │
+│   (Si multi-zones → zone suivante)  │
+│        ↓                            │
+└──────── Retour file ────────────────┘
 ```
 
-### Pendant les séances
+### Pendant la séance
 
-#### Avant chaque patient
+1. **Surveiller** le chronomètre
+2. **Mettre en pause** si interruption
+3. **Photographier** si nécessaire (avant/après, réaction)
+4. **Noter** tout effet secondaire immédiatement
+5. **Ajouter** des observations textuelles
 
-1. **Lire** les informations patient (phototype, antécédents)
-2. **Vérifier** les contre-indications
-3. **Confirmer** les zones à traiter
-4. **Adapter** les paramètres si nécessaire
+### Actions disponibles pendant la séance
 
-#### Pendant le traitement
-
-1. **Surveiller** les réactions cutanées
-2. **Ajuster** les paramètres si besoin
-3. **Noter** toute observation importante
-4. **Rassurer** le patient
-
-#### Après le traitement
-
-1. **Donner** les consignes post-séance
-2. **Planifier** le prochain rendez-vous
-3. **Documenter** la séance
-
-### Fin de journée
-
-1. Terminer toutes les séances en cours
-2. Vérifier que la file est vide
-3. Nettoyer la cabine
-4. Se déconnecter
+| Action | Quand l'utiliser |
+|--------|------------------|
+| **Photo** | Documenter l'état avant/après, réaction cutanée |
+| **Effet** | Toute réaction anormale (rougeur excessive, douleur) |
+| **Note** | Observations générales, ajustements effectués |
+| **Pause** | Interruption temporaire (question patient, incident) |
 
 ---
 
-## Bonnes pratiques
+## Paramètres laser recommandés
 
-### Sécurité patient
+### Par phototype
 
-| Vérification | Action |
-|--------------|--------|
-| Phototype | Adapter les paramètres |
-| Contre-indications | Ne pas traiter si présentes |
-| Historique | Vérifier les réactions précédentes |
-| Consentement | S'assurer qu'il est signé |
+| Phototype | Type laser | Fluence recommandée |
+|-----------|------------|---------------------|
+| I-II | Alexandrite | Standard |
+| III-IV | Alexandrite/Yag | Modérée |
+| V-VI | Yag | Réduite |
 
-### Paramètres laser
-
-#### Par phototype
-
-| Phototype | Fluence recommandée | Précautions |
-|-----------|---------------------|-------------|
-| I-II | Standard | Risque de brûlure faible |
-| III-IV | Réduite | Adapter progressivement |
-| V-VI | Très réduite | Surveillance accrue |
-
-### Documentation
-
-- **Notez** systématiquement les paramètres utilisés
-- **Signalez** tout effet inhabituel
-- **Photographiez** les zones si nécessaire (avant/après)
+> **Note** : Adaptez toujours selon l'historique du patient et les réactions précédentes.
 
 ---
 
 ## Situations particulières
 
-### Patient avec contre-indication découverte
+### Patient non trouvé
 
-1. **Arrêtez** immédiatement la préparation
-2. **Informez** le patient
-3. **Signalez** à l'accueil
-4. **Retournez** le patient à la file ou annulez
+Si "Patient introuvable" s'affiche :
+1. Cliquez sur **"Retour"**
+2. Vérifiez avec l'accueil
 
-### Réaction allergique pendant traitement
+### Aucune zone avec séances restantes
 
-1. **Arrêtez** le traitement
-2. **Évaluez** la situation
-3. **Appelez** de l'aide si nécessaire
-4. **Documentez** l'incident
+Si le message "Aucune zone avec des séances restantes" s'affiche :
+- Le patient a terminé toutes ses séances
+- Retournez à la file d'attente
 
 ### Problème technique
 
-1. **Sauvegardez** la séance en cours si possible
-2. **Informez** le support technique
-3. **Notez** manuellement les informations
-
----
-
-## Raccourcis
-
-| Action | Raccourci |
-|--------|-----------|
-| Retour file | Clic logo Optiskin |
-| Changer cabine | Menu → Changer cabine |
+1. Ne fermez pas l'onglet (la séance est en mémoire locale)
+2. Actualisez la page si bloqué
+3. Contactez l'administrateur
 
 ---
 
 ## Support
 
 En cas de problème technique :
-1. Vérifiez votre connexion
+1. Vérifiez votre connexion internet
 2. Actualisez la page
 3. Contactez l'administrateur
 
-En cas d'urgence médicale :
-- Suivez les protocoles du centre
-- Documentez l'incident après résolution
-
 ---
 
-*Documentation Optiskin v2.2.0 - Janvier 2026*
+*Documentation Optiskin v2.2.0 - Février 2026*
+*Basée sur le code source frontend-v2*
