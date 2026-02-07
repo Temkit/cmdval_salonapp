@@ -71,14 +71,14 @@ function AdminShell() {
 
   return (
     <div className="min-h-screen flex">
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r bg-card">
-        <div className="flex h-16 items-center gap-2 border-b px-6">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r bg-card h-screen sticky top-0">
+        <div className="flex h-16 items-center gap-2 border-b px-6 shrink-0">
           <img src="/Logo_Optiskin_400x400.png" alt="Optiskin" className="h-9 w-9 object-contain" />
           <span className="font-semibold">Optiskin</span>
           <span className="text-xs text-muted-foreground ml-auto">Admin</span>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {mainNav.map((item) => (
             <Link
               key={item.to}
@@ -142,7 +142,7 @@ function AdminShell() {
           </div>
         </nav>
 
-        <div className="border-t p-4">
+        <div className="border-t p-4 shrink-0">
           <div className="flex items-center gap-3 mb-3 px-3">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
               {user?.prenom?.[0]}{user?.nom?.[0]}
