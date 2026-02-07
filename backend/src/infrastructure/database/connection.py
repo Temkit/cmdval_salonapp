@@ -13,14 +13,25 @@ from sqlalchemy.orm import DeclarativeBase
 
 from src.core.config import settings
 
-# Create async engine
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-)
+# Create async engine with appropriate settings for database type
+_engine_kwargs = {
+    "echo": settings.debug,
+}
+
+# SQLite doesn't support connection pooling the same way as PostgreSQL
+if settings.database_url.startswith("sqlite"):
+    # SQLite uses StaticPool for async support
+    from sqlalchemy.pool import StaticPool
+
+    _engine_kwargs["poolclass"] = StaticPool
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # PostgreSQL supports connection pooling
+    _engine_kwargs["pool_pre_ping"] = True
+    _engine_kwargs["pool_size"] = 5
+    _engine_kwargs["max_overflow"] = 10
+
+engine = create_async_engine(settings.database_url, **_engine_kwargs)
 
 # Session factory
 async_session_factory = async_sessionmaker(

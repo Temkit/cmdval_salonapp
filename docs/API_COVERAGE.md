@@ -268,10 +268,25 @@
 
 ## Test Coverage
 
-Run tests with:
+### Running Tests
+
+Tests require a running PostgreSQL database with seeded admin user:
+
 ```bash
 cd backend
-pytest tests/integration/test_full_api.py -v
+
+# Option 1: Against local Docker database
+docker compose up -d db
+docker compose run --rm backend alembic upgrade head
+
+DATABASE_URL="postgresql+asyncpg://salonapp:salonapp_secret@localhost:5432/salonapp" \
+SECRET_KEY="test-secret" \
+PYTHONPATH=. pytest tests/integration/test_full_api.py -v
+
+# Option 2: Against deployed server (requires VPN)
+DATABASE_URL="postgresql+asyncpg://salonapp:salonapp_secret@10.0.2.144:5432/salonapp" \
+SECRET_KEY="production-secret-from-env" \
+PYTHONPATH=. pytest tests/integration/test_full_api.py -v
 ```
 
 **Total: 85+ test cases** covering:

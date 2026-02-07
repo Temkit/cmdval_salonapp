@@ -2,134 +2,14 @@
 Comprehensive API Integration Tests
 Tests ALL endpoints for ALL user roles.
 
-Run with: pytest tests/integration/test_full_api.py -v
+Run with: PYTHONPATH=. pytest tests/integration/test_full_api.py -v
 """
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import AsyncClient
 from uuid import uuid4
 
-from src.main import app
-
-
-# ============================================================================
-# FIXTURES
-# ============================================================================
-
-@pytest.fixture
-def anyio_backend():
-    return "asyncio"
-
-
-@pytest.fixture
-async def client():
-    """Unauthenticated client."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
-    ) as ac:
-        yield ac
-
-
-@pytest.fixture
-async def admin_client(client: AsyncClient):
-    """Authenticated admin client."""
-    response = await client.post("/api/v1/auth/login", json={
-        "username": "admin",
-        "password": "admin123"
-    })
-    assert response.status_code == 200, f"Admin login failed: {response.text}"
-    cookies = response.cookies
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        cookies=cookies
-    ) as ac:
-        yield ac
-
-
-@pytest.fixture
-async def secretary_client(client: AsyncClient, admin_client: AsyncClient):
-    """Authenticated secretary client."""
-    # First create a secretary user if not exists
-    roles_resp = await admin_client.get("/api/v1/roles")
-    roles = roles_resp.json().get("roles", [])
-    secretary_role = next((r for r in roles if r["nom"] == "Secrétaire"), None)
-
-    if not secretary_role:
-        # Create secretary role
-        role_resp = await admin_client.post("/api/v1/roles", json={
-            "nom": "Secrétaire",
-            "description": "Secrétaire test",
-            "permissions": ["patients.view", "patients.edit", "sessions.view",
-                          "pre_consultations.view", "pre_consultations.create",
-                          "pre_consultations.edit", "zones.view"]
-        })
-        secretary_role = role_resp.json()
-
-    # Create secretary user
-    username = f"secretary_{uuid4().hex[:8]}"
-    await admin_client.post("/api/v1/users", json={
-        "username": username,
-        "password": "test123",
-        "nom": "Test",
-        "prenom": "Secretary",
-        "role_id": secretary_role["id"]
-    })
-
-    # Login as secretary
-    response = await client.post("/api/v1/auth/login", json={
-        "username": username,
-        "password": "test123"
-    })
-    assert response.status_code == 200
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        cookies=response.cookies
-    ) as ac:
-        yield ac
-
-
-@pytest.fixture
-async def practitioner_client(client: AsyncClient, admin_client: AsyncClient):
-    """Authenticated practitioner client."""
-    roles_resp = await admin_client.get("/api/v1/roles")
-    roles = roles_resp.json().get("roles", [])
-    practitioner_role = next((r for r in roles if r["nom"] == "Praticien"), None)
-
-    if not practitioner_role:
-        role_resp = await admin_client.post("/api/v1/roles", json={
-            "nom": "Praticien",
-            "description": "Praticien test",
-            "permissions": ["patients.view", "sessions.view", "sessions.create",
-                          "boxes.view", "boxes.assign"]
-        })
-        practitioner_role = role_resp.json()
-
-    username = f"practitioner_{uuid4().hex[:8]}"
-    await admin_client.post("/api/v1/users", json={
-        "username": username,
-        "password": "test123",
-        "nom": "Test",
-        "prenom": "Practitioner",
-        "role_id": practitioner_role["id"]
-    })
-
-    response = await client.post("/api/v1/auth/login", json={
-        "username": username,
-        "password": "test123"
-    })
-    assert response.status_code == 200
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        cookies=response.cookies
-    ) as ac:
-        yield ac
+# Fixtures are imported from conftest.py
 
 
 # ============================================================================
@@ -139,7 +19,7 @@ async def practitioner_client(client: AsyncClient, admin_client: AsyncClient):
 class TestAuthentication:
     """Test auth endpoints."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_login_success(self, client: AsyncClient):
         """POST /auth/login - valid credentials."""
         response = await client.post("/api/v1/auth/login", json={
@@ -152,7 +32,7 @@ class TestAuthentication:
         assert data["token_type"] == "bearer"
         assert "session_token" in response.cookies
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_login_invalid_credentials(self, client: AsyncClient):
         """POST /auth/login - invalid credentials."""
         response = await client.post("/api/v1/auth/login", json={
@@ -161,7 +41,7 @@ class TestAuthentication:
         })
         assert response.status_code == 401
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_current_user(self, admin_client: AsyncClient):
         """GET /auth/me - get current user info."""
         response = await admin_client.get("/api/v1/auth/me")
@@ -171,13 +51,13 @@ class TestAuthentication:
         assert "role_nom" in data
         assert "permissions" in data
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_logout(self, admin_client: AsyncClient):
         """POST /auth/logout - logout."""
         response = await admin_client.post("/api/v1/auth/logout")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_change_password(self, admin_client: AsyncClient):
         """PUT /auth/password - change password."""
         # This would change the admin password, so we skip actual change
@@ -188,7 +68,7 @@ class TestAuthentication:
         })
         assert response.status_code == 400  # Wrong current password
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_unauthenticated_access(self, client: AsyncClient):
         """Test that protected endpoints require auth."""
         response = await client.get("/api/v1/auth/me")
@@ -202,7 +82,7 @@ class TestAuthentication:
 class TestUserManagement:
     """Test user CRUD endpoints."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_users(self, admin_client: AsyncClient):
         """GET /users - list all users."""
         response = await admin_client.get("/api/v1/users")
@@ -211,7 +91,7 @@ class TestUserManagement:
         assert "users" in data
         assert len(data["users"]) >= 1  # At least admin
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_user(self, admin_client: AsyncClient):
         """POST /users - create user."""
         roles_resp = await admin_client.get("/api/v1/roles")
@@ -230,7 +110,7 @@ class TestUserManagement:
         assert data["username"] == username
         return data["id"]
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_user(self, admin_client: AsyncClient):
         """GET /users/{id} - get user by id."""
         # First create a user
@@ -251,7 +131,7 @@ class TestUserManagement:
         assert response.status_code == 200
         assert response.json()["username"] == username
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_user(self, admin_client: AsyncClient):
         """PUT /users/{id} - update user."""
         roles_resp = await admin_client.get("/api/v1/roles")
@@ -273,7 +153,7 @@ class TestUserManagement:
         assert response.status_code == 200
         assert response.json()["nom"] == "Updated"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_delete_user(self, admin_client: AsyncClient):
         """DELETE /users/{id} - delete user."""
         roles_resp = await admin_client.get("/api/v1/roles")
@@ -292,7 +172,7 @@ class TestUserManagement:
         response = await admin_client.delete(f"/api/v1/users/{user_id}")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_duplicate_username(self, admin_client: AsyncClient):
         """POST /users - duplicate username error."""
         roles_resp = await admin_client.get("/api/v1/roles")
@@ -315,21 +195,21 @@ class TestUserManagement:
 class TestRoleManagement:
     """Test role CRUD endpoints."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_roles(self, admin_client: AsyncClient):
         """GET /roles - list all roles."""
         response = await admin_client.get("/api/v1/roles")
         assert response.status_code == 200
         assert "roles" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_permissions(self, admin_client: AsyncClient):
         """GET /roles/permissions - list all permissions."""
         response = await admin_client.get("/api/v1/roles/permissions")
         assert response.status_code == 200
         assert "permissions" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_role(self, admin_client: AsyncClient):
         """POST /roles - create role."""
         role_name = f"TestRole_{uuid4().hex[:8]}"
@@ -341,7 +221,7 @@ class TestRoleManagement:
         assert response.status_code == 201
         assert response.json()["nom"] == role_name
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_role(self, admin_client: AsyncClient):
         """PUT /roles/{id} - update role."""
         role_name = f"TestRole_{uuid4().hex[:8]}"
@@ -356,7 +236,7 @@ class TestRoleManagement:
         })
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_delete_role(self, admin_client: AsyncClient):
         """DELETE /roles/{id} - delete role."""
         role_name = f"TestRole_{uuid4().hex[:8]}"
@@ -377,14 +257,14 @@ class TestRoleManagement:
 class TestZoneManagement:
     """Test zone CRUD endpoints."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_zones(self, admin_client: AsyncClient):
         """GET /zones - list all zones."""
         response = await admin_client.get("/api/v1/zones")
         assert response.status_code == 200
         assert "zones" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_zone(self, admin_client: AsyncClient):
         """POST /zones - create zone."""
         code = f"Z{uuid4().hex[:6].upper()}"
@@ -399,7 +279,7 @@ class TestZoneManagement:
         assert data["code"] == code
         return data["id"]
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_zone(self, admin_client: AsyncClient):
         """GET /zones/{id} - get zone by id."""
         # Create zone first
@@ -414,7 +294,7 @@ class TestZoneManagement:
         response = await admin_client.get(f"/api/v1/zones/{zone_id}")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_zone(self, admin_client: AsyncClient):
         """PUT /zones/{id} - update zone."""
         code = f"Z{uuid4().hex[:6].upper()}"
@@ -431,7 +311,7 @@ class TestZoneManagement:
         assert response.status_code == 200
         assert response.json()["prix"] == 150.0
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_delete_zone(self, admin_client: AsyncClient):
         """DELETE /zones/{id} - delete zone."""
         code = f"Z{uuid4().hex[:6].upper()}"
@@ -453,7 +333,7 @@ class TestZoneManagement:
 class TestPatientManagement:
     """Test patient CRUD endpoints."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_patients(self, admin_client: AsyncClient):
         """GET /patients - list patients."""
         response = await admin_client.get("/api/v1/patients")
@@ -462,7 +342,7 @@ class TestPatientManagement:
         assert "patients" in data
         assert "total" in data
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_patient(self, admin_client: AsyncClient):
         """POST /patients - create patient."""
         response = await admin_client.post("/api/v1/patients", json={
@@ -477,7 +357,7 @@ class TestPatientManagement:
         assert "code_carte" in data
         return data["id"]
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_patient(self, admin_client: AsyncClient):
         """GET /patients/{id} - get patient details."""
         create_resp = await admin_client.post("/api/v1/patients", json={
@@ -492,7 +372,7 @@ class TestPatientManagement:
         data = response.json()
         assert "zones" in data  # Detail includes zones
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_patient(self, admin_client: AsyncClient):
         """PUT /patients/{id} - update patient."""
         create_resp = await admin_client.post("/api/v1/patients", json={
@@ -508,7 +388,7 @@ class TestPatientManagement:
         assert response.status_code == 200
         assert response.json()["telephone"] == "0622222222"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_search_patients(self, admin_client: AsyncClient):
         """GET /patients?q=search - search patients."""
         # Create a patient with unique name
@@ -523,7 +403,7 @@ class TestPatientManagement:
         assert response.status_code == 200
         assert len(response.json()["patients"]) >= 1
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_patient_by_card(self, admin_client: AsyncClient):
         """GET /patients/by-card/{code} - get by barcode."""
         create_resp = await admin_client.post("/api/v1/patients", json={
@@ -536,7 +416,7 @@ class TestPatientManagement:
         response = await admin_client.get(f"/api/v1/patients/by-card/{code_carte}")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_delete_patient(self, admin_client: AsyncClient):
         """DELETE /patients/{id} - delete patient."""
         create_resp = await admin_client.post("/api/v1/patients", json={
@@ -578,7 +458,7 @@ class TestPatientZones:
 
         return patient_id, zone_id
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_add_patient_zone(self, admin_client: AsyncClient, patient_and_zone):
         """POST /patients/{id}/zones - add zone to patient."""
         patient_id, zone_id = patient_and_zone
@@ -589,7 +469,7 @@ class TestPatientZones:
         })
         assert response.status_code == 201
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_patient_zones(self, admin_client: AsyncClient, patient_and_zone):
         """GET /patients/{id}/zones - list patient zones."""
         patient_id, zone_id = patient_and_zone
@@ -604,7 +484,7 @@ class TestPatientZones:
         assert response.status_code == 200
         assert len(response.json()["zones"]) >= 1
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_patient_zone(self, admin_client: AsyncClient, patient_and_zone):
         """PUT /patients/{id}/zones/{zone_id} - update patient zone."""
         patient_id, zone_id = patient_and_zone
@@ -620,7 +500,7 @@ class TestPatientZones:
         )
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_delete_patient_zone(self, admin_client: AsyncClient, patient_and_zone):
         """DELETE /patients/{id}/zones/{zone_id} - remove zone from patient."""
         patient_id, zone_id = patient_and_zone
@@ -660,14 +540,14 @@ class TestPreConsultation:
         })
         return pc_resp.json()["id"], patient_id
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_pre_consultations(self, admin_client: AsyncClient):
         """GET /pre-consultations - list all."""
         response = await admin_client.get("/api/v1/pre-consultations")
         assert response.status_code == 200
         assert "pre_consultations" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_pre_consultation(self, admin_client: AsyncClient):
         """POST /pre-consultations - create."""
         patient_resp = await admin_client.post("/api/v1/patients", json={
@@ -686,14 +566,14 @@ class TestPreConsultation:
         assert response.status_code == 201
         assert response.json()["status"] == "draft"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_pre_consultation(self, admin_client: AsyncClient, pre_consultation):
         """GET /pre-consultations/{id} - get details."""
         pc_id, _ = pre_consultation
         response = await admin_client.get(f"/api/v1/pre-consultations/{pc_id}")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_pre_consultation(self, admin_client: AsyncClient, pre_consultation):
         """PUT /pre-consultations/{id} - update."""
         pc_id, _ = pre_consultation
@@ -703,7 +583,7 @@ class TestPreConsultation:
         assert response.status_code == 200
         assert response.json()["age"] == 31
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_submit_pre_consultation(self, admin_client: AsyncClient, pre_consultation):
         """POST /pre-consultations/{id}/submit - submit for validation."""
         pc_id, _ = pre_consultation
@@ -711,7 +591,7 @@ class TestPreConsultation:
         assert response.status_code == 200
         assert response.json()["status"] == "pending_validation"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_validate_pre_consultation(self, admin_client: AsyncClient, pre_consultation):
         """POST /pre-consultations/{id}/validate - validate."""
         pc_id, _ = pre_consultation
@@ -724,7 +604,7 @@ class TestPreConsultation:
         assert response.status_code == 200
         assert response.json()["status"] == "validated"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_reject_pre_consultation(self, admin_client: AsyncClient):
         """POST /pre-consultations/{id}/reject - reject."""
         # Create and submit
@@ -750,7 +630,7 @@ class TestPreConsultation:
         assert response.status_code == 200
         assert response.json()["status"] == "rejected"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_pending_count(self, admin_client: AsyncClient):
         """GET /pre-consultations/stats/pending-count."""
         response = await admin_client.get("/api/v1/pre-consultations/stats/pending-count")
@@ -765,14 +645,14 @@ class TestPreConsultation:
 class TestQuestionnaire:
     """Test questionnaire management."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_questions(self, admin_client: AsyncClient):
         """GET /questionnaire/questions - list questions."""
         response = await admin_client.get("/api/v1/questionnaire/questions")
         assert response.status_code == 200
         assert "questions" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_question(self, admin_client: AsyncClient):
         """POST /questionnaire/questions - create question."""
         response = await admin_client.post("/api/v1/questionnaire/questions", json={
@@ -782,7 +662,7 @@ class TestQuestionnaire:
         })
         assert response.status_code == 201
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_question(self, admin_client: AsyncClient):
         """PUT /questionnaire/questions/{id} - update question."""
         create_resp = await admin_client.post("/api/v1/questionnaire/questions", json={
@@ -796,7 +676,7 @@ class TestQuestionnaire:
         })
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_reorder_questions(self, admin_client: AsyncClient):
         """PUT /questionnaire/questions/order - reorder."""
         # Get current questions
@@ -812,7 +692,7 @@ class TestQuestionnaire:
             })
             assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_delete_question(self, admin_client: AsyncClient):
         """DELETE /questionnaire/questions/{id} - delete."""
         create_resp = await admin_client.post("/api/v1/questionnaire/questions", json={
@@ -842,14 +722,14 @@ class TestPacksAndSubscriptions:
         })
         return resp.json()["id"]
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_packs(self, admin_client: AsyncClient):
         """GET /packs - list packs."""
         response = await admin_client.get("/api/v1/packs")
         assert response.status_code == 200
         assert "packs" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_pack(self, admin_client: AsyncClient, zone_for_pack):
         """POST /packs - create pack."""
         response = await admin_client.post("/api/v1/packs", json={
@@ -860,7 +740,7 @@ class TestPacksAndSubscriptions:
         })
         assert response.status_code == 201
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_pack(self, admin_client: AsyncClient, zone_for_pack):
         """PUT /packs/{id} - update pack."""
         create_resp = await admin_client.post("/api/v1/packs", json={
@@ -876,7 +756,7 @@ class TestPacksAndSubscriptions:
         })
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_subscription(self, admin_client: AsyncClient, zone_for_pack):
         """POST /patients/{id}/subscriptions - create subscription."""
         # Create patient
@@ -902,7 +782,7 @@ class TestPacksAndSubscriptions:
         })
         assert response.status_code == 201
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_patient_subscriptions(self, admin_client: AsyncClient):
         """GET /patients/{id}/subscriptions - list subscriptions."""
         patient_resp = await admin_client.post("/api/v1/patients", json={
@@ -933,20 +813,20 @@ class TestPromotions:
         })
         return resp.json()["id"]
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_promotions(self, admin_client: AsyncClient):
         """GET /promotions - list all."""
         response = await admin_client.get("/api/v1/promotions")
         assert response.status_code == 200
         assert "promotions" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_active_promotions(self, admin_client: AsyncClient):
         """GET /promotions/active - list active only."""
         response = await admin_client.get("/api/v1/promotions/active")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_promotion(self, admin_client: AsyncClient, zone_for_promo):
         """POST /promotions - create."""
         response = await admin_client.post("/api/v1/promotions", json={
@@ -957,7 +837,7 @@ class TestPromotions:
         })
         assert response.status_code == 201
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_zone_price_with_promotion(self, admin_client: AsyncClient, zone_for_promo):
         """GET /promotions/zones/{id}/price - get discounted price."""
         # Create promotion
@@ -981,14 +861,14 @@ class TestPromotions:
 class TestPayments:
     """Test payment operations."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_payments(self, admin_client: AsyncClient):
         """GET /paiements - list payments."""
         response = await admin_client.get("/api/v1/paiements")
         assert response.status_code == 200
         assert "paiements" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_payment(self, admin_client: AsyncClient):
         """POST /paiements - create payment."""
         # Create patient
@@ -1007,7 +887,7 @@ class TestPayments:
         })
         assert response.status_code == 201
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_patient_payments(self, admin_client: AsyncClient):
         """GET /paiements/patients/{id} - get patient payments."""
         patient_resp = await admin_client.post("/api/v1/patients", json={
@@ -1020,7 +900,7 @@ class TestPayments:
         response = await admin_client.get(f"/api/v1/paiements/patients/{patient_id}")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_payment_stats(self, admin_client: AsyncClient):
         """GET /paiements/stats - get revenue stats."""
         response = await admin_client.get("/api/v1/paiements/stats")
@@ -1034,14 +914,14 @@ class TestPayments:
 class TestBoxes:
     """Test box management."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_list_boxes(self, admin_client: AsyncClient):
         """GET /boxes - list boxes."""
         response = await admin_client.get("/api/v1/boxes")
         assert response.status_code == 200
         assert "boxes" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_box(self, admin_client: AsyncClient):
         """POST /boxes - create box."""
         response = await admin_client.post("/api/v1/boxes", json={
@@ -1050,7 +930,7 @@ class TestBoxes:
         })
         assert response.status_code == 201
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_update_box(self, admin_client: AsyncClient):
         """PUT /boxes/{id} - update box."""
         create_resp = await admin_client.post("/api/v1/boxes", json={
@@ -1064,7 +944,7 @@ class TestBoxes:
         })
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_assign_box(self, practitioner_client: AsyncClient, admin_client: AsyncClient):
         """POST /boxes/assign - assign box to user."""
         # Create a box
@@ -1079,14 +959,14 @@ class TestBoxes:
         })
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_my_box(self, practitioner_client: AsyncClient):
         """GET /boxes/my - get assigned box."""
         response = await practitioner_client.get("/api/v1/boxes/my")
         # Can be 200 (has box) or 200 with null (no box)
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_unassign_box(self, practitioner_client: AsyncClient, admin_client: AsyncClient):
         """DELETE /boxes/assign - unassign box."""
         # First assign a box
@@ -1108,27 +988,27 @@ class TestBoxes:
 class TestScheduleAndQueue:
     """Test schedule and queue operations."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_today_schedule(self, admin_client: AsyncClient):
         """GET /schedule/today - get today's schedule."""
         response = await admin_client.get("/api/v1/schedule/today")
         assert response.status_code == 200
         assert "entries" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_queue(self, admin_client: AsyncClient):
         """GET /schedule/queue - get current queue."""
         response = await admin_client.get("/api/v1/schedule/queue")
         assert response.status_code == 200
         assert "entries" in response.json()
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_display_queue(self, client: AsyncClient):
         """GET /schedule/queue/display - public display (no auth)."""
         response = await client.get("/api/v1/schedule/queue/display")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_create_manual_entry(self, admin_client: AsyncClient):
         """POST /schedule/manual - create manual schedule entry."""
         patient_resp = await admin_client.post("/api/v1/patients", json={
@@ -1159,7 +1039,7 @@ class TestScheduleAndQueue:
 class TestDashboard:
     """Test dashboard analytics."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_dashboard_stats(self, admin_client: AsyncClient):
         """GET /dashboard/stats - get overview stats."""
         response = await admin_client.get("/api/v1/dashboard/stats")
@@ -1167,49 +1047,49 @@ class TestDashboard:
         data = response.json()
         assert "patients_total" in data or "total_patients" in data
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_sessions_by_zone(self, admin_client: AsyncClient):
         """GET /dashboard/sessions/by-zone."""
         response = await admin_client.get("/api/v1/dashboard/sessions/by-zone")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_sessions_by_praticien(self, admin_client: AsyncClient):
         """GET /dashboard/sessions/by-praticien."""
         response = await admin_client.get("/api/v1/dashboard/sessions/by-praticien")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_sessions_by_period(self, admin_client: AsyncClient):
         """GET /dashboard/sessions/by-period."""
         response = await admin_client.get("/api/v1/dashboard/sessions/by-period?group_by=day")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_recent_activity(self, admin_client: AsyncClient):
         """GET /dashboard/recent-activity."""
         response = await admin_client.get("/api/v1/dashboard/recent-activity")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_side_effects(self, admin_client: AsyncClient):
         """GET /dashboard/side-effects."""
         response = await admin_client.get("/api/v1/dashboard/side-effects")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_doctor_performance(self, admin_client: AsyncClient):
         """GET /dashboard/doctor-performance."""
         response = await admin_client.get("/api/v1/dashboard/doctor-performance")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_revenue(self, admin_client: AsyncClient):
         """GET /dashboard/revenue."""
         response = await admin_client.get("/api/v1/dashboard/revenue")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_demographics(self, admin_client: AsyncClient):
         """GET /dashboard/demographics."""
         response = await admin_client.get("/api/v1/dashboard/demographics")
@@ -1223,7 +1103,7 @@ class TestDashboard:
 class TestAlerts:
     """Test patient alerts."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_patient_alerts(self, admin_client: AsyncClient):
         """GET /patients/{id}/alerts."""
         patient_resp = await admin_client.post("/api/v1/patients", json={
@@ -1236,7 +1116,7 @@ class TestAlerts:
         response = await admin_client.get(f"/api/v1/patients/{patient_id}/alerts")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_alerts_summary(self, admin_client: AsyncClient):
         """GET /patients/{id}/alerts/summary."""
         patient_resp = await admin_client.post("/api/v1/patients", json={
@@ -1267,7 +1147,7 @@ class TestDocuments:
         })
         return patient_resp.json()["id"]
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_consent_pdf(self, admin_client: AsyncClient, patient_with_data):
         """GET /documents/patients/{id}/consent."""
         response = await admin_client.get(
@@ -1276,7 +1156,7 @@ class TestDocuments:
         # May return 404 if no pre-consultation, or 200 with PDF
         assert response.status_code in [200, 404]
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_get_qr_code(self, admin_client: AsyncClient, patient_with_data):
         """GET /documents/patients/{id}/qr-code."""
         response = await admin_client.get(
@@ -1293,7 +1173,7 @@ class TestDocuments:
 class TestPermissions:
     """Test role-based access control."""
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_secretary_cannot_manage_users(self, secretary_client: AsyncClient):
         """Secretary should not be able to create users."""
         response = await secretary_client.post("/api/v1/users", json={
@@ -1305,13 +1185,13 @@ class TestPermissions:
         })
         assert response.status_code == 403
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_secretary_can_view_patients(self, secretary_client: AsyncClient):
         """Secretary should be able to view patients."""
         response = await secretary_client.get("/api/v1/patients")
         assert response.status_code == 200
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_practitioner_can_create_session(self, practitioner_client: AsyncClient, admin_client: AsyncClient):
         """Practitioner should be able to create sessions."""
         # Create patient and zone via admin
