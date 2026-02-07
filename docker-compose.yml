@@ -29,6 +29,9 @@ services:
       PHOTOS_PATH: /app/data/photos
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      # Increased for testing - default is 60/5
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+      RATE_LIMIT_LOGIN_PER_MINUTE: ${RATE_LIMIT_LOGIN_PER_MINUTE:-50}
     volumes:
       - photos_data:/app/data/photos
     depends_on:

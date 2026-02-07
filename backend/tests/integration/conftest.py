@@ -81,24 +81,25 @@ async def secretary_client(admin_client: AsyncClient) -> AsyncGenerator[AsyncCli
     from uuid import uuid4
 
     if _secretary_data is None:
-        # Check if secretary role exists
+        # Check if secretary role exists - use 'nom' not 'name'
         roles_resp = await admin_client.get("/api/v1/roles")
         roles = roles_resp.json().get("roles", [])
-        secretary_role = next((r for r in roles if r["name"] == "Secrétaire"), None)
+        secretary_role = next((r for r in roles if r["nom"] == "Secrétaire"), None)
 
         if not secretary_role:
             role_resp = await admin_client.post("/api/v1/roles", json={
-                "name": "Secrétaire",
-                "permissions": ["patients.view", "patients.edit", "sessions.view",
+                "nom": "Secrétaire",  # Use 'nom' not 'name'
+                "permissions": ["patients.view", "patients.edit", "patients.create",
+                              "sessions.view",
                               "pre_consultations.view", "pre_consultations.create",
                               "pre_consultations.edit", "zones.view"]
             })
             secretary_role = role_resp.json()
 
-        # Create unique secretary user
-        username = f"test_secretary_{uuid4().hex[:8]}"
+        # Create unique secretary user - use 'email' not 'username'
+        email = f"test_secretary_{uuid4().hex[:8]}@test.com"
         await admin_client.post("/api/v1/users", json={
-            "username": username,
+            "email": email,  # Use 'email' not 'username'
             "password": "test123",
             "nom": "Test",
             "prenom": "Secretary",
@@ -108,7 +109,7 @@ async def secretary_client(admin_client: AsyncClient) -> AsyncGenerator[AsyncCli
         # Login as secretary
         async with AsyncClient(base_url=BASE_URL, timeout=30.0) as temp:
             response = await temp.post("/api/v1/auth/login", json={
-                "username": username,
+                "username": email,  # Login still uses 'username' field
                 "password": "test123"
             })
             assert response.status_code == 200, f"Secretary login failed: {response.text}"
@@ -129,23 +130,23 @@ async def practitioner_client(admin_client: AsyncClient) -> AsyncGenerator[Async
     from uuid import uuid4
 
     if _practitioner_data is None:
-        # Check if practitioner role exists
+        # Check if practitioner role exists - use 'nom' not 'name'
         roles_resp = await admin_client.get("/api/v1/roles")
         roles = roles_resp.json().get("roles", [])
-        practitioner_role = next((r for r in roles if r["name"] == "Praticien"), None)
+        practitioner_role = next((r for r in roles if r["nom"] == "Praticien"), None)
 
         if not practitioner_role:
             role_resp = await admin_client.post("/api/v1/roles", json={
-                "name": "Praticien",
+                "nom": "Praticien",  # Use 'nom' not 'name'
                 "permissions": ["patients.view", "sessions.view", "sessions.create",
-                              "boxes.view", "boxes.assign"]
+                              "boxes.view", "boxes.assign", "zones.view"]
             })
             practitioner_role = role_resp.json()
 
-        # Create unique practitioner user
-        username = f"test_practitioner_{uuid4().hex[:8]}"
+        # Create unique practitioner user - use 'email' not 'username'
+        email = f"test_practitioner_{uuid4().hex[:8]}@test.com"
         await admin_client.post("/api/v1/users", json={
-            "username": username,
+            "email": email,  # Use 'email' not 'username'
             "password": "test123",
             "nom": "Test",
             "prenom": "Practitioner",
@@ -155,7 +156,7 @@ async def practitioner_client(admin_client: AsyncClient) -> AsyncGenerator[Async
         # Login as practitioner
         async with AsyncClient(base_url=BASE_URL, timeout=30.0) as temp:
             response = await temp.post("/api/v1/auth/login", json={
-                "username": username,
+                "username": email,  # Login still uses 'username' field
                 "password": "test123"
             })
             assert response.status_code == 200, f"Practitioner login failed: {response.text}"
