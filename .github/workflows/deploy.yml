@@ -62,11 +62,10 @@ jobs:
           sleep 5
           ping -c 3 ${{ env.SERVER_IP }}
 
-      - name: Setup SSH key
+      - name: Setup SSH with sshpass
         run: |
+          sudo apt-get install -y sshpass
           mkdir -p ~/.ssh
-          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Determine services to deploy
@@ -93,7 +92,8 @@ jobs:
       - name: Sync backend
         if: steps.services.outputs.deploy == 'all' || steps.services.outputs.deploy == 'backend'
         run: |
-          rsync -avz --delete \
+          sshpass -p '${{ secrets.SERVER_PASSWORD }}' rsync -avz --delete \
+            -e 'ssh -o StrictHostKeyChecking=no' \
             --exclude='__pycache__' \
             --exclude='.venv' \
             --exclude='*.pyc' \
@@ -102,7 +102,8 @@ jobs:
       - name: Sync frontend
         if: steps.services.outputs.deploy == 'all' || steps.services.outputs.deploy == 'frontend'
         run: |
-          rsync -avz --delete \
+          sshpass -p '${{ secrets.SERVER_PASSWORD }}' rsync -avz --delete \
+            -e 'ssh -o StrictHostKeyChecking=no' \
             --exclude='node_modules' \
             --exclude='dist' \
             --exclude='.next' \
@@ -110,13 +111,18 @@ jobs:
 
       - name: Sync config files
         run: |
-          rsync -avz docker-compose.yml ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:${{ env.DEPLOY_PATH }}/
-          rsync -avz nginx/ ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:${{ env.DEPLOY_PATH }}/nginx/
+          sshpass -p '${{ secrets.SERVER_PASSWORD }}' rsync -avz \
+            -e 'ssh -o StrictHostKeyChecking=no' \
+            docker-compose.yml ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:${{ env.DEPLOY_PATH }}/
+          sshpass -p '${{ secrets.SERVER_PASSWORD }}' rsync -avz \
+            -e 'ssh -o StrictHostKeyChecking=no' \
+            nginx/ ${{ env.SERVER_USER }}@${{ env.SERVER_IP }}:${{ env.DEPLOY_PATH }}/nginx/
 
       - name: Build and deploy
         run: |
           DEPLOY="${{ steps.services.outputs.deploy }}"
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} "cd ${{ env.DEPLOY_PATH }} && \
+          sshpass -p '${{ secrets.SERVER_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+            ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} "cd ${{ env.DEPLOY_PATH }} && \
             if [ '$DEPLOY' = 'all' ]; then \
               docker compose build && docker compose up -d; \
             elif [ '$DEPLOY' = 'backend' ]; then \
@@ -128,7 +134,8 @@ jobs:
       - name: Run migrations
         if: steps.services.outputs.deploy == 'all' || steps.services.outputs.deploy == 'backend'
         run: |
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} \
+          sshpass -p '${{ secrets.SERVER_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+            ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} \
             "cd ${{ env.DEPLOY_PATH }} && docker compose run --rm backend alembic upgrade head"
 
       - name: Health check
