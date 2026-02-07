@@ -46,7 +46,8 @@ jobs:
           sudo tee /etc/wireguard/wg0.conf > /dev/null << EOF
           [Interface]
           PrivateKey = ${{ secrets.WG_PRIVATE_KEY }}
-          Address = 172.16.0.14/32
+          Address = 172.16.0.13/32
+          DNS = 10.0.2.13
 
           [Peer]
           PublicKey = lo83SB8lMExrtuaXfyxiK+d+sLLM8XHIEw0cx5zSUSY=
