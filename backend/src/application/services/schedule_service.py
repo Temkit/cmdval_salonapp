@@ -145,8 +145,12 @@ class ScheduleService:
     async def get_today_schedule(self) -> list[DailyScheduleEntry]:
         return await self.schedule_repo.find_by_date(date.today())
 
-    async def check_in(self, entry_id: str) -> WaitingQueueEntry:
-        """Check in a patient from the schedule to the waiting queue."""
+    async def check_in(self, entry_id: str) -> WaitingQueueEntry | dict:
+        """Check in a patient from the schedule to the waiting queue.
+
+        Returns WaitingQueueEntry on success, or a conflict dict if patient
+        matching is ambiguous.
+        """
         entry = await self.schedule_repo.find_by_id(entry_id)
         if not entry:
             raise NotFoundError(f"Entrée planning {entry_id} non trouvée")
@@ -154,20 +158,41 @@ class ScheduleService:
         if entry.status != "expected":
             raise ValidationError("Patient déjà enregistré ou absent")
 
-        # Update schedule status
-        await self.schedule_repo.update_status(entry_id, "checked_in")
-
-        # Resolve patient_id if not already set (patient may have been
-        # created after the schedule was uploaded)
+        # Resolve patient_id if not already set
         patient_id = entry.patient_id
         if not patient_id:
-            matched, _ = await self.patient_repo.search(
-                entry.patient_nom, page=1, size=10
+            # Search for potential matches
+            candidates = await self._find_patient_candidates(
+                entry.patient_nom, entry.patient_prenom
             )
-            for p in matched:
-                if p.prenom and p.prenom.lower() == entry.patient_prenom.lower():
-                    patient_id = p.id
-                    break
+
+            if len(candidates) == 1:
+                # Exact single match - use it
+                patient_id = candidates[0].id
+            elif len(candidates) > 1:
+                # Multiple potential matches - return conflict for user to resolve
+                return {
+                    "conflict": True,
+                    "schedule_entry_id": entry_id,
+                    "patient_nom": entry.patient_nom,
+                    "patient_prenom": entry.patient_prenom,
+                    "candidates": [
+                        {
+                            "id": c.id,
+                            "nom": c.nom,
+                            "prenom": c.prenom,
+                            "telephone": c.telephone,
+                            "email": c.email,
+                            "created_at": c.created_at,
+                        }
+                        for c in candidates
+                    ],
+                    "message": "Plusieurs patients correspondent à ce nom",
+                }
+            # If no candidates, patient_id stays None - will be created on resolve
+
+        # Update schedule status
+        await self.schedule_repo.update_status(entry_id, "checked_in")
 
         # Create queue entry
         queue_entry = WaitingQueueEntry(
@@ -187,9 +212,97 @@ class ScheduleService:
             "doctor_name": entry.doctor_name or "",
             "position": result.position,
         }
-        # Always publish to queue:all so admins/secretaries see updates
         await event_bus.publish("queue:all", event_data)
-        # Also publish to doctor-specific channel
+        if entry.doctor_id:
+            await event_bus.publish(f"queue:{entry.doctor_id}", event_data)
+
+        return result
+
+    async def _find_patient_candidates(self, nom: str, prenom: str) -> list:
+        """Find potential patient matches using fuzzy name matching."""
+        # Normalize names for comparison
+        def normalize(s: str) -> str:
+            import unicodedata
+            s = unicodedata.normalize("NFD", s)
+            s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+            return s.lower().replace("-", " ").replace("'", " ").strip()
+
+        nom_norm = normalize(nom)
+        prenom_norm = normalize(prenom)
+
+        # Search by nom
+        matched, _ = await self.patient_repo.search(nom, page=1, size=50)
+
+        candidates = []
+        for p in matched:
+            p_nom_norm = normalize(p.nom) if p.nom else ""
+            p_prenom_norm = normalize(p.prenom) if p.prenom else ""
+
+            # Exact match on normalized names
+            if p_nom_norm == nom_norm and p_prenom_norm == prenom_norm:
+                candidates.append(p)
+            # Partial match (nom matches, prenom similar)
+            elif p_nom_norm == nom_norm and (
+                prenom_norm in p_prenom_norm or p_prenom_norm in prenom_norm
+            ):
+                candidates.append(p)
+
+        return candidates
+
+    async def resolve_conflict(
+        self,
+        schedule_entry_id: str,
+        patient_id: str | None = None,
+        telephone: str | None = None,
+    ) -> WaitingQueueEntry:
+        """Resolve a check-in conflict by selecting existing patient or creating new."""
+        from src.domain.entities.patient import Patient
+
+        entry = await self.schedule_repo.find_by_id(schedule_entry_id)
+        if not entry:
+            raise NotFoundError(f"Entrée planning {schedule_entry_id} non trouvée")
+
+        if entry.status != "expected":
+            raise ValidationError("Patient déjà enregistré")
+
+        # Either use selected patient or create new
+        if patient_id:
+            # Verify patient exists
+            patient = await self.patient_repo.find_by_id(patient_id)
+            if not patient:
+                raise NotFoundError(f"Patient {patient_id} non trouvé")
+        else:
+            # Create new patient
+            new_patient = Patient(
+                nom=entry.patient_nom,
+                prenom=entry.patient_prenom,
+                telephone=telephone,
+            )
+            patient = await self.patient_repo.create(new_patient)
+            patient_id = patient.id
+
+        # Update schedule status
+        await self.schedule_repo.update_status(schedule_entry_id, "checked_in")
+
+        # Create queue entry
+        queue_entry = WaitingQueueEntry(
+            schedule_id=schedule_entry_id,
+            patient_id=patient_id,
+            patient_name=f"{entry.patient_prenom} {entry.patient_nom}",
+            doctor_id=entry.doctor_id,
+            doctor_name=entry.doctor_name,
+        )
+        result = await self.queue_repo.create(queue_entry)
+
+        # Publish SSE event
+        event_data = {
+            "type": "patient_checked_in",
+            "patient_name": f"{entry.patient_prenom} {entry.patient_nom}",
+            "doctor_id": entry.doctor_id or "",
+            "doctor_name": entry.doctor_name or "",
+            "position": result.position,
+        }
+        await event_bus.publish("queue:all", event_data)
         if entry.doctor_id:
             await event_bus.publish(f"queue:{entry.doctor_id}", event_data)
 

@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import { PatientConflictDialog } from "@/components/patient-conflict-dialog";
+import type { CheckInConflictResponse } from "@/types";
 
 export const Route = createFileRoute("/secretary/agenda")({
   component: SecretaryAgendaPage,
@@ -69,6 +71,7 @@ function SecretaryAgendaPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [uploading, setUploading] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [conflict, setConflict] = useState<CheckInConflictResponse | null>(null);
   const [addForm, setAddForm] = useState({
     patient_prenom: "",
     patient_nom: "",
@@ -94,9 +97,14 @@ function SecretaryAgendaPage() {
 
   const checkInMutation = useMutation({
     mutationFn: (entryId: string) => api.checkInPatient(entryId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
-      toast({ title: "Patient enregistre" });
+    onSuccess: (result) => {
+      // Check if this is a conflict response
+      if ("conflict" in result && result.conflict) {
+        setConflict(result as CheckInConflictResponse);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
+        toast({ title: "Patient enregistre" });
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -503,6 +511,15 @@ function SecretaryAgendaPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Patient conflict resolution dialog */}
+      <PatientConflictDialog
+        conflict={conflict}
+        onClose={() => setConflict(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
+        }}
+      />
     </div>
   );
 }

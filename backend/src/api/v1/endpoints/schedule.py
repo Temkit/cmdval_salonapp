@@ -13,10 +13,12 @@ from src.application.services.schedule_service import ScheduleService
 from src.domain.exceptions import NotFoundError
 from src.infrastructure.events import event_bus
 from src.schemas.schedule import (
+    CheckInConflictResponse,
     ManualScheduleEntryCreate,
     QueueDisplayResponse,
     QueueEntryResponse,
     QueueListResponse,
+    ResolveConflictRequest,
     ScheduleEntryResponse,
     ScheduleListResponse,
     ScheduleUploadResponse,
@@ -231,11 +233,29 @@ async def get_schedule(
     )
 
 
-@router.post("/{entry_id}/check-in", response_model=QueueEntryResponse)
+@router.post("/{entry_id}/check-in", response_model=QueueEntryResponse | CheckInConflictResponse)
 async def check_in_patient(
     entry_id: str,
     current_user: CurrentUser,
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
-    entry = await schedule_service.check_in(entry_id)
+    result = await schedule_service.check_in(entry_id)
+    # If conflict detected, return conflict response
+    if isinstance(result, dict) and result.get("conflict"):
+        return CheckInConflictResponse(**result)
+    return _queue_response(result)
+
+
+@router.post("/resolve-conflict", response_model=QueueEntryResponse)
+async def resolve_check_in_conflict(
+    request: ResolveConflictRequest,
+    current_user: CurrentUser,
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+):
+    """Resolve a check-in conflict by selecting existing patient or creating new."""
+    entry = await schedule_service.resolve_conflict(
+        schedule_entry_id=request.schedule_entry_id,
+        patient_id=request.patient_id,
+        telephone=request.telephone,
+    )
     return _queue_response(entry)

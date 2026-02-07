@@ -56,6 +56,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       user: null,
       isAuthenticated: false,
     });
+    // Navigate to login page
+    window.location.href = "/login";
   },
 
   refreshUser: async () => {

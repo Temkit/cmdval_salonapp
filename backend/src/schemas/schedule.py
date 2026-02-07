@@ -74,3 +74,34 @@ class QueueDisplayResponse(AppBaseModel):
     """Public display response (minimal info)."""
 
     entries: list[QueueEntryResponse]
+
+
+class PatientCandidate(AppBaseModel):
+    """A potential patient match for conflict resolution."""
+
+    id: str
+    nom: str
+    prenom: str
+    telephone: str | None = None
+    email: str | None = None
+    created_at: dt.datetime
+
+
+class CheckInConflictResponse(AppBaseModel):
+    """Response when check-in finds potential patient matches."""
+
+    conflict: bool = True
+    schedule_entry_id: str
+    patient_nom: str
+    patient_prenom: str
+    candidates: list[PatientCandidate]
+    message: str = "Patient potentiellement existant"
+
+
+class ResolveConflictRequest(AppBaseModel):
+    """Request to resolve a check-in conflict."""
+
+    schedule_entry_id: str
+    patient_id: str | None = None  # None = create new patient
+    # Optional fields for new patient creation
+    telephone: str | None = None

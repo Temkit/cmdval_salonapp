@@ -71,6 +71,8 @@ import type {
   RevenueBreakdown,
   DemographicsResponse,
   MessageResponse,
+  CheckInResult,
+  ResolveConflictRequest,
 } from "@/types";
 
 const API_BASE = "/api/v1";
@@ -941,6 +943,15 @@ export const api = {
       `${API_BASE}/schedule/${entryId}/check-in`,
       { method: "POST" },
     );
+    return handleResponse<CheckInResult>(response);
+  },
+
+  async resolveCheckInConflict(data: ResolveConflictRequest) {
+    const response = await wrapFetch(`${API_BASE}/schedule/resolve-conflict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
     return handleResponse<WaitingQueueEntry>(response);
   },
 

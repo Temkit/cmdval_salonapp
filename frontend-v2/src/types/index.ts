@@ -388,6 +388,32 @@ export interface WaitingQueueEntry {
   completed_at: string | null;
 }
 
+export interface PatientCandidate {
+  id: string;
+  nom: string;
+  prenom: string;
+  telephone: string | null;
+  email: string | null;
+  created_at: string;
+}
+
+export interface CheckInConflictResponse {
+  conflict: true;
+  schedule_entry_id: string;
+  patient_nom: string;
+  patient_prenom: string;
+  candidates: PatientCandidate[];
+  message: string;
+}
+
+export type CheckInResult = WaitingQueueEntry | CheckInConflictResponse;
+
+export interface ResolveConflictRequest {
+  schedule_entry_id: string;
+  patient_id?: string | null;
+  telephone?: string | null;
+}
+
 // Request types
 export interface CreateUserRequest {
   username: string;
