@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import type { Paiement, PaiementType, ModePaiement, Patient, CreatePaiementRequest } from "@/types";
+import { DEFAULT_MODES_PAIEMENT } from "@/types";
 
 const TYPE_LABELS: Record<PaiementType, string> = {
   encaissement: "Encaissement",
@@ -301,9 +302,11 @@ export default function PaiementsPage() {
                   <Select value={payForm.mode_paiement} onValueChange={(v) => setPayForm((p) => ({ ...p, mode_paiement: v as ModePaiement }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="especes">Espèces</SelectItem>
-                      <SelectItem value="carte">Carte</SelectItem>
-                      <SelectItem value="virement">Virement</SelectItem>
+                      {DEFAULT_MODES_PAIEMENT.map((mode) => (
+                        <SelectItem key={mode} value={mode}>
+                          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

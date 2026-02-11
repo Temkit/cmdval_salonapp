@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Phone, CheckCircle, Users, Stethoscope, RefreshCw, DoorOpen, ArrowRightLeft } from "lucide-react";
+import { Phone, CheckCircle, Users, Stethoscope, RefreshCw, DoorOpen, ArrowRightLeft, XCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,13 +13,15 @@ import { api } from "@/lib/api";
 import { useQueueEvents } from "@/hooks/use-queue-events";
 import { useAuthStore } from "@/stores/auth-store";
 
-const queueStatusConfig: Record<string, { label: string; variant: "info" | "warning" | "success"; pulse?: boolean }> = {
+const queueStatusConfig: Record<string, { label: string; variant: "info" | "warning" | "success" | "destructive"; pulse?: boolean }> = {
   waiting: { label: "En attente", variant: "info", pulse: true },
   in_treatment: { label: "En traitement", variant: "warning" },
   checked_in: { label: "En attente", variant: "info", pulse: true },
   called: { label: "Appele", variant: "warning" },
   done: { label: "Termine", variant: "success" },
   completed: { label: "Termine", variant: "success" },
+  no_show: { label: "Absent", variant: "destructive" },
+  left: { label: "Parti", variant: "destructive" },
 };
 
 interface QueueEntry {
@@ -28,6 +31,7 @@ interface QueueEntry {
   patient_nom?: string;
   doctor_name?: string;
   medecin?: string;
+  patient_id?: string | null;
   doctor_id?: string | null;
   box_id?: string | null;
   box_nom?: string | null;
@@ -39,6 +43,7 @@ interface QueueEntry {
 }
 
 export default function SalleAttentePage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuthStore();
@@ -58,10 +63,20 @@ export default function SalleAttentePage() {
   });
 
   const callMutation = useMutation({
-    mutationFn: (entryId: string) => api.callPatient(entryId),
-    onSuccess: () => {
+    mutationFn: (entry: QueueEntry) => api.callPatient(entry.id),
+    onSuccess: (data, entry) => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
-      toast({ title: "Patient appele" });
+      const patientId = data?.patient_id || entry.patient_id;
+      if (!patientId) {
+        toast({
+          title: "Patient appele",
+          description: "Patient non lie au systeme. Ouvrez sa fiche pour demarrer la seance.",
+        });
+        return;
+      }
+
+      // Navigate directly to séance wizard (soft pre-consultation reminder shown there)
+      router.push(`/patients/${patientId}/seance?queue=${entry.id}`);
     },
     onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
@@ -73,6 +88,28 @@ export default function SalleAttentePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
       toast({ title: "Traitement termine" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    },
+  });
+
+  const noShowMutation = useMutation({
+    mutationFn: (entryId: string) => api.markNoShow(entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+      toast({ title: "Patient marque absent" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    },
+  });
+
+  const leftMutation = useMutation({
+    mutationFn: (entryId: string) => api.markLeft(entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+      toast({ title: "Patient marque parti" });
     },
     onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
@@ -303,27 +340,40 @@ export default function SalleAttentePage() {
                               </Button>
                             )}
                             {isWaiting && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => callMutation.mutate(entry.id)}
-                                disabled={callMutation.isPending}
-                                title="Appeler le patient"
-                              >
-                                <Phone className="h-4 w-4 mr-1" />
-                                Appeler
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => callMutation.mutate(entry)}
+                                  disabled={callMutation.isPending}
+                                  title="Appeler le patient"
+                                >
+                                  <Phone className="h-4 w-4 mr-1" />
+                                  Appeler
+                                </Button>
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  onClick={() => noShowMutation.mutate(entry.id)}
+                                  disabled={noShowMutation.isPending}
+                                  title="Marquer absent"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                             {isInTreatment && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => completeMutation.mutate(entry.id)}
-                                disabled={completeMutation.isPending}
-                                title="Terminer le traitement"
+                                onClick={() => leftMutation.mutate(entry.id)}
+                                disabled={leftMutation.isPending}
+                                title="Patient parti"
+                                className="text-destructive border-destructive/30 hover:bg-destructive/10"
                               >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Terminer
+                                <LogOut className="h-4 w-4 mr-1" />
+                                Parti
                               </Button>
                             )}
                           </div>

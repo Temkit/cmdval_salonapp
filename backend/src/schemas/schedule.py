@@ -13,10 +13,12 @@ class ManualScheduleEntryCreate(AppBaseModel):
     date: dt.date
     patient_nom: str = Field(min_length=1)
     patient_prenom: str = Field(min_length=1)
-    doctor_name: str = Field(min_length=1)
+    doctor_id: str = Field(min_length=1)
+    doctor_name: str | None = None
     start_time: dt.time
     end_time: dt.time | None = None
     duration_type: str | None = None
+    zone_ids: list[str] = Field(default_factory=list)
     notes: str | None = None
 
 
@@ -96,6 +98,25 @@ class CheckInConflictResponse(AppBaseModel):
     patient_prenom: str
     candidates: list[PatientCandidate]
     message: str = "Patient potentiellement existant"
+
+
+class AbsenceRecordResponse(AppBaseModel):
+    """Response for a no-show/absence record."""
+
+    id: str
+    patient_id: str | None = None
+    patient_name: str
+    date: dt.date
+    schedule_id: str | None = None
+    doctor_name: str
+    created_at: dt.datetime
+
+
+class AbsenceListResponse(AppBaseModel):
+    """List of absence records."""
+
+    absences: list[AbsenceRecordResponse]
+    total: int
 
 
 class ResolveConflictRequest(AppBaseModel):

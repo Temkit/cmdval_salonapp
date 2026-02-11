@@ -385,3 +385,48 @@ class DashboardService:
             "age_distribution": age_distribution,
             "city_distribution": city_distribution,
         }
+
+    async def export_sessions(
+        self,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list[dict]:
+        """Export session data for CSV."""
+        db = self.session_repository.session
+
+        query = (
+            select(
+                SessionModel.date_seance,
+                func.concat(PatientModel.prenom, " ", PatientModel.nom).label("patient_name"),
+                ZoneDefinitionModel.nom.label("zone_nom"),
+                func.concat(UserModel.prenom, " ", UserModel.nom).label("praticien_nom"),
+                SessionModel.type_laser,
+                SessionModel.duree_minutes,
+                SessionModel.notes,
+            )
+            .join(PatientModel, SessionModel.patient_id == PatientModel.id)
+            .join(PatientZoneModel, SessionModel.patient_zone_id == PatientZoneModel.id)
+            .join(ZoneDefinitionModel, PatientZoneModel.zone_id == ZoneDefinitionModel.id)
+            .join(UserModel, SessionModel.praticien_id == UserModel.id)
+        )
+
+        if date_from:
+            query = query.where(SessionModel.date_seance >= date_from)
+        if date_to:
+            query = query.where(SessionModel.date_seance <= date_to)
+
+        query = query.order_by(SessionModel.date_seance.desc())
+
+        result = await db.execute(query)
+        return [
+            {
+                "date_seance": str(row[0]) if row[0] else "",
+                "patient_name": row[1] or "",
+                "zone_nom": row[2] or "",
+                "praticien_nom": row[3] or "",
+                "type_laser": row[4] or "",
+                "duree_minutes": row[5] or "",
+                "notes": row[6] or "",
+            }
+            for row in result.all()
+        ]

@@ -12,6 +12,7 @@ import {
   Calendar,
   Plus,
   FileText,
+  FileUp,
   Target,
   History,
   CreditCard,
@@ -24,6 +25,7 @@ import {
   QrCode,
   Download,
   Wallet,
+  UserX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +54,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatDateTime, cn } from "@/lib/utils";
-import type { PatientZone, Session, PatientSubscription, SessionPhoto, Pack, Paiement, PaiementType, ModePaiement } from "@/types";
+import type { PatientZone, Session, PatientSubscription, SessionPhoto, Pack, Paiement, PaiementType, ModePaiement, AbsenceRecord } from "@/types";
+import { DEFAULT_MODES_PAIEMENT } from "@/types";
 import { AddZoneDialog } from "@/components/features/patients/add-zone-dialog";
 import { PreConsultationTab } from "@/components/features/patients/pre-consultation-tab";
 import { AlertBanner } from "@/components/features/alerts/alert-banner";
@@ -101,6 +104,11 @@ export default function PatientDetailPage({
   const { data: packsData } = useQuery({
     queryKey: ["packs"],
     queryFn: () => api.getPacks(),
+  });
+
+  const { data: absencesData } = useQuery({
+    queryKey: ["patient-absences", id],
+    queryFn: () => api.getPatientAbsences(id),
   });
 
   // State for session detail dialog and tabs
@@ -282,12 +290,6 @@ export default function PatientDetailPage({
                     </a>
                   </Button>
                 </div>
-                <Button asChild size="sm" className="w-full">
-                  <Link href={`/patients/${id}/seance`}>
-                    <Zap className="h-4 w-4 mr-1" />
-                    Séance
-                  </Link>
-                </Button>
               </div>
             </div>
           </div>
@@ -346,6 +348,19 @@ export default function PatientDetailPage({
           <TabsTrigger value="paiements" className="gap-2 flex-1">
             <Wallet className="h-4 w-4 shrink-0" />
             <span className="hidden lg:inline">Paiements</span>
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="gap-2 flex-1">
+            <FileUp className="h-4 w-4 shrink-0" />
+            <span className="hidden lg:inline">Documents</span>
+          </TabsTrigger>
+          <TabsTrigger value="absences" className="gap-2 flex-1">
+            <UserX className="h-4 w-4 shrink-0" />
+            <span className="hidden lg:inline">Absences</span>
+            {absencesData && absencesData.total > 0 && (
+              <Badge variant="destructive" size="sm" className="ml-1">
+                {absencesData.total}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -618,12 +633,7 @@ export default function PatientDetailPage({
             <p className="text-sm text-muted-foreground">
               {sessions?.total || 0} séance{(sessions?.total || 0) !== 1 ? "s" : ""} enregistrée{(sessions?.total || 0) !== 1 ? "s" : ""}
             </p>
-            <Button asChild>
-              <Link href={`/patients/${id}/seance`}>
-                <Plus className="h-5 w-5 mr-2" />
-                Nouvelle séance
-              </Link>
-            </Button>
+            <div />
           </div>
 
           {sessions?.sessions && sessions.sessions.length > 0 ? (
@@ -672,11 +682,7 @@ export default function PatientDetailPage({
             <EmptyState
               icon={History}
               title="Aucune seance enregistree"
-              description="Commencez par creer une premiere seance"
-              action={{
-                label: "Nouvelle seance",
-                href: `/patients/${id}/seance`,
-              }}
+              description="Les seances se demarrent depuis la salle d'attente"
             />
           )}
         </TabsContent>
@@ -727,6 +733,81 @@ export default function PatientDetailPage({
               icon={Wallet}
               title="Aucun paiement"
               description="Les paiements du patient apparaîtront ici"
+            />
+          )}
+        </TabsContent>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Documents et scans du patient
+            </p>
+            <Button size="sm" onClick={() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = ".pdf,.png,.jpg,.jpeg";
+              input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file && patient) {
+                  try {
+                    await api.uploadPatientDocument(patient.id, file);
+                    queryClient.invalidateQueries({ queryKey: ["patient-documents", patient.id] });
+                    toast({ title: "Document televerse" });
+                  } catch {
+                    toast({ variant: "destructive", title: "Erreur lors du telechargement" });
+                  }
+                }
+              };
+              input.click();
+            }}>
+              <FileUp className="h-4 w-4 mr-2" />
+              Ajouter
+            </Button>
+          </div>
+          <EmptyState
+            icon={FileUp}
+            title="Aucun document"
+            description="Ajoutez des scans ou photos des anciennes fiches de passage"
+          />
+        </TabsContent>
+
+        {/* Absences Tab */}
+        <TabsContent value="absences" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {absencesData?.total || 0} absence{(absencesData?.total || 0) !== 1 ? "s" : ""} enregistree{(absencesData?.total || 0) !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          {absencesData?.absences && absencesData.absences.length > 0 ? (
+            <div className="space-y-2">
+              {absencesData.absences.map((absence: AbsenceRecord) => (
+                <Card key={absence.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+                        <UserX className="h-5 w-5 text-destructive" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{formatDate(absence.date)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Medecin: {absence.doctor_name}
+                        </p>
+                      </div>
+                      <Badge variant="destructive" size="sm">
+                        No-show
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={UserX}
+              title="Aucune absence"
+              description="Ce patient n'a aucune absence enregistree"
             />
           )}
         </TabsContent>
@@ -808,9 +889,11 @@ export default function PatientDetailPage({
                   <Select value={payForm.mode_paiement} onValueChange={(v) => setPayForm((p) => ({ ...p, mode_paiement: v as ModePaiement }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="especes">Espèces</SelectItem>
-                      <SelectItem value="carte">Carte</SelectItem>
-                      <SelectItem value="virement">Virement</SelectItem>
+                      {DEFAULT_MODES_PAIEMENT.map((mode) => (
+                        <SelectItem key={mode} value={mode}>
+                          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

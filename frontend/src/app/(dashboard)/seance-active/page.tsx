@@ -292,7 +292,7 @@ export default function SeanceActivePage() {
       // Check for pending zones in the queue
       const nextZone = popNextZone(targetPraticienId);
       if (nextZone && !selectedPraticienId) {
-        // Auto-start next zone session
+        // Auto-start next zone session, carry queueEntryId forward
         const praticienName = session.praticienName;
         startSession(targetPraticienId, praticienName, {
           patientId: nextZone.patientId,
@@ -306,6 +306,7 @@ export default function SeanceActivePage() {
           fluence: nextZone.fluence,
           pulseDurationMs: nextZone.pulseDurationMs,
           frequencyHz: nextZone.frequencyHz,
+          queueEntryId: session.queueEntryId,
           sideEffects: [],
         });
         toast({
@@ -315,9 +316,22 @@ export default function SeanceActivePage() {
         return;
       }
 
+      // All zones done — auto-complete queue entry if present
+      if (session.queueEntryId) {
+        try {
+          await api.completePatient(session.queueEntryId);
+          queryClient.invalidateQueries({ queryKey: ["queue"] });
+        } catch {
+          // Non-blocking: queue entry may already be completed manually
+        }
+      }
+
       if (selectedPraticienId) {
         // Admin ended another's session - stay on page
         setSelectedPraticienId(null);
+      } else if (session.queueEntryId) {
+        // Came from waiting room — go back there
+        router.push("/salle-attente");
       } else {
         // Ended own session - go to patient
         router.push(`/patients/${session.patientId}`);

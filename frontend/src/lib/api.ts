@@ -71,6 +71,8 @@ import type {
   RevenueBreakdown,
   DemographicsResponse,
   MessageResponse,
+  AbsenceRecord,
+  PatientDocument,
 } from "@/types";
 
 const API_BASE = "/api/v1";
@@ -223,6 +225,16 @@ export const api = {
     return handleResponse<PatientsResponse>(response);
   },
 
+  async getDoctorPatients(doctorId: string, params: { page?: number; size?: number; q?: string } = {}) {
+    const searchParams = new URLSearchParams();
+    searchParams.set("doctor_id", doctorId);
+    if (params.page) searchParams.set("page", params.page.toString());
+    if (params.size) searchParams.set("size", params.size.toString());
+    if (params.q) searchParams.set("q", params.q);
+    const response = await wrapFetch(`${API_BASE}/patients?${searchParams}`);
+    return handleResponse<PatientsResponse>(response);
+  },
+
   async getPatient(id: string) {
     const response = await wrapFetch(`${API_BASE}/patients/${id}`);
     return handleResponse<PatientDetail>(response);
@@ -366,6 +378,15 @@ export const api = {
     if (params.size) searchParams.set("size", params.size.toString());
 
     const response = await wrapFetch(`${API_BASE}/patients/${patientId}/sessions?${searchParams}`);
+    return handleResponse<SessionsResponse>(response);
+  },
+
+  async getDoctorSessions(doctorId: string, params: { page?: number; size?: number } = {}) {
+    const searchParams = new URLSearchParams();
+    searchParams.set("praticien_id", doctorId);
+    if (params.page) searchParams.set("page", params.page.toString());
+    if (params.size) searchParams.set("size", params.size.toString());
+    const response = await wrapFetch(`${API_BASE}/sessions?${searchParams}`);
     return handleResponse<SessionsResponse>(response);
   },
 
@@ -818,6 +839,20 @@ export const api = {
     return handleResponse<WaitingQueueEntry>(response);
   },
 
+  async markNoShow(entryId: string) {
+    const response = await wrapFetch(`${API_BASE}/schedule/queue/${entryId}/no-show`, {
+      method: "PUT",
+    });
+    return handleResponse<WaitingQueueEntry>(response);
+  },
+
+  async markLeft(entryId: string) {
+    const response = await wrapFetch(`${API_BASE}/schedule/queue/${entryId}/left`, {
+      method: "PUT",
+    });
+    return handleResponse<WaitingQueueEntry>(response);
+  },
+
   // Temp Photos
   async uploadTempPhoto(blob: Blob): Promise<{ id: string; url: string }> {
     const formData = new FormData();
@@ -874,6 +909,34 @@ export const api = {
   async getDemographics() {
     const response = await wrapFetch(`${API_BASE}/dashboard/demographics`);
     return handleResponse<DemographicsResponse>(response);
+  },
+
+  getDashboardExportUrl(params: { date_from?: string; date_to?: string } = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.date_from) searchParams.set("date_from", params.date_from);
+    if (params.date_to) searchParams.set("date_to", params.date_to);
+    return `${API_BASE}/dashboard/export?${searchParams}`;
+  },
+
+  async uploadPatientDocument(patientId: string, file: File, description?: string) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (description) formData.append("description", description);
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/documents`, {
+      method: "POST",
+      body: formData,
+    });
+    return handleResponse<PatientDocument>(response);
+  },
+
+  async getPatientDocuments(patientId: string) {
+    const response = await wrapFetch(`${API_BASE}/patients/${patientId}/documents`);
+    return handleResponse<{ documents: PatientDocument[] }>(response);
+  },
+
+  async getPatientAbsences(patientId: string) {
+    const response = await wrapFetch(`${API_BASE}/schedule/absences?patient_id=${patientId}`);
+    return handleResponse<{ absences: AbsenceRecord[]; total: number }>(response);
   },
 
   // Boxes

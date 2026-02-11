@@ -205,6 +205,54 @@ async def create_session(
         )
 
 
+@router.get("/sessions", response_model=SessionListResponse)
+async def list_sessions(
+    _: Annotated[dict, Depends(require_permission("sessions.view"))],
+    session_service: Annotated[SessionService, Depends(get_session_service)],
+    praticien_id: str | None = Query(None, description="Filtrer par praticien"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+):
+    """List all sessions with optional filters."""
+    sessions, total = await session_service.get_all_sessions(
+        page=page,
+        size=size,
+        praticien_id=praticien_id,
+    )
+    return SessionListResponse(
+        sessions=[
+            SessionResponse(
+                id=s.id,
+                patient_id=s.patient_id,
+                patient_zone_id=s.patient_zone_id,
+                zone_nom=s.zone_nom,
+                praticien_id=s.praticien_id,
+                praticien_nom=s.praticien_nom,
+                date_seance=s.date_seance,
+                type_laser=s.type_laser,
+                parametres=s.parametres,
+                notes=s.notes,
+                duree_minutes=s.duree_minutes,
+                photos=[
+                    SessionPhotoResponse(
+                        id=p.id,
+                        filename=p.filename,
+                        url=session_service.get_photo_url(p),
+                        created_at=p.created_at,
+                    )
+                    for p in s.photos
+                ],
+                created_at=s.created_at,
+            )
+            for s in sessions
+        ],
+        total=total,
+        page=page,
+        size=size,
+        pages=math.ceil(total / size) if total > 0 else 0,
+    )
+
+
 @router.get("/sessions/last-params")
 async def get_last_session_params(
     _: Annotated[dict, Depends(require_permission("sessions.view"))],

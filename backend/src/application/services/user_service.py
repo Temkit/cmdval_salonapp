@@ -169,8 +169,9 @@ class RoleService:
         if not role:
             raise RoleNotFoundError(role_id)
 
-        if role.is_system:
-            raise SystemRoleError("Impossible de modifier un rôle système")
+        # System roles: allow permission changes but prevent name changes and deletion
+        if role.is_system and nom and nom != role.name:
+            raise SystemRoleError("Impossible de renommer un rôle système")
 
         if nom and nom != role.name:
             existing = await self.role_repository.find_by_name(nom)

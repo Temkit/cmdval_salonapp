@@ -115,6 +115,7 @@ class ScheduleService:
         start_time: time,
         end_time: time | None = None,
         duration_type: str | None = None,
+        doctor_id: str | None = None,
         notes: str | None = None,
     ) -> DailyScheduleEntry:
         """Create a manual schedule entry (walk-in patient)."""
@@ -123,6 +124,7 @@ class ScheduleService:
             patient_nom=patient_nom,
             patient_prenom=patient_prenom,
             doctor_name=doctor_name,
+            doctor_id=doctor_id,
             start_time=start_time,
             end_time=end_time,
             duration_type=duration_type,
@@ -378,6 +380,10 @@ class ScheduleService:
         if not result:
             raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
         return result
+
+    async def get_absences(self, patient_id: str | None = None) -> list[WaitingQueueEntry]:
+        """Get no-show entries, optionally filtered by patient."""
+        return await self.queue_repo.find_no_shows(patient_id)
 
     def _parse_time(self, value) -> time | None:
         if value is None:

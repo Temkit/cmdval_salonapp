@@ -174,6 +174,7 @@ export interface PreConsultation {
   patient_telephone?: string;
   sexe: "M" | "F";
   age: number;
+  date_naissance: string | null;
   statut_marital: string | null;
   is_pregnant: boolean;
   is_breastfeeding: boolean;
@@ -273,7 +274,8 @@ export interface PatientSubscription {
 }
 
 export type PaiementType = "encaissement" | "prise_en_charge" | "hors_carte";
-export type ModePaiement = "especes" | "carte" | "virement";
+export type ModePaiement = string;
+export const DEFAULT_MODES_PAIEMENT = ["especes", "carte", "virement", "cheque"] as const;
 
 export interface Paiement {
   id: string;
@@ -382,6 +384,25 @@ export interface WaitingQueueEntry {
   status: QueueStatus;
   called_at: string | null;
   completed_at: string | null;
+}
+
+export interface AbsenceRecord {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  date: string;
+  schedule_id: string | null;
+  doctor_name: string;
+  created_at: string;
+}
+
+export interface PatientDocument {
+  id: string;
+  patient_id: string;
+  filename: string;
+  url: string;
+  description: string | null;
+  created_at: string;
 }
 
 // Request types
@@ -510,10 +531,12 @@ export interface ManualScheduleEntryRequest {
   date: string;
   patient_nom: string;
   patient_prenom: string;
-  doctor_name: string;
+  doctor_id: string;
+  doctor_name?: string;
   start_time: string;
   end_time?: string;
   duration_type?: string;
+  zone_ids?: string[];
   notes?: string;
 }
 

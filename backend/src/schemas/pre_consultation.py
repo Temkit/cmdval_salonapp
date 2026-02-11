@@ -35,7 +35,7 @@ MEDICAL_HISTORY_CONDITIONS = [
 ]
 
 # Marital status options
-MARITAL_STATUS_OPTIONS = ["celibataire", "marie", "divorce", "veuf"]
+MARITAL_STATUS_OPTIONS = ["celibataire", "marie"]
 
 
 class PreConsultationZoneBase(AppBaseModel):
@@ -74,6 +74,7 @@ class PreConsultationBase(AppBaseModel):
     # Demographics (required)
     sexe: str = Field(min_length=1, max_length=1, pattern=r"^[MF]$")
     age: int = Field(ge=0, le=120)
+    date_naissance: date | None = None
 
     # Marital status
     statut_marital: str | None = None
@@ -155,6 +156,7 @@ class PreConsultationUpdate(AppBaseModel):
     # All fields optional for partial update
     sexe: str | None = Field(None, min_length=1, max_length=1, pattern=r"^[MF]$")
     age: int | None = Field(None, ge=0, le=120)
+    date_naissance: date | None = None
 
     statut_marital: str | None = None
 
@@ -240,7 +242,7 @@ class PreConsultationListResponse(AppBaseModel):
     status: str
     has_contraindications: bool = False
     zones_count: int = 0
-    eligible_zones_count: int = 0
+    ineligible_zones_count: int = 0
     created_by_name: str | None = None
     created_at: datetime
     updated_at: datetime

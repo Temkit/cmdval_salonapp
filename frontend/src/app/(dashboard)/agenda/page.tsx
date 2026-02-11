@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
@@ -47,11 +48,18 @@ export default function AgendaPage() {
   const [addForm, setAddForm] = useState({
     patient_prenom: "",
     patient_nom: "",
+    doctor_id: "",
     doctor_name: "",
     start_time: "",
     duration_type: "",
     notes: "",
   });
+
+  const { data: usersData } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api.getUsers(),
+  });
+  const practitioners = usersData?.users?.filter((u) => u.role_nom === "Praticien") || [];
 
   const dateStr = formatDateForApi(selectedDate);
   const isToday = dateStr === formatDateForApi(new Date());
@@ -78,7 +86,8 @@ export default function AgendaPage() {
         date: dateStr,
         patient_prenom: data.patient_prenom,
         patient_nom: data.patient_nom,
-        doctor_name: data.doctor_name,
+        doctor_id: data.doctor_id,
+        doctor_name: data.doctor_name || undefined,
         start_time: data.start_time,
         duration_type: data.duration_type || undefined,
         notes: data.notes || undefined,
@@ -87,7 +96,7 @@ export default function AgendaPage() {
       queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
       toast({ title: "Rendez-vous ajoute" });
       setAddDialogOpen(false);
-      setAddForm({ patient_prenom: "", patient_nom: "", doctor_name: "", start_time: "", duration_type: "", notes: "" });
+      setAddForm({ patient_prenom: "", patient_nom: "", doctor_id: "", doctor_name: "", start_time: "", duration_type: "", notes: "" });
     },
     onError: (error: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
@@ -343,11 +352,29 @@ export default function AgendaPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Medecin</Label>
-                <Input
+                <Select
+                  value={addForm.doctor_id}
+                  onValueChange={(v) => {
+                    const doc = practitioners.find((u) => u.id === v);
+                    setAddForm((f) => ({
+                      ...f,
+                      doctor_id: v,
+                      doctor_name: doc ? `${doc.prenom} ${doc.nom}` : "",
+                    }));
+                  }}
                   required
-                  value={addForm.doctor_name}
-                  onChange={(e) => setAddForm((f) => ({ ...f, doctor_name: e.target.value }))}
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selectionner un medecin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {practitioners.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.prenom} {u.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Heure debut</Label>

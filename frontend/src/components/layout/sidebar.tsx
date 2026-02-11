@@ -15,6 +15,8 @@ import {
   Clock,
   DoorOpen,
   CreditCard,
+  Zap,
+  Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -26,6 +28,8 @@ const navigation = [
   { name: "Pre-consultations", href: "/pre-consultations", icon: ClipboardList, permission: "pre_consultations.view" },
   { name: "Agenda", href: "/agenda", icon: Calendar, permission: "patients.view" },
   { name: "Salle d'attente", href: "/salle-attente", icon: Clock, permission: "patients.view" },
+  { name: "Séances en cours", href: "/seance-active", icon: Zap, permission: "sessions.create" },
+  { name: "Mes patients", href: "/mes-patients", icon: Stethoscope, permission: "sessions.create" },
   { name: "Patients", href: "/patients", icon: Users, permission: "patients.view" },
   { name: "Paiements", href: "/paiements", icon: CreditCard, permission: "dashboard.view" },
   { name: "Analytiques", href: "/analytiques", icon: BarChart3, permission: "dashboard.view" },

@@ -25,9 +25,10 @@ class PreConsultation:
     # Required demographics
     sexe: str  # 'M' or 'F'
     age: int
+    date_naissance: date | None = None
 
     # Marital status
-    statut_marital: str | None = None  # 'celibataire', 'marie', 'divorce', 'veuf'
+    statut_marital: str | None = None  # 'celibataire', 'marie'
 
     # Contraindications
     is_pregnant: bool = False

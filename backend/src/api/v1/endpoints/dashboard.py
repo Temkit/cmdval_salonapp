@@ -1,9 +1,12 @@
 """Dashboard endpoints."""
 
+import csv
+import io
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from src.api.v1.dependencies import get_dashboard_service, require_permission
 from src.application.services import DashboardService
@@ -144,3 +147,41 @@ async def get_demographics(
     """Get patient demographics (age and city distribution)."""
     data = await dashboard_service.get_demographics()
     return DemographicsResponse(**data)
+
+
+@router.get("/export")
+async def export_sessions_csv(
+    _: Annotated[dict, Depends(require_permission("dashboard.view"))],
+    dashboard_service: Annotated[DashboardService, Depends(get_dashboard_service)],
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
+):
+    """Export session data as CSV."""
+    data = await dashboard_service.export_sessions(
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Date", "Patient", "Zone", "Praticien", "Type Laser",
+        "Duree (min)", "Notes",
+    ])
+    for row in data:
+        writer.writerow([
+            row.get("date_seance", ""),
+            row.get("patient_name", ""),
+            row.get("zone_nom", ""),
+            row.get("praticien_nom", ""),
+            row.get("type_laser", ""),
+            row.get("duree_minutes", ""),
+            row.get("notes", ""),
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sessions_export.csv"},
+    )

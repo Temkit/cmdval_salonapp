@@ -281,6 +281,7 @@ class PreConsultationModel(Base):
     # Demographics (medical evaluation - no personal identification info)
     sexe: Mapped[str] = mapped_column(String(1), nullable=False)
     age: Mapped[int] = mapped_column(Integer, nullable=False)
+    date_naissance: Mapped[date | None] = mapped_column(Date, nullable=True)
     statut_marital: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     # Contraindications

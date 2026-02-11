@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Users, ClipboardList, Settings, BarChart3, Calendar, Clock, CreditCard } from "lucide-react";
+import { Home, Users, ClipboardList, Settings, BarChart3, Calendar, Clock, CreditCard, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 
@@ -33,6 +33,13 @@ const NAV_ITEMS: NavItem[] = [
     label: "Attente",
     icon: Clock,
     match: /^\/salle-attente/,
+    tabletOnly: true,
+  },
+  {
+    href: "/seance-active",
+    label: "Séances",
+    icon: Zap,
+    match: /^\/seance-active/,
     tabletOnly: true,
   },
   {

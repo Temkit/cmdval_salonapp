@@ -194,6 +194,15 @@ class WaitingQueueRepository:
             db.box_nom = box_nom
             await self.session.flush()
 
+    async def find_no_shows(self, patient_id: str | None = None) -> list[WaitingQueueEntry]:
+        """Find entries with no_show status."""
+        query = select(WaitingQueueModel).where(WaitingQueueModel.status == "no_show")
+        if patient_id:
+            query = query.where(WaitingQueueModel.patient_id == patient_id)
+        query = query.order_by(WaitingQueueModel.checked_in_at.desc())
+        result = await self.session.execute(query)
+        return [self._to_entity(q) for q in result.scalars()]
+
     def _to_entity(self, model: WaitingQueueModel) -> WaitingQueueEntry:
         return WaitingQueueEntry(
             id=model.id,

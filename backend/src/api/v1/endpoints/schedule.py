@@ -13,6 +13,8 @@ from src.application.services.schedule_service import ScheduleService
 from src.domain.exceptions import NotFoundError
 from src.infrastructure.events import event_bus
 from src.schemas.schedule import (
+    AbsenceListResponse,
+    AbsenceRecordResponse,
     CheckInConflictResponse,
     ManualScheduleEntryCreate,
     QueueDisplayResponse,
@@ -191,7 +193,8 @@ async def create_manual_entry(
         entry_date=request.date,
         patient_nom=request.patient_nom,
         patient_prenom=request.patient_prenom,
-        doctor_name=request.doctor_name,
+        doctor_name=request.doctor_name or "",
+        doctor_id=request.doctor_id,
         start_time=request.start_time,
         end_time=request.end_time,
         duration_type=request.duration_type,
@@ -216,6 +219,29 @@ async def reassign_patient(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
+
+
+@router.get("/absences", response_model=AbsenceListResponse, tags=["absences"])
+async def get_absences(
+    current_user: CurrentUser,
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+    patient_id: str | None = Query(None, description="Filtrer par patient"),
+):
+    """Get no-show/absence records."""
+    entries = await schedule_service.get_absences(patient_id)
+    absences = [
+        AbsenceRecordResponse(
+            id=e.id,
+            patient_id=e.patient_id,
+            patient_name=e.patient_name,
+            date=e.checked_in_at.date() if e.checked_in_at else date.today(),
+            schedule_id=e.schedule_id,
+            doctor_name=e.doctor_name,
+            created_at=e.created_at,
+        )
+        for e in entries
+    ]
+    return AbsenceListResponse(absences=absences, total=len(absences))
 
 
 # Dynamic path route MUST be last

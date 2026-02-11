@@ -75,6 +75,7 @@ interface FormData {
   patient_id: string;
   sexe: string;
   age: number;
+  date_naissance: string;
   statut_marital: string;
   is_pregnant: boolean;
   is_breastfeeding: boolean;
@@ -109,6 +110,7 @@ export default function NewPreConsultationPage() {
     patient_id: "",
     sexe: "",
     age: 0,
+    date_naissance: "",
     statut_marital: "",
     is_pregnant: false,
     is_breastfeeding: false,
@@ -522,6 +524,26 @@ export default function NewPreConsultationPage() {
               </div>
 
               <div>
+                <Label>Date de naissance</Label>
+                <Input
+                  type="date"
+                  value={formData.date_naissance || ""}
+                  onChange={(e) => {
+                    const dob = e.target.value;
+                    updateField("date_naissance", dob);
+                    if (dob) {
+                      const today = new Date();
+                      const birth = new Date(dob);
+                      const age = today.getFullYear() - birth.getFullYear() -
+                        ((today.getMonth() < birth.getMonth() ||
+                          (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) ? 1 : 0);
+                      updateField("age", age);
+                    }
+                  }}
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
                 <Label>Age *</Label>
                 <Input
                   type="number"
@@ -540,8 +562,6 @@ export default function NewPreConsultationPage() {
                   {[
                     { value: "celibataire", label: "Celibataire" },
                     { value: "marie", label: "Marie(e)" },
-                    { value: "divorce", label: "Divorce(e)" },
-                    { value: "veuf", label: "Veuf/Veuve" },
                   ].map((s) => (
                     <Button
                       key={s.value}

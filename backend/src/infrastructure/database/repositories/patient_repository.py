@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.patient import Patient
 from src.domain.interfaces.patient_repository import PatientRepositoryInterface
-from src.infrastructure.database.models import PatientModel
+from src.infrastructure.database.models import PatientModel, SessionModel
 
 
 class PatientRepository(PatientRepositoryInterface):
@@ -102,6 +102,48 @@ class PatientRepository(PatientRepositoryInterface):
         )
         patients = [self._to_entity(p) for p in result.scalars()]
 
+        return patients, total
+
+    async def find_by_doctor(
+        self,
+        doctor_id: str,
+        page: int,
+        size: int,
+        query: str | None = None,
+    ) -> tuple[list[Patient], int]:
+        """Find patients who had sessions with a specific doctor."""
+        # Subquery: distinct patient IDs from sessions by this doctor
+        doctor_patients = (
+            select(SessionModel.patient_id)
+            .where(SessionModel.praticien_id == doctor_id)
+            .distinct()
+            .subquery()
+        )
+        base_query = select(PatientModel).where(
+            PatientModel.id.in_(select(doctor_patients.c.patient_id))
+        )
+        if query:
+            search_term = f"%{query}%"
+            base_query = base_query.where(
+                or_(
+                    PatientModel.nom.ilike(search_term),
+                    PatientModel.prenom.ilike(search_term),
+                    PatientModel.telephone.ilike(search_term),
+                    PatientModel.code_carte.ilike(search_term),
+                )
+            )
+
+        count_result = await self.session.execute(
+            select(func.count()).select_from(base_query.subquery())
+        )
+        total = count_result.scalar() or 0
+
+        result = await self.session.execute(
+            base_query.order_by(PatientModel.nom, PatientModel.prenom)
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+        patients = [self._to_entity(p) for p in result.scalars()]
         return patients, total
 
     async def update(self, patient: Patient) -> Patient:

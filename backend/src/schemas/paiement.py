@@ -15,7 +15,7 @@ class PaiementCreate(AppBaseModel):
     type: str = Field(pattern=r"^(encaissement|prise_en_charge|hors_carte)$")
     subscription_id: str | None = None
     session_id: str | None = None
-    mode_paiement: str | None = Field(default=None, pattern=r"^(especes|carte|virement)$")
+    mode_paiement: str | None = Field(default=None, max_length=50)
     reference: str | None = Field(default=None, max_length=100)
     notes: str | None = None
 

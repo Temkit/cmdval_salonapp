@@ -42,9 +42,12 @@ async def list_patients(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     q: str | None = Query(None, max_length=100, description="Recherche par nom, téléphone ou code carte"),
+    doctor_id: str | None = Query(None, description="Filtrer par médecin (patients traités)"),
 ):
     """List patients with optional search."""
-    if q:
+    if doctor_id:
+        patients, total = await patient_service.get_doctor_patients(doctor_id, page, size, q)
+    elif q:
         patients, total = await patient_service.search_patients(q, page, size)
     else:
         patients, total = await patient_service.get_all_patients(page, size)

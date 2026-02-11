@@ -18,6 +18,7 @@ import {
   ArrowDownRight,
   MapPin,
   UserCircle,
+  Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -137,14 +138,27 @@ export default function AnalyticsPage() {
             Statistiques et performances du centre
           </p>
         </div>
-        <ButtonGroup
-          options={periodOptions}
-          value={period}
-          onChange={setPeriod}
-          size="sm"
-          columns={4}
-          className="w-full sm:w-auto"
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const url = api.getDashboardExportUrl();
+              window.open(url, "_blank");
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Exporter CSV
+          </Button>
+          <ButtonGroup
+            options={periodOptions}
+            value={period}
+            onChange={setPeriod}
+            size="sm"
+            columns={4}
+            className="w-full sm:w-auto"
+          />
+        </div>
       </div>
 
       {/* Stats Overview */}

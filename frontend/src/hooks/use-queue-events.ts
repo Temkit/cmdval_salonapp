@@ -28,10 +28,13 @@ export function useQueueEvents(options: UseQueueEventsOptions = {}): UseQueueEve
   const resetCount = useCallback(() => setNewCheckInCount(0), []);
 
   useEffect(() => {
-    const doctorId = user?.id;
-    if (!doctorId) return;
+    if (!user?.id) return;
 
-    const url = `/api/v1/schedule/queue/events?doctor_id=${doctorId}`;
+    // Admins/secretaries see all patients; practitioners see only their own
+    const isPractitioner = user.role_nom === "Praticien";
+    const url = isPractitioner
+      ? `/api/v1/schedule/queue/events?doctor_id=${user.id}`
+      : `/api/v1/schedule/queue/events`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
@@ -79,7 +82,7 @@ export function useQueueEvents(options: UseQueueEventsOptions = {}): UseQueueEve
       es.close();
       eventSourceRef.current = null;
     };
-  }, [user?.id, queryClient, toast, showToasts, invalidateQueries]);
+  }, [user?.id, user?.role_nom, queryClient, toast, showToasts, invalidateQueries]);
 
   // Reset when visiting salle-attente
   useEffect(() => {

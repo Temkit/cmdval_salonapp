@@ -237,7 +237,12 @@ export default function RolesConfigPage() {
                         <Shield className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{role.nom}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{role.nom}</p>
+                          {role.is_system && (
+                            <Badge variant="outline" className="text-xs">Systeme</Badge>
+                          )}
+                        </div>
                         {role.description && (
                           <p className="text-sm text-muted-foreground">
                             {role.description}
@@ -253,13 +258,15 @@ export default function RolesConfigPage() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteRoleId(role.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {!role.is_system && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteRoleId(role.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -316,6 +323,7 @@ export default function RolesConfigPage() {
                       setFormData((prev) => ({ ...prev, nom: e.target.value }))
                     }
                     placeholder="Ex: Praticien"
+                    disabled={editingRole?.is_system}
                     required
                   />
                 </div>

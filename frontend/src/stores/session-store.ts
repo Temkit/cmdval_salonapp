@@ -61,6 +61,8 @@ export interface ActiveSession {
   tolerance?: string;
   frequence?: string;
   effetsImmediats?: string;
+  // Queue integration
+  queueEntryId?: string;
 }
 
 interface SessionState {

@@ -80,6 +80,16 @@ class PatientService:
         """Get all patients with pagination."""
         return await self.patient_repository.find_all(page, size)
 
+    async def get_doctor_patients(
+        self,
+        doctor_id: str,
+        page: int = 1,
+        size: int = 20,
+        q: str | None = None,
+    ) -> tuple[list[Patient], int]:
+        """Get patients who had sessions with a specific doctor."""
+        return await self.patient_repository.find_by_doctor(doctor_id, page, size, q)
+
     async def update_patient(
         self,
         patient_id: str,

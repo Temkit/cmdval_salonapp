@@ -25,6 +25,7 @@ class PreConsultationRepository:
             patient_id=pre_consultation.patient_id,
             sexe=pre_consultation.sexe,
             age=pre_consultation.age,
+            date_naissance=pre_consultation.date_naissance,
             statut_marital=pre_consultation.statut_marital,
             is_pregnant=pre_consultation.is_pregnant,
             is_breastfeeding=pre_consultation.is_breastfeeding,
@@ -169,6 +170,7 @@ class PreConsultationRepository:
         db_pre_consultation.patient_id = pre_consultation.patient_id
         db_pre_consultation.sexe = pre_consultation.sexe
         db_pre_consultation.age = pre_consultation.age
+        db_pre_consultation.date_naissance = pre_consultation.date_naissance
         db_pre_consultation.statut_marital = pre_consultation.statut_marital
         db_pre_consultation.is_pregnant = pre_consultation.is_pregnant
         db_pre_consultation.is_breastfeeding = pre_consultation.is_breastfeeding
@@ -313,6 +315,7 @@ class PreConsultationRepository:
             patient_telephone=patient_telephone,
             sexe=model.sexe,
             age=model.age,
+            date_naissance=model.date_naissance,
             statut_marital=model.statut_marital,
             is_pregnant=model.is_pregnant,
             is_breastfeeding=model.is_breastfeeding,
