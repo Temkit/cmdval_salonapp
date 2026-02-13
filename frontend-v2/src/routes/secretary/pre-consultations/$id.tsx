@@ -260,7 +260,8 @@ function SecretaryPreConsultationDetail() {
               <p className="font-medium">{pc.patient_prenom} {pc.patient_nom}</p>
               <div className="flex flex-wrap gap-2 mt-1">
                 {pc.sexe && <Badge variant="outline" size="sm">{pc.sexe === "F" ? "Femme" : "Homme"}</Badge>}
-                {pc.age && <Badge variant="outline" size="sm">{pc.age} ans</Badge>}
+                {pc.date_naissance && <Badge variant="outline" size="sm">{new Date(pc.date_naissance).toLocaleDateString("fr-FR")} ({pc.age} ans)</Badge>}
+                {!pc.date_naissance && pc.age && <Badge variant="outline" size="sm">{pc.age} ans</Badge>}
                 {pc.phototype && <Badge variant="outline" size="sm">Phototype {pc.phototype}</Badge>}
               </div>
             </div>
@@ -291,6 +292,7 @@ function SecretaryPreConsultationDetail() {
           <CardHeader className="pb-2"><CardTitle className="text-sm">Demographiques</CardTitle></CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p>Sexe: {pc.sexe === "F" ? "Femme" : "Homme"}</p>
+            {pc.date_naissance && <p>Date de naissance: {new Date(pc.date_naissance).toLocaleDateString("fr-FR")}</p>}
             <p>Age: {pc.age} ans</p>
             {pc.phototype && <p>Phototype: {pc.phototype}</p>}
             {pc.statut_marital && <p>Statut marital: {pc.statut_marital}</p>}
@@ -351,33 +353,33 @@ function SecretaryPreConsultationDetail() {
 
       {/* Zones */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Zones</CardTitle></CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Zones ineligibles</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          {eligibleZones.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Eligibles</p>
-              <div className="flex flex-wrap gap-2">
-                {eligibleZones.map((z) => (
-                  <Badge key={z.id} variant="success">{z.zone_nom || z.zone_id}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-          {ineligibleZones.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Non eligibles</p>
+          {ineligibleZones.length > 0 ? (
+            <div className="space-y-2">
               {ineligibleZones.map((z) => (
-                <div key={z.id} className="p-2 border rounded-lg mb-1">
+                <div key={z.id} className="p-3 border border-destructive/30 bg-destructive/5 rounded-xl">
                   <Badge variant="destructive" size="sm">{z.zone_nom || z.zone_id}</Badge>
                   {z.observations && (
-                    <p className="text-xs text-muted-foreground mt-1">{z.observations}</p>
+                    <p className="text-xs text-muted-foreground mt-1.5">{z.observations}</p>
                   )}
                 </div>
               ))}
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {eligibleZones.length > 0 ? "Aucune zone ineligible" : "Aucune zone evaluee"}
+            </p>
           )}
-          {eligibleZones.length === 0 && ineligibleZones.length === 0 && (
-            <p className="text-sm text-muted-foreground">Aucune zone evaluee</p>
+          {eligibleZones.length > 0 && (
+            <div className="pt-1">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Zones eligibles</p>
+              <div className="flex flex-wrap gap-1.5">
+                {eligibleZones.map((z) => (
+                  <Badge key={z.id} variant="success" size="sm">{z.zone_nom || z.zone_id}</Badge>
+                ))}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

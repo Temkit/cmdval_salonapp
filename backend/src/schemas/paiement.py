@@ -51,3 +51,32 @@ class RevenueStatsResponse(AppBaseModel):
     total_revenue: int
     total_payments: int
     by_type: list[dict]
+
+
+# --- Payment Methods ---
+
+
+class PaymentMethodCreate(AppBaseModel):
+    """Payment method creation schema."""
+
+    nom: str = Field(min_length=1, max_length=50)
+    ordre: int | None = 0
+
+
+class PaymentMethodUpdate(AppBaseModel):
+    """Payment method update schema."""
+
+    nom: str | None = Field(default=None, min_length=1, max_length=50)
+    is_active: bool | None = None
+    ordre: int | None = None
+
+
+class PaymentMethodResponse(AppBaseModel):
+    """Payment method response schema."""
+
+    id: str
+    nom: str
+    is_active: bool
+    ordre: int
+    created_at: datetime
+    updated_at: datetime

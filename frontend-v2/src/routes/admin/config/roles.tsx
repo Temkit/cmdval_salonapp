@@ -100,7 +100,10 @@ function AdminRolesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => api.updateRole(editing!.id, { nom: form.nom, permissions: form.permissions }),
+    mutationFn: () => api.updateRole(editing!.id, {
+      ...(editing!.is_system ? {} : { nom: form.nom }),
+      permissions: form.permissions,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       toast({ title: "Role mis a jour" });
@@ -204,7 +207,7 @@ function AdminRolesPage() {
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <Button variant="ghost" size="icon-sm" onClick={() => openEdit(role)} disabled={role.is_system}>
+                    <Button variant="ghost" size="icon-sm" onClick={() => openEdit(role)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                     <Button variant="ghost" size="icon-sm" onClick={() => setDeleteTarget(role)} disabled={role.is_system}>
@@ -245,7 +248,11 @@ function AdminRolesPage() {
                 value={form.nom}
                 onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))}
                 placeholder="Ex: Secretaire"
+                disabled={editing?.is_system}
               />
+              {editing?.is_system && (
+                <p className="text-xs text-muted-foreground">Le nom d'un role systeme ne peut pas etre modifie</p>
+              )}
             </div>
 
             <div className="space-y-3">

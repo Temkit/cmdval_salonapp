@@ -39,8 +39,8 @@ class AlertService:
             alerts.append(
                 Alert(
                     type="no_pre_consultation",
-                    severity="error",
-                    message="Aucune pre-consultation validee - Seance non autorisee",
+                    severity="warning",
+                    message="Rappel: pre-consultation recommandee avant la premiere seance",
                     details={"reason": "missing_pre_consultation"},
                 )
             )
@@ -50,7 +50,7 @@ class AlertService:
             alerts.append(
                 Alert(
                     type="pre_consultation_pending",
-                    severity="error",
+                    severity="warning",
                     message=f"Pre-consultation en attente de validation (statut: {pre_consultation.status})",
                     details={"status": pre_consultation.status},
                 )

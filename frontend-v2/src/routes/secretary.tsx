@@ -7,8 +7,10 @@ import {
   Users,
   FileText,
   CreditCard,
+  Activity,
   LogOut,
   KeyRound,
+  UserX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,7 +39,9 @@ const navItems: Array<{ to: string; label: string; icon: typeof LayoutGrid; exac
   { to: "/secretary/agenda", label: "Agenda", icon: Calendar },
   { to: "/secretary/patients", label: "Patients", icon: Users },
   { to: "/secretary/pre-consultations", label: "Pre-consult.", icon: FileText },
+  { to: "/secretary/sessions", label: "Seances", icon: Activity },
   { to: "/secretary/paiements", label: "Paiements", icon: CreditCard },
+  { to: "/secretary/absences", label: "Absences", icon: UserX },
 ];
 
 function SecretaryShell() {

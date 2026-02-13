@@ -2,15 +2,21 @@
 
 from datetime import datetime
 from typing import Annotated
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 
-from src.api.v1.dependencies import CurrentUser, get_paiement_service
+from src.api.v1.dependencies import CurrentUser, get_db, get_paiement_service
 from src.application.services.paiement_service import PaiementService
+from src.infrastructure.database.models import PaymentMethodModel
 from src.schemas.paiement import (
     PaiementCreate,
     PaiementListResponse,
     PaiementResponse,
+    PaymentMethodCreate,
+    PaymentMethodResponse,
+    PaymentMethodUpdate,
     RevenueStatsResponse,
 )
 
@@ -106,3 +112,94 @@ async def get_revenue_stats(
 ):
     """Get revenue statistics."""
     return await paiement_service.get_revenue_stats(date_from, date_to)
+
+
+# --- Payment Methods CRUD ---
+
+
+@router.get("/methods", response_model=list[PaymentMethodResponse])
+async def list_payment_methods(
+    current_user: CurrentUser,
+    session=Depends(get_db),
+):
+    """List all payment methods (active only by default)."""
+    result = await session.execute(
+        select(PaymentMethodModel).order_by(PaymentMethodModel.ordre, PaymentMethodModel.nom)
+    )
+    methods = result.scalars().all()
+    return [
+        PaymentMethodResponse(
+            id=m.id, nom=m.nom, is_active=m.is_active, ordre=m.ordre,
+            created_at=m.created_at, updated_at=m.updated_at,
+        )
+        for m in methods
+    ]
+
+
+@router.post("/methods", response_model=PaymentMethodResponse, status_code=201)
+async def create_payment_method(
+    data: PaymentMethodCreate,
+    current_user: CurrentUser,
+    session=Depends(get_db),
+):
+    """Create a payment method."""
+    method = PaymentMethodModel(
+        id=str(uuid4()),
+        nom=data.nom,
+        is_active=True,
+        ordre=data.ordre or 0,
+    )
+    session.add(method)
+    await session.commit()
+    await session.refresh(method)
+    return PaymentMethodResponse(
+        id=method.id, nom=method.nom, is_active=method.is_active, ordre=method.ordre,
+        created_at=method.created_at, updated_at=method.updated_at,
+    )
+
+
+@router.put("/methods/{method_id}", response_model=PaymentMethodResponse)
+async def update_payment_method(
+    method_id: str,
+    data: PaymentMethodUpdate,
+    current_user: CurrentUser,
+    session=Depends(get_db),
+):
+    """Update a payment method."""
+    result = await session.execute(
+        select(PaymentMethodModel).where(PaymentMethodModel.id == method_id)
+    )
+    method = result.scalar_one_or_none()
+    if not method:
+        raise HTTPException(status_code=404, detail="Mode de paiement introuvable")
+
+    if data.nom is not None:
+        method.nom = data.nom
+    if data.is_active is not None:
+        method.is_active = data.is_active
+    if data.ordre is not None:
+        method.ordre = data.ordre
+
+    await session.commit()
+    await session.refresh(method)
+    return PaymentMethodResponse(
+        id=method.id, nom=method.nom, is_active=method.is_active, ordre=method.ordre,
+        created_at=method.created_at, updated_at=method.updated_at,
+    )
+
+
+@router.delete("/methods/{method_id}", status_code=204)
+async def delete_payment_method(
+    method_id: str,
+    current_user: CurrentUser,
+    session=Depends(get_db),
+):
+    """Delete a payment method."""
+    result = await session.execute(
+        select(PaymentMethodModel).where(PaymentMethodModel.id == method_id)
+    )
+    method = result.scalar_one_or_none()
+    if not method:
+        raise HTTPException(status_code=404, detail="Mode de paiement introuvable")
+    await session.delete(method)
+    await session.commit()

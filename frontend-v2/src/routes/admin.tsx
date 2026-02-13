@@ -8,6 +8,7 @@ import {
   Users,
   FileText,
   CreditCard,
+  Activity,
   Settings,
   LogOut,
   MapPin,
@@ -18,6 +19,9 @@ import {
   Shield,
   DoorOpen,
   KeyRound,
+  Wallet,
+  UserX,
+  FilePen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -47,7 +51,9 @@ const mainNav: Array<{ to: string; label: string; icon: typeof BarChart3; exact?
   { to: "/admin/agenda", label: "Agenda", icon: Calendar },
   { to: "/admin/patients", label: "Patients", icon: Users },
   { to: "/admin/pre-consultations", label: "Pre-consult.", icon: FileText },
+  { to: "/admin/sessions", label: "Seances", icon: Activity },
   { to: "/admin/paiements", label: "Paiements", icon: CreditCard },
+  { to: "/admin/absences", label: "Absences", icon: UserX },
 ];
 
 const configNav: Array<{ to: string; label: string; icon: typeof MapPin }> = [
@@ -58,6 +64,8 @@ const configNav: Array<{ to: string; label: string; icon: typeof MapPin }> = [
   { to: "/admin/config/questionnaire", label: "Questionnaire", icon: ClipboardList },
   { to: "/admin/config/roles", label: "Roles", icon: Shield },
   { to: "/admin/config/boxes", label: "Cabines", icon: DoorOpen },
+  { to: "/admin/config/paiements", label: "Paiements", icon: Wallet },
+  { to: "/admin/config/documents", label: "Documents", icon: FilePen },
 ];
 
 function AdminShell() {

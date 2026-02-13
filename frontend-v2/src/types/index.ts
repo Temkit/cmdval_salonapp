@@ -173,6 +173,7 @@ export interface PreConsultation {
   patient_telephone?: string;
   sexe: "M" | "F";
   age: number;
+  date_naissance: string | null;
   statut_marital: string | null;
   is_pregnant: boolean;
   is_breastfeeding: boolean;
@@ -259,6 +260,7 @@ export interface PatientSubscription {
   patient_id: string;
   pack_id: string | null;
   pack_nom: string | null;
+  pack_prix: number | null;
   type: SubscriptionType;
   date_debut: string | null;
   date_fin: string | null;
@@ -272,7 +274,16 @@ export interface PatientSubscription {
 }
 
 export type PaiementType = "encaissement" | "prise_en_charge" | "hors_carte";
-export type ModePaiement = "especes" | "carte" | "virement";
+export type ModePaiement = string;
+
+export interface PaymentMethod {
+  id: string;
+  nom: string;
+  is_active: boolean;
+  ordre: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Paiement {
   id: string;
@@ -359,6 +370,7 @@ export interface DailyScheduleEntry {
   patient_nom: string;
   patient_prenom: string;
   patient_id: string | null;
+  patient_telephone: string | null;
   doctor_name: string;
   doctor_id: string | null;
   specialite: string | null;
@@ -541,11 +553,33 @@ export interface ManualScheduleEntryRequest {
   date: string;
   patient_nom: string;
   patient_prenom: string;
-  doctor_name: string;
+  doctor_id: string;
+  doctor_name?: string;
   start_time: string;
   end_time?: string;
   duration_type?: string;
+  zone_ids?: string[];
   notes?: string;
+}
+
+export interface PhoneConflict {
+  entry_nom: string;
+  entry_prenom: string;
+  entry_telephone: string;
+  matched_patient_id: string;
+  matched_patient_nom: string;
+  matched_patient_prenom: string;
+  matched: boolean;
+}
+
+export interface ScheduleUploadResponse {
+  message: string;
+  entries_created: number;
+  date: string | null;
+  phone_matched: number;
+  phone_conflicts: PhoneConflict[];
+  skipped_rows: number;
+  total_rows: number;
 }
 
 export interface AddPreConsultationZoneRequest {
@@ -727,6 +761,63 @@ export interface RevenueBreakdown {
 export interface DemographicsResponse {
   age_distribution: { range: string; count: number }[];
   city_distribution: { city: string; count: number }[];
+}
+
+export interface AbsenceRecord {
+  id: string;
+  patient_id: string | null;
+  patient_name: string;
+  date: string;
+  schedule_id: string | null;
+  doctor_name: string;
+  created_at: string;
+}
+
+export interface AbsencesResponse {
+  absences: AbsenceRecord[];
+  total: number;
+}
+
+export interface PatientDocument {
+  id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  description: string | null;
+  url: string;
+  created_at: string;
+}
+
+export interface PatientDocumentsResponse {
+  documents: PatientDocument[];
+  total: number;
+}
+
+export interface DocumentTemplateSection {
+  heading: string;
+  content?: string;
+  items?: string[];
+}
+
+export interface DocumentTemplateContent {
+  title: string;
+  intro: string;
+  sections: DocumentTemplateSection[];
+  warning?: string;
+  closing: string;
+}
+
+export interface DocumentTemplate {
+  document_type: string;
+  label: string;
+  content: DocumentTemplateContent;
+  default_content?: DocumentTemplateContent;
+  is_customized: boolean;
+  updated_at: string | null;
+}
+
+export interface DocumentTemplatesResponse {
+  templates: DocumentTemplate[];
 }
 
 export interface MessageResponse {

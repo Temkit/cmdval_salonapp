@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   Stethoscope,
   RefreshCw,
   Plus,
+  Check,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +36,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { PatientConflictDialog } from "@/components/patient-conflict-dialog";
-import type { CheckInConflictResponse } from "@/types";
+import type { CheckInConflictResponse, PhoneConflict } from "@/types";
 
 export const Route = createFileRoute("/secretary/agenda")({
   component: SecretaryAgendaPage,
@@ -72,17 +80,58 @@ function SecretaryAgendaPage() {
   const [uploading, setUploading] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [conflict, setConflict] = useState<CheckInConflictResponse | null>(null);
+  const [phoneConflicts, setPhoneConflicts] = useState<PhoneConflict[]>([]);
   const [addForm, setAddForm] = useState({
     patient_prenom: "",
     patient_nom: "",
-    doctor_name: "",
+    doctor_id: "",
     start_time: "",
-    duration_type: "",
+    selected_zone_ids: [] as string[],
     notes: "",
   });
 
   const dateStr = formatDateForApi(selectedDate);
   const isToday = dateStr === formatDateForApi(new Date());
+
+  const { data: usersData } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api.getUsers(),
+  });
+
+  const { data: zonesData } = useQuery({
+    queryKey: ["zones"],
+    queryFn: () => api.getZones(),
+  });
+
+  const doctors = useMemo(() => {
+    if (!usersData?.users) return [];
+    return usersData.users.filter(
+      (u) =>
+        u.actif &&
+        u.role_nom &&
+        /praticien|medecin|médecin/i.test(u.role_nom),
+    );
+  }, [usersData]);
+
+  const zones = useMemo(() => {
+    if (!zonesData?.zones) return [];
+    return zonesData.zones.filter((z) => z.is_active);
+  }, [zonesData]);
+
+  const totalMinutes = useMemo(() => {
+    return zones
+      .filter((z) => addForm.selected_zone_ids.includes(z.id))
+      .reduce((sum, z) => sum + (z.duree_minutes || 0), 0);
+  }, [zones, addForm.selected_zone_ids]);
+
+  const toggleZone = (zoneId: string) => {
+    setAddForm((f) => ({
+      ...f,
+      selected_zone_ids: f.selected_zone_ids.includes(zoneId)
+        ? f.selected_zone_ids.filter((id) => id !== zoneId)
+        : [...f.selected_zone_ids, zoneId],
+    }));
+  };
 
   const {
     data: scheduleData,
@@ -116,16 +165,37 @@ function SecretaryAgendaPage() {
   });
 
   const addEntryMutation = useMutation({
-    mutationFn: (data: typeof addForm) =>
-      api.createManualScheduleEntry({
+    mutationFn: (data: typeof addForm) => {
+      const doctor = doctors.find((u) => u.id === data.doctor_id);
+      const selectedZones = zones.filter((z) =>
+        data.selected_zone_ids.includes(z.id),
+      );
+      const minutes = selectedZones.reduce(
+        (sum, z) => sum + (z.duree_minutes || 0),
+        0,
+      );
+      const durationStr =
+        selectedZones.length > 0
+          ? `${selectedZones.map((z) => z.nom).join(", ")} (${minutes}min)`
+          : undefined;
+
+      return api.createManualScheduleEntry({
         date: dateStr,
         patient_prenom: data.patient_prenom,
         patient_nom: data.patient_nom,
-        doctor_name: data.doctor_name,
+        doctor_id: data.doctor_id,
+        doctor_name: doctor
+          ? `${doctor.prenom} ${doctor.nom}`
+          : undefined,
         start_time: data.start_time,
-        duration_type: data.duration_type || undefined,
+        zone_ids:
+          data.selected_zone_ids.length > 0
+            ? data.selected_zone_ids
+            : undefined,
+        duration_type: durationStr,
         notes: data.notes || undefined,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
       toast({ title: "Rendez-vous ajoute" });
@@ -133,9 +203,9 @@ function SecretaryAgendaPage() {
       setAddForm({
         patient_prenom: "",
         patient_nom: "",
-        doctor_name: "",
+        doctor_id: "",
         start_time: "",
-        duration_type: "",
+        selected_zone_ids: [],
         notes: "",
       });
     },
@@ -162,10 +232,14 @@ function SecretaryAgendaPage() {
     setUploading(true);
     try {
       const result = await api.uploadSchedule(file);
-      toast({
-        title: "Planning importe",
-        description: `${result.entries_created} entree(s) creee(s) pour le ${result.date}`,
-      });
+      const parts: string[] = [];
+      parts.push(`${result.entries_created} entree(s) creee(s)`);
+      if (result.phone_matched > 0) parts.push(`${result.phone_matched} reliee(s) par telephone`);
+      if (result.skipped_rows > 0) parts.push(`${result.skipped_rows} ligne(s) ignoree(s)`);
+      toast({ title: "Planning importe", description: parts.join(", ") });
+      if (result.phone_conflicts.length > 0) {
+        setPhoneConflicts(result.phone_conflicts);
+      }
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
     } catch (err: unknown) {
       const error = err as Error;
@@ -450,16 +524,23 @@ function SecretaryAgendaPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Medecin</Label>
-                <Input
-                  required
-                  value={addForm.doctor_name}
-                  onChange={(e) =>
-                    setAddForm((f) => ({
-                      ...f,
-                      doctor_name: e.target.value,
-                    }))
+                <Select
+                  value={addForm.doctor_id}
+                  onValueChange={(v) =>
+                    setAddForm((f) => ({ ...f, doctor_id: v }))
                   }
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selectionner un medecin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        {doctor.prenom} {doctor.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Heure debut</Label>
@@ -474,17 +555,39 @@ function SecretaryAgendaPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Type de duree</Label>
-              <Input
-                placeholder="Ex: 30min, 1h..."
-                value={addForm.duration_type}
-                onChange={(e) =>
-                  setAddForm((f) => ({
-                    ...f,
-                    duration_type: e.target.value,
-                  }))
-                }
-              />
+              <Label>
+                Zones a traiter
+                {totalMinutes > 0 && (
+                  <span className="text-muted-foreground font-normal ml-2">
+                    ({totalMinutes} min)
+                  </span>
+                )}
+              </Label>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                {zones.map((zone) => {
+                  const isSelected = addForm.selected_zone_ids.includes(
+                    zone.id,
+                  );
+                  return (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      onClick={() => toggleZone(zone.id)}
+                      className={`flex items-center gap-2 text-left text-sm px-3 py-2 rounded-md border transition-colors ${isSelected ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}
+                    >
+                      {isSelected && <Check className="h-3 w-3 shrink-0" />}
+                      <span className="truncate">
+                        {zone.nom}
+                        {zone.duree_minutes != null && (
+                          <span className="opacity-70 ml-1">
+                            ({zone.duree_minutes}min)
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -504,7 +607,16 @@ function SecretaryAgendaPage() {
               >
                 Annuler
               </Button>
-              <Button type="submit" disabled={addEntryMutation.isPending}>
+              <Button
+                type="submit"
+                disabled={
+                  addEntryMutation.isPending ||
+                  !addForm.doctor_id ||
+                  !addForm.patient_prenom ||
+                  !addForm.patient_nom ||
+                  !addForm.start_time
+                }
+              >
                 {addEntryMutation.isPending ? "Ajout..." : "Ajouter"}
               </Button>
             </DialogFooter>
@@ -520,6 +632,41 @@ function SecretaryAgendaPage() {
           queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
         }}
       />
+
+      {/* Phone conflict warning dialog */}
+      <Dialog open={phoneConflicts.length > 0} onOpenChange={(open) => !open && setPhoneConflicts([])}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Conflits de telephone detectes
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Les patients suivants ont ete relies par numero de telephone, mais le nom dans le fichier Excel ne correspond pas exactement au nom enregistre. Veuillez verifier.
+          </p>
+          <div className="space-y-3 max-h-64 overflow-y-auto">
+            {phoneConflicts.map((c, i) => (
+              <div key={i} className="border border-warning/30 bg-warning/5 rounded-xl p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    Excel: {c.entry_prenom} {c.entry_nom}
+                  </span>
+                  <Badge variant="warning" size="sm">{c.entry_telephone}</Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Patient existant: {c.matched_patient_prenom} {c.matched_patient_nom}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setPhoneConflicts([])}>
+              Compris
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -67,6 +67,7 @@ class PatientSubscriptionResponse(AppBaseModel):
     patient_id: str
     pack_id: str | None = None
     pack_nom: str | None = None
+    pack_prix: int | None = None
     type: str
     date_debut: date | None = None
     date_fin: date | None = None

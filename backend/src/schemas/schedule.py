@@ -28,6 +28,7 @@ class ScheduleEntryResponse(AppBaseModel):
     patient_nom: str
     patient_prenom: str
     patient_id: str | None = None
+    patient_telephone: str | None = None
     doctor_name: str
     doctor_id: str | None = None
     specialite: str | None = None
@@ -45,10 +46,26 @@ class ScheduleListResponse(AppBaseModel):
     total: int
 
 
+class PhoneConflict(AppBaseModel):
+    """A phone-based match where the name differs."""
+
+    entry_nom: str
+    entry_prenom: str
+    entry_telephone: str
+    matched_patient_id: str
+    matched_patient_nom: str
+    matched_patient_prenom: str
+    matched: bool = False  # True if user auto-matched despite name difference
+
+
 class ScheduleUploadResponse(AppBaseModel):
     message: str
     entries_created: int
     date: dt.date | None = None
+    phone_matched: int = 0
+    phone_conflicts: list[PhoneConflict] = []
+    skipped_rows: int = 0
+    total_rows: int = 0
 
 
 class QueueEntryResponse(AppBaseModel):

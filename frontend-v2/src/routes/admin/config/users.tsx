@@ -175,7 +175,7 @@ function AdminUsersPage() {
                       <p className="font-medium text-sm">
                         {u.prenom} {u.nom}
                       </p>
-                      {!u.is_active && (
+                      {!u.actif && (
                         <Badge variant="muted" size="sm">Inactif</Badge>
                       )}
                     </div>

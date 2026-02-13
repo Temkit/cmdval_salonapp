@@ -73,6 +73,14 @@ import type {
   MessageResponse,
   CheckInResult,
   ResolveConflictRequest,
+  ScheduleUploadResponse,
+  PaymentMethod,
+  AbsencesResponse,
+  PatientDocument,
+  PatientDocumentsResponse,
+  DocumentTemplate,
+  DocumentTemplateContent,
+  DocumentTemplatesResponse,
 } from "@/types";
 
 const API_BASE = "/api/v1";
@@ -229,12 +237,13 @@ export const api = {
 
   // Patients
   async getPatients(
-    params: { page?: number; size?: number; q?: string } = {},
+    params: { page?: number; size?: number; q?: string; doctor_id?: string } = {},
   ) {
     const searchParams = new URLSearchParams();
     if (params.page) searchParams.set("page", params.page.toString());
     if (params.size) searchParams.set("size", params.size.toString());
     if (params.q) searchParams.set("q", params.q);
+    if (params.doctor_id) searchParams.set("doctor_id", params.doctor_id);
 
     const response = await wrapFetch(
       `${API_BASE}/patients?${searchParams}`,
@@ -401,6 +410,21 @@ export const api = {
   },
 
   // Sessions
+  async getSessions(
+    params: { page?: number; size?: number; praticien_id?: string } = {},
+  ) {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set("page", params.page.toString());
+    if (params.size) searchParams.set("size", params.size.toString());
+    if (params.praticien_id)
+      searchParams.set("praticien_id", params.praticien_id);
+
+    const response = await wrapFetch(
+      `${API_BASE}/sessions?${searchParams}`,
+    );
+    return handleResponse<SessionsResponse>(response);
+  },
+
   async getPatientSessions(
     patientId: string,
     params: { page?: number; size?: number } = {},
@@ -851,6 +875,37 @@ export const api = {
     return handleResponse<RevenueStats>(response);
   },
 
+  // Payment Methods
+  async getPaymentMethods() {
+    const response = await wrapFetch(`${API_BASE}/paiements/methods`);
+    return handleResponse<PaymentMethod[]>(response);
+  },
+
+  async createPaymentMethod(data: { nom: string; ordre?: number }) {
+    const response = await wrapFetch(`${API_BASE}/paiements/methods`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<PaymentMethod>(response);
+  },
+
+  async updatePaymentMethod(id: string, data: { nom?: string; is_active?: boolean; ordre?: number }) {
+    const response = await wrapFetch(`${API_BASE}/paiements/methods/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<PaymentMethod>(response);
+  },
+
+  async deletePaymentMethod(id: string) {
+    const response = await wrapFetch(`${API_BASE}/paiements/methods/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error("Erreur lors de la suppression");
+  },
+
   // Promotions
   async getPromotions(includeInactive = false) {
     const response = await wrapFetch(
@@ -921,11 +976,7 @@ export const api = {
       method: "POST",
       body: formData,
     });
-    return handleResponse<{
-      message: string;
-      entries_created: number;
-      date: string;
-    }>(response);
+    return handleResponse<ScheduleUploadResponse>(response);
   },
 
   async getTodaySchedule() {
@@ -1003,6 +1054,16 @@ export const api = {
     return handleResponse<WaitingQueueEntry>(response);
   },
 
+  // Absences
+  async getAbsences(params: { patient_id?: string } = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.patient_id) searchParams.set("patient_id", params.patient_id);
+    const response = await wrapFetch(
+      `${API_BASE}/schedule/absences?${searchParams}`,
+    );
+    return handleResponse<AbsencesResponse>(response);
+  },
+
   // Temp Photos
   async uploadTempPhoto(blob: Blob): Promise<{ id: string; url: string }> {
     const formData = new FormData();
@@ -1035,6 +1096,66 @@ export const api = {
 
   getPatientQRCodeUrl(patientId: string) {
     return `${API_BASE}/documents/patients/${patientId}/qr-code`;
+  },
+
+  // Patient document uploads
+  async uploadPatientDocument(patientId: string, file: File, description?: string) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (description) formData.append("description", description);
+    const response = await wrapFetch(
+      `${API_BASE}/documents/patients/${patientId}/uploads`,
+      { method: "POST", body: formData },
+    );
+    return handleResponse<PatientDocument>(response);
+  },
+
+  async getPatientDocuments(patientId: string) {
+    const response = await wrapFetch(
+      `${API_BASE}/documents/patients/${patientId}/uploads`,
+    );
+    return handleResponse<PatientDocumentsResponse>(response);
+  },
+
+  async deletePatientDocument(docId: string) {
+    const response = await wrapFetch(
+      `${API_BASE}/documents/uploads/${docId}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) throw new Error("Erreur lors de la suppression");
+  },
+
+  // Document Templates
+  async getDocumentTemplates() {
+    const response = await wrapFetch(`${API_BASE}/documents/templates`);
+    return handleResponse<DocumentTemplatesResponse>(response);
+  },
+
+  async getDocumentTemplate(documentType: string) {
+    const response = await wrapFetch(
+      `${API_BASE}/documents/templates/${documentType}`,
+    );
+    return handleResponse<DocumentTemplate>(response);
+  },
+
+  async updateDocumentTemplate(documentType: string, content: DocumentTemplateContent) {
+    const response = await wrapFetch(
+      `${API_BASE}/documents/templates/${documentType}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      },
+    );
+    return handleResponse<DocumentTemplate>(response);
+  },
+
+  async resetDocumentTemplate(documentType: string) {
+    const response = await wrapFetch(
+      `${API_BASE}/documents/templates/${documentType}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) throw new Error("Erreur lors de la reinitialisation");
   },
 
   // Dashboard enhancements

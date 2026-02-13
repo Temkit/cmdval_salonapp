@@ -28,8 +28,8 @@ class PatientBase(AppBaseModel):
 class PatientCreate(PatientBase):
     """Patient creation schema."""
 
-    code_carte: str = Field(min_length=1, max_length=50)
-    status: PatientStatus = "en_attente_evaluation"
+    code_carte: str | None = Field(default=None, max_length=50)
+    status: PatientStatus = "actif"
 
 
 class PatientUpdate(AppBaseModel):

@@ -7,7 +7,6 @@ import {
   Search,
   X,
   Plus,
-  Trash2,
   AlertTriangle,
   Check,
 } from "lucide-react";
@@ -20,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PatientWorkflowStepper } from "@/components/patient-workflow";
-import type { Patient, ZoneDefinition, QuestionnaireResponseInput } from "@/types";
+import type { Patient, QuestionnaireResponseInput } from "@/types";
 
 export const Route = createFileRoute("/secretary/pre-consultations/nouveau")({
   component: SecretaryPreConsultationNouveau,
@@ -32,8 +31,6 @@ const PHOTOTYPES = ["I", "II", "III", "IV", "V", "VI"];
 const MARITAL_STATUSES = [
   { value: "celibataire", label: "Celibataire" },
   { value: "marie", label: "Marie(e)" },
-  { value: "divorce", label: "Divorce(e)" },
-  { value: "veuf", label: "Veuf/Veuve" },
 ];
 
 // Backend expects these exact English values
@@ -92,7 +89,7 @@ function SecretaryPreConsultationNouveau() {
 
   // Step 1 - Demographics
   const [sexe, setSexe] = useState<"F" | "M">("F");
-  const [age, setAge] = useState("");
+  const [dateNaissance, setDateNaissance] = useState("");
   const [maritalStatus, setMaritalStatus] = useState("");
   const [phototype, setPhototype] = useState("");
 
@@ -177,7 +174,7 @@ function SecretaryPreConsultationNouveau() {
       const data: Record<string, unknown> = {
         patient_id: selectedPatient!.id,
         sexe,
-        age: parseInt(age),
+        date_naissance: dateNaissance || null,
         phototype: phototype || null,
         statut_marital: maritalStatus || null,
         is_pregnant: isPregnant,
@@ -227,29 +224,32 @@ function SecretaryPreConsultationNouveau() {
     },
   });
 
-  const addZone = (zone: ZoneDefinition) => {
-    if (formZones.find((z) => z.zone_id === zone.id)) return;
-    setFormZones((prev) => [
-      ...prev,
-      { zone_id: zone.id, zone_nom: zone.nom, is_eligible: true, observations: "" },
-    ]);
-  };
-
-  const removeZone = (zoneId: string) => {
-    setFormZones((prev) => prev.filter((z) => z.zone_id !== zoneId));
-  };
-
   const updateZone = (zoneId: string, updates: Partial<FormZone>) => {
     setFormZones((prev) =>
       prev.map((z) => (z.zone_id === zoneId ? { ...z, ...updates } : z)),
     );
   };
 
+  // Initialize all zones when zone data loads
+  const allZones = zonesData?.zones ?? [];
+  useEffect(() => {
+    if (allZones.length > 0 && formZones.length === 0) {
+      setFormZones(
+        allZones.map((z) => ({
+          zone_id: z.id,
+          zone_nom: z.nom,
+          is_eligible: true,
+          observations: "",
+        })),
+      );
+    }
+  }, [allZones.length]);
+
   const canNext = () => {
     switch (step) {
       case 0: return !!selectedPatient;
-      case 1: return !!age && parseInt(age) > 0;
-      case 6: return formZones.length > 0;
+      case 1: return !!dateNaissance;
+      case 6: return true; // All zones auto-loaded
       case 7: {
         // Check if all required questions are answered
         const requiredQuestions = activeQuestions.filter((q) => q.obligatoire);
@@ -280,9 +280,7 @@ function SecretaryPreConsultationNouveau() {
     }
   };
 
-  const availableZones = (zonesData?.zones ?? []).filter(
-    (z) => !formZones.find((fz) => fz.zone_id === z.id),
-  );
+  const ineligibleCount = formZones.filter((z) => !z.is_eligible).length;
 
   return (
     <div className="page-container space-y-4 sm:space-y-6 max-w-2xl mx-auto">
@@ -427,7 +425,7 @@ function SecretaryPreConsultationNouveau() {
                           setSelectedPatient(p);
                           setPatientSearch("");
                           if (p.sexe) setSexe(p.sexe);
-                          if (p.age) setAge(p.age.toString());
+                          if (p.date_naissance) setDateNaissance(p.date_naissance);
                         }}
                         className="w-full text-left p-3 rounded-xl border hover:bg-muted/50 transition-colors"
                       >
@@ -469,14 +467,12 @@ function SecretaryPreConsultationNouveau() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Age</Label>
+              <Label>Date de naissance</Label>
               <Input
-                type="number"
-                min="0"
-                max="120"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                placeholder="Age du patient"
+                type="date"
+                value={dateNaissance}
+                onChange={(e) => setDateNaissance(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
               />
             </div>
             <div className="space-y-2">
@@ -697,60 +693,42 @@ function SecretaryPreConsultationNouveau() {
       {/* Step 6 - Zones */}
       {step === 6 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Zones eligibles</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Zones ineligibles</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Toutes les zones sont eligibles par defaut. Marquez celles qui ne le sont pas.
+              {ineligibleCount > 0 && (
+                <span className="text-destructive font-medium"> ({ineligibleCount} zone{ineligibleCount > 1 ? "s" : ""} ineligible{ineligibleCount > 1 ? "s" : ""})</span>
+              )}
+            </p>
+          </CardHeader>
           <CardContent className="space-y-4">
-            {/* Add zone */}
-            {availableZones.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Ajouter une zone</Label>
-                <div className="flex flex-wrap gap-2">
-                  {availableZones.map((z) => (
-                    <Button
-                      key={z.id}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addZone(z)}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      {z.nom}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Zone list */}
             {formZones.length > 0 ? (
               <div className="space-y-3">
                 {formZones.map((fz) => (
-                  <div key={fz.zone_id} className="p-3 border rounded-xl space-y-3">
+                  <div
+                    key={fz.zone_id}
+                    className={cn(
+                      "p-3 border rounded-xl space-y-3 transition-colors",
+                      !fz.is_eligible && "border-destructive/30 bg-destructive/5",
+                    )}
+                  >
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">{fz.zone_nom}</span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant={fz.is_eligible ? "success" : "destructive"}
-                          size="sm"
-                          onClick={() => updateZone(fz.zone_id, { is_eligible: !fz.is_eligible })}
-                        >
-                          {fz.is_eligible ? "Eligible" : "Non eligible"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => removeZone(fz.zone_id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
+                      <Button
+                        type="button"
+                        variant={fz.is_eligible ? "outline" : "destructive"}
+                        size="sm"
+                        onClick={() => updateZone(fz.zone_id, { is_eligible: !fz.is_eligible, observations: fz.is_eligible ? fz.observations : "" })}
+                      >
+                        {fz.is_eligible ? "Eligible" : "Non eligible"}
+                      </Button>
                     </div>
                     {!fz.is_eligible && (
                       <Textarea
                         value={fz.observations}
                         onChange={(e) => updateZone(fz.zone_id, { observations: e.target.value })}
-                        placeholder="Observations / raison de non-eligibilite..."
+                        placeholder="Raison de non-eligibilite..."
                         rows={2}
                       />
                     )}
@@ -759,7 +737,7 @@ function SecretaryPreConsultationNouveau() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Ajoutez au moins une zone
+                Chargement des zones...
               </p>
             )}
 

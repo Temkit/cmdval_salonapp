@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   BarChart3,
   Users,
@@ -11,6 +11,9 @@ import {
   Clock,
   DollarSign,
   MapPin,
+  Download,
+  Filter,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +34,40 @@ const PERIOD_OPTIONS = [
 
 function AdminDashboardPage() {
   const [sessionPeriod, setSessionPeriod] = useState("month");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  const hasDateFilter = dateFrom || dateTo;
+
+  const handleExportCSV = useCallback(async () => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (dateFrom) params.set("date_from", dateFrom);
+      if (dateTo) params.set("date_to", dateTo);
+      const response = await fetch(`/api/v1/dashboard/export?${params}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Export echoue");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `export-seances-${dateFrom || "debut"}-${dateTo || "fin"}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silent fail - user sees button state reset
+    } finally {
+      setExporting(false);
+    }
+  }, [dateFrom, dateTo]);
+
+  const clearFilters = useCallback(() => {
+    setDateFrom("");
+    setDateTo("");
+  }, []);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard-stats"],
@@ -38,8 +75,12 @@ function AdminDashboardPage() {
   });
 
   const { data: revenueData } = useQuery({
-    queryKey: ["dashboard-revenue"],
-    queryFn: () => api.getDashboardRevenue(),
+    queryKey: ["dashboard-revenue", dateFrom, dateTo],
+    queryFn: () =>
+      api.getDashboardRevenue({
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+      }),
   });
 
   const { data: activityData } = useQuery({
@@ -110,12 +151,57 @@ function AdminDashboardPage() {
 
   return (
     <div className="page-container space-y-6">
-      <div>
-        <h1 className="heading-2">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Vue d'ensemble de l'activite
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="heading-2">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Vue d'ensemble de l'activite
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportCSV}
+          disabled={exporting}
+          className="shrink-0"
+        >
+          <Download className="h-4 w-4 mr-1.5" />
+          {exporting ? "Export..." : "Exporter CSV"}
+        </Button>
       </div>
+
+      {/* Date range filters */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground shrink-0">Du</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-8 rounded-lg border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground shrink-0">Au</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-8 rounded-lg border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+              />
+            </div>
+            {hasDateFilter && (
+              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
+                <X className="h-3.5 w-3.5 mr-1" />
+                Effacer
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

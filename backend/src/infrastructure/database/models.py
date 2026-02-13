@@ -108,6 +108,9 @@ class PatientModel(Base):
     pre_consultations: Mapped[list["PreConsultationModel"]] = relationship(back_populates="patient")
     subscriptions: Mapped[list["PatientSubscriptionModel"]] = relationship(back_populates="patient")
     paiements: Mapped[list["PaiementModel"]] = relationship(back_populates="patient")
+    documents: Mapped[list["PatientDocumentModel"]] = relationship(
+        back_populates="patient", cascade="all, delete-orphan"
+    )
 
 
 class ZoneDefinitionModel(Base):
@@ -519,6 +522,21 @@ class PaiementModel(Base):
     patient: Mapped["PatientModel"] = relationship(back_populates="paiements")
 
 
+class PaymentMethodModel(Base):
+    """Configurable payment methods."""
+
+    __tablename__ = "payment_methods"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    nom: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    ordre: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: _utcnow())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: _utcnow(), onupdate=lambda: _utcnow()
+    )
+
+
 class PromotionModel(Base):
     """Promotions and discounts."""
 
@@ -580,6 +598,7 @@ class DailyScheduleModel(Base):
     patient_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("patients.id"), nullable=True
     )
+    patient_telephone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     doctor_name: Mapped[str] = mapped_column(String(100), nullable=False)
     doctor_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     specialite: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -628,4 +647,43 @@ class WaitingQueueModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: _utcnow())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: _utcnow(), onupdate=lambda: _utcnow()
+    )
+
+
+class PatientDocumentModel(Base):
+    """Uploaded documents (photos/scans) attached to a patient profile."""
+
+    __tablename__ = "patient_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    patient_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    filepath: Mapped[str] = mapped_column(String(500), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: _utcnow())
+
+    # Relationships
+    patient: Mapped["PatientModel"] = relationship(back_populates="documents")
+
+
+class DocumentTemplateModel(Base):
+    """Editable templates for generated PDF documents."""
+
+    __tablename__ = "document_templates"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    document_type: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
+    content: Mapped[dict] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: _utcnow(), onupdate=lambda: _utcnow()
+    )
+    updated_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
     )

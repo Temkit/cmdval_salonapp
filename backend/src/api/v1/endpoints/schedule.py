@@ -17,6 +17,7 @@ from src.schemas.schedule import (
     AbsenceRecordResponse,
     CheckInConflictResponse,
     ManualScheduleEntryCreate,
+    PhoneConflict,
     QueueDisplayResponse,
     QueueEntryResponse,
     QueueListResponse,
@@ -36,6 +37,7 @@ def _schedule_response(e) -> ScheduleEntryResponse:
         patient_nom=e.patient_nom,
         patient_prenom=e.patient_prenom,
         patient_id=e.patient_id,
+        patient_telephone=e.patient_telephone,
         doctor_name=e.doctor_name,
         doctor_id=e.doctor_id,
         specialite=e.specialite,
@@ -74,10 +76,18 @@ async def upload_schedule(
 ):
     """Upload daily schedule Excel file."""
     content = await file.read()
-    entries = await schedule_service.upload_schedule(content, uploaded_by=current_user.get("id"))
+    result = await schedule_service.upload_schedule(content, uploaded_by=current_user.get("id"))
+    entries = result["entries"]
+    phone_conflicts = result.get("phone_conflicts", [])
     target_date = entries[0].date if entries else None
     return ScheduleUploadResponse(
-        message=f"{len(entries)} entrées créées", entries_created=len(entries), date=target_date
+        message=f"{len(entries)} entrées créées",
+        entries_created=len(entries),
+        date=target_date,
+        phone_matched=result.get("phone_matched", 0),
+        phone_conflicts=[PhoneConflict(**c) for c in phone_conflicts],
+        skipped_rows=result.get("skipped_rows", 0),
+        total_rows=result.get("total_rows", 0),
     )
 
 

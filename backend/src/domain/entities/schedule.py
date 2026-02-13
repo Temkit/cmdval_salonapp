@@ -18,6 +18,7 @@ class DailyScheduleEntry:
     doctor_name: str
     start_time: time
     patient_id: str | None = None
+    patient_telephone: str | None = None
     doctor_id: str | None = None
     specialite: str | None = None
     duration_type: str | None = None

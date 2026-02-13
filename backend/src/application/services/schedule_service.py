@@ -1,5 +1,7 @@
 """Schedule and waiting queue service."""
 
+import re
+import unicodedata
 from datetime import date, datetime, time
 from io import BytesIO
 
@@ -12,6 +14,18 @@ from src.infrastructure.database.repositories.schedule_repository import (
     ScheduleRepository,
     WaitingQueueRepository,
 )
+
+
+def _normalize_name(s: str) -> str:
+    """Normalize a name for comparison (remove accents, lowercase, strip)."""
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return s.lower().replace("-", " ").replace("'", " ").strip()
+
+
+def _normalize_phone(phone: str) -> str:
+    """Extract digits from a phone number for comparison."""
+    return re.sub(r"\D", "", phone.strip())
 
 
 class ScheduleService:
@@ -33,8 +47,11 @@ class ScheduleService:
 
     async def upload_schedule(
         self, file_data: bytes, uploaded_by: str | None = None
-    ) -> list[DailyScheduleEntry]:
-        """Parse Excel file and create schedule entries."""
+    ) -> dict:
+        """Parse Excel file and create schedule entries.
+
+        Returns dict with 'entries', 'phone_matched', 'phone_conflicts'.
+        """
         import openpyxl
 
         wb = openpyxl.load_workbook(BytesIO(file_data), data_only=True)
@@ -43,9 +60,28 @@ class ScheduleService:
             raise ValidationError("Fichier Excel vide")
 
         entries = []
+        phone_matched = 0
+        phone_conflicts: list[dict] = []
+        skipped_rows = 0
+        total_rows = 0
+
+        # Pre-load users for doctor name matching
+        all_users = await self.user_repo.find_all()
+        doctor_name_map: dict[str, str] = {}
+        for u in all_users:
+            if u.nom:
+                doctor_name_map[_normalize_name(u.nom)] = u.id
+                if u.prenom:
+                    full = _normalize_name(f"{u.prenom} {u.nom}")
+                    doctor_name_map[full] = u.id
+                    # Also "Dr. Nom" pattern
+                    doctor_name_map[_normalize_name(f"dr {u.nom}")] = u.id
+                    doctor_name_map[_normalize_name(f"dr. {u.nom}")] = u.id
+
         for row in ws.iter_rows(min_row=2, values_only=True):
             if not row or not row[0]:
                 continue
+            total_rows += 1
 
             # Parse date
             row_date = row[0]
@@ -55,6 +91,7 @@ class ScheduleService:
                 try:
                     row_date = datetime.strptime(row_date, "%d/%m/%Y").date()
                 except ValueError:
+                    skipped_rows += 1
                     continue
 
             prenom = str(row[1]).strip() if row[1] else ""
@@ -68,17 +105,36 @@ class ScheduleService:
             end = row[7] if len(row) > 7 else None
             note = str(row[8]).strip() if len(row) > 8 and row[8] else None
 
+            # Parse phone (column 9)
+            telephone = None
+            if len(row) > 9 and row[9]:
+                raw_phone = str(row[9]).strip()
+                # Handle numeric phone (Excel may parse as float)
+                if raw_phone.replace(".", "").replace(",", "").isdigit():
+                    raw_phone = raw_phone.split(".")[0]  # Remove .0 from float
+                if len(_normalize_phone(raw_phone)) >= 6:
+                    telephone = raw_phone
+
             start_time = self._parse_time(start) or time(9, 0)
             end_time = self._parse_time(end)
 
             if not nom and not prenom:
+                skipped_rows += 1
                 continue
+
+            # Resolve doctor_id from name
+            doctor_id = None
+            if doctor:
+                norm_doctor = _normalize_name(doctor)
+                doctor_id = doctor_name_map.get(norm_doctor)
 
             entry = DailyScheduleEntry(
                 date=row_date,
                 patient_prenom=prenom,
                 patient_nom=nom,
+                patient_telephone=telephone,
                 doctor_name=doctor,
+                doctor_id=doctor_id,
                 specialite=specialite,
                 duration_type=duration_type,
                 start_time=start_time,
@@ -87,12 +143,49 @@ class ScheduleService:
                 uploaded_by=uploaded_by,
             )
 
-            # Try to match patient
-            matched, _ = await self.patient_repo.search(nom, page=1, size=10)
-            for p in matched:
-                if p.prenom and p.prenom.lower() == prenom.lower():
-                    entry.patient_id = p.id
-                    break
+            # Try to match patient - phone first, then name
+            matched_by_phone = False
+            if telephone:
+                phone_results = await self.patient_repo.find_by_phone(telephone)
+                if phone_results:
+                    best = phone_results[0]
+                    best_nom_norm = _normalize_name(best.nom) if best.nom else ""
+                    best_prenom_norm = _normalize_name(best.prenom) if best.prenom else ""
+                    nom_norm = _normalize_name(nom)
+                    prenom_norm = _normalize_name(prenom)
+
+                    name_matches = (
+                        best_nom_norm == nom_norm and best_prenom_norm == prenom_norm
+                    )
+
+                    if name_matches:
+                        # Phone + name match: confident match
+                        entry.patient_id = best.id
+                        phone_matched += 1
+                        matched_by_phone = True
+                    else:
+                        # Phone matches but name differs: conflict
+                        phone_conflicts.append({
+                            "entry_nom": nom,
+                            "entry_prenom": prenom,
+                            "entry_telephone": telephone,
+                            "matched_patient_id": best.id,
+                            "matched_patient_nom": best.nom,
+                            "matched_patient_prenom": best.prenom,
+                            "matched": False,
+                        })
+                        # Still link the patient (phone is more reliable than name)
+                        entry.patient_id = best.id
+                        phone_matched += 1
+                        matched_by_phone = True
+
+            # Fall back to name matching if phone didn't match
+            if not matched_by_phone:
+                matched, _ = await self.patient_repo.search(nom, page=1, size=10)
+                for p in matched:
+                    if p.prenom and p.prenom.lower() == prenom.lower():
+                        entry.patient_id = p.id
+                        break
 
             entries.append(entry)
 
@@ -104,7 +197,14 @@ class ScheduleService:
         for d in dates:
             await self.schedule_repo.delete_by_date(d)
 
-        return await self.schedule_repo.create_batch(entries)
+        created = await self.schedule_repo.create_batch(entries)
+        return {
+            "entries": created,
+            "phone_matched": phone_matched,
+            "phone_conflicts": phone_conflicts,
+            "skipped_rows": skipped_rows,
+            "total_rows": total_rows,
+        }
 
     async def create_manual_entry(
         self,
@@ -163,9 +263,9 @@ class ScheduleService:
         # Resolve patient_id if not already set
         patient_id = entry.patient_id
         if not patient_id:
-            # Search for potential matches
+            # Search for potential matches (include phone from Excel if available)
             candidates = await self._find_patient_candidates(
-                entry.patient_nom, entry.patient_prenom
+                entry.patient_nom, entry.patient_prenom, entry.patient_telephone
             )
 
             if len(candidates) == 1:
@@ -220,34 +320,42 @@ class ScheduleService:
 
         return result
 
-    async def _find_patient_candidates(self, nom: str, prenom: str) -> list:
-        """Find potential patient matches using fuzzy name matching."""
-        # Normalize names for comparison
-        def normalize(s: str) -> str:
-            import unicodedata
-            s = unicodedata.normalize("NFD", s)
-            s = "".join(c for c in s if unicodedata.category(c) != "Mn")
-            return s.lower().replace("-", " ").replace("'", " ").strip()
-
-        nom_norm = normalize(nom)
-        prenom_norm = normalize(prenom)
-
-        # Search by nom
-        matched, _ = await self.patient_repo.search(nom, page=1, size=50)
+    async def _find_patient_candidates(
+        self, nom: str, prenom: str, telephone: str | None = None
+    ) -> list:
+        """Find potential patient matches using phone and/or fuzzy name matching."""
+        nom_norm = _normalize_name(nom)
+        prenom_norm = _normalize_name(prenom)
 
         candidates = []
+        seen_ids: set[str] = set()
+
+        # 1. Phone-based matching (highest confidence)
+        if telephone:
+            phone_results = await self.patient_repo.find_by_phone(telephone)
+            for p in phone_results:
+                if p.id not in seen_ids:
+                    candidates.append(p)
+                    seen_ids.add(p.id)
+
+        # 2. Name-based matching
+        matched, _ = await self.patient_repo.search(nom, page=1, size=50)
         for p in matched:
-            p_nom_norm = normalize(p.nom) if p.nom else ""
-            p_prenom_norm = normalize(p.prenom) if p.prenom else ""
+            if p.id in seen_ids:
+                continue
+            p_nom_norm = _normalize_name(p.nom) if p.nom else ""
+            p_prenom_norm = _normalize_name(p.prenom) if p.prenom else ""
 
             # Exact match on normalized names
             if p_nom_norm == nom_norm and p_prenom_norm == prenom_norm:
                 candidates.append(p)
+                seen_ids.add(p.id)
             # Partial match (nom matches, prenom similar)
             elif p_nom_norm == nom_norm and (
                 prenom_norm in p_prenom_norm or p_prenom_norm in prenom_norm
             ):
                 candidates.append(p)
+                seen_ids.add(p.id)
 
         return candidates
 

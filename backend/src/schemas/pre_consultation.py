@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from src.schemas.base import AppBaseModel
 
@@ -73,7 +73,7 @@ class PreConsultationBase(AppBaseModel):
 
     # Demographics (required)
     sexe: str = Field(min_length=1, max_length=1, pattern=r"^[MF]$")
-    age: int = Field(ge=0, le=120)
+    age: int | None = Field(None, ge=0, le=120)
     date_naissance: date | None = None
 
     # Marital status
@@ -130,6 +130,20 @@ class PreConsultationBase(AppBaseModel):
         if v is not None and v not in MARITAL_STATUS_OPTIONS:
             raise ValueError(f"Invalid statut_marital. Must be one of: {MARITAL_STATUS_OPTIONS}")
         return v
+
+    @model_validator(mode="after")
+    def compute_age_from_date_naissance(self) -> "PreConsultationBase":
+        """Compute age from date_naissance if age not provided."""
+        if self.date_naissance and self.age is None:
+            today = date.today()
+            self.age = (
+                today.year
+                - self.date_naissance.year
+                - ((today.month, today.day) < (self.date_naissance.month, self.date_naissance.day))
+            )
+        if self.age is None:
+            self.age = 0
+        return self
 
     @field_validator("hair_removal_methods")
     @classmethod

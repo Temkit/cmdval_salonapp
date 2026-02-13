@@ -37,6 +37,7 @@ class PatientSubscription:
     montant_paye: int = 0  # DA
     notes: str | None = None
     pack_nom: str | None = None
+    pack_prix: int | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))

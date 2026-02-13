@@ -77,7 +77,7 @@ export const createPaiementSchema = z.object({
   patient_id: z.string().min(1, "Patient requis"),
   montant: z.number().positive("Le montant doit etre superieur a 0"),
   type: z.enum(["encaissement", "prise_en_charge", "hors_carte"]),
-  mode_paiement: z.enum(["especes", "carte", "virement"]).optional().nullable(),
+  mode_paiement: z.string().optional().nullable(),
   reference: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   subscription_id: z.string().optional().nullable(),

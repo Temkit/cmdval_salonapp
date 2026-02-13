@@ -1,5 +1,7 @@
 """Patient repository implementation."""
 
+import re
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,6 +43,27 @@ class PatientRepository(PatientRepositoryInterface):
         )
         db_patient = result.scalar_one_or_none()
         return self._to_entity(db_patient) if db_patient else None
+
+    async def find_by_phone(self, phone: str) -> list[Patient]:
+        """Find patients by phone number (normalized digit comparison)."""
+        digits = re.sub(r"\D", "", phone)
+        if len(digits) < 6:
+            return []
+        # Use LIKE on last 8 digits for index-friendly filtering
+        suffix = digits[-8:]
+        result = await self.session.execute(
+            select(PatientModel).where(
+                PatientModel.telephone.isnot(None),
+                PatientModel.telephone.ilike(f"%{suffix}%"),
+            )
+        )
+        patients = []
+        for p in result.scalars():
+            if p.telephone:
+                p_digits = re.sub(r"\D", "", p.telephone)
+                if p_digits == digits or (len(p_digits) >= 8 and p_digits[-8:] == suffix):
+                    patients.append(self._to_entity(p))
+        return patients
 
     async def find_by_card_code(self, code: str) -> Patient | None:
         """Find patient by card code."""

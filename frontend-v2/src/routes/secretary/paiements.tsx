@@ -109,11 +109,13 @@ function SecretaryPaiementsPage() {
     { value: "hors_carte", label: "Hors carte" },
   ];
 
-  const paymentModes = [
-    { value: "especes", label: "Especes" },
-    { value: "carte", label: "Carte" },
-    { value: "virement", label: "Virement" },
-  ];
+  const { data: paymentMethodsData } = useQuery({
+    queryKey: ["payment-methods"],
+    queryFn: () => api.getPaymentMethods(),
+  });
+  const paymentModes = (paymentMethodsData ?? [])
+    .filter((m) => m.is_active)
+    .map((m) => ({ value: m.nom, label: m.nom }));
 
   return (
     <div className="page-container space-y-4 sm:space-y-6">

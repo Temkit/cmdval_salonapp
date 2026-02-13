@@ -16,6 +16,12 @@ import {
   Trash2,
   Download,
   QrCode,
+  MapPin,
+  FileText,
+  Clock,
+  Upload,
+  Image,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +69,11 @@ function SecretaryPatientDetailPage() {
 
   // Subscription dialog
   const [subOpen, setSubOpen] = useState(false);
-  const [subForm, setSubForm] = useState({ type: "seance" as string, pack_id: "", montant_paye: "" });
+  const [subForm, setSubForm] = useState({ type: "seance" as string, pack_id: "", montant_paye: "", payFull: false, mode_paiement: "especes" as string });
+
+  // Payment dialog
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payForm, setPayForm] = useState({ montant: "", mode_paiement: "especes" as string, notes: "", subscription_id: "" });
 
   const { data: patient, isLoading, isError, error } = useQuery({
     queryKey: ["patient", id],
@@ -101,6 +111,28 @@ function SecretaryPatientDetailPage() {
     queryFn: () => api.getPacks(),
   });
 
+  const { data: paymentMethodsData } = useQuery({
+    queryKey: ["payment-methods"],
+    queryFn: () => api.getPaymentMethods(),
+  });
+  const activePaymentMethods = (paymentMethodsData ?? []).filter((m) => m.is_active);
+
+  const { data: absencesData } = useQuery({
+    queryKey: ["patient-absences", id],
+    queryFn: () => api.getAbsences({ patient_id: id }),
+  });
+
+  const { data: docsData } = useQuery({
+    queryKey: ["patient-documents", id],
+    queryFn: () => api.getPatientDocuments(id),
+  });
+
+  const { data: preConsultation } = useQuery({
+    queryKey: ["patient-preconsultation", id],
+    queryFn: () => api.getPatientPreConsultation(id),
+    enabled: !!patient,
+  });
+
   const addZoneMutation = useMutation({
     mutationFn: () => api.addPatientZone(id, {
       zone_definition_id: zoneForm.zone_definition_id,
@@ -135,17 +167,71 @@ function SecretaryPatientDetailPage() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
   });
 
+  const selectedPack = (packsData?.packs ?? []).find((p) => p.id === subForm.pack_id);
   const createSubMutation = useMutation({
-    mutationFn: () => api.createSubscription(id, {
-      type: subForm.type as "gold" | "pack" | "seance",
-      pack_id: subForm.pack_id || null,
-      montant_paye: parseFloat(subForm.montant_paye) || 0,
+    mutationFn: async () => {
+      const montant = subForm.payFull && selectedPack ? selectedPack.prix : parseFloat(subForm.montant_paye) || 0;
+      const sub = await api.createSubscription(id, {
+        type: subForm.type as "gold" | "pack" | "seance",
+        pack_id: subForm.pack_id || null,
+        montant_paye: montant,
+      });
+      // Create payment record when paying full pack
+      if (subForm.payFull && montant > 0) {
+        await api.createPaiement({
+          patient_id: id,
+          subscription_id: sub.id,
+          montant,
+          type: "encaissement",
+          mode_paiement: subForm.mode_paiement as "especes" | "carte" | "virement",
+          notes: `Paiement complet pack ${selectedPack?.nom || ""}`,
+        });
+      }
+      return sub;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-subscriptions", id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-paiements", id] });
+      toast({ title: subForm.payFull ? "Abonnement cree et paiement enregistre" : "Abonnement cree" });
+      setSubOpen(false);
+      setSubForm({ type: "seance", pack_id: "", montant_paye: "", payFull: false, mode_paiement: "especes" });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
+  });
+
+  const payMutation = useMutation({
+    mutationFn: () => api.createPaiement({
+      patient_id: id,
+      subscription_id: payForm.subscription_id || null,
+      montant: parseFloat(payForm.montant) || 0,
+      type: "encaissement",
+      mode_paiement: payForm.mode_paiement as "especes" | "carte" | "virement",
+      notes: payForm.notes || null,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-subscriptions", id] });
-      toast({ title: "Abonnement cree" });
-      setSubOpen(false);
-      setSubForm({ type: "seance", pack_id: "", montant_paye: "" });
+      queryClient.invalidateQueries({ queryKey: ["patient-paiements", id] });
+      toast({ title: "Paiement enregistre" });
+      setPayDialogOpen(false);
+      setPayForm({ montant: "", mode_paiement: "especes", notes: "", subscription_id: "" });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
+  });
+
+  const uploadDocMutation = useMutation({
+    mutationFn: (file: File) => api.uploadPatientDocument(id, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-documents", id] });
+      toast({ title: "Document ajoute" });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
+  });
+
+  const deleteDocMutation = useMutation({
+    mutationFn: (docId: string) => api.deletePatientDocument(docId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-documents", id] });
+      toast({ title: "Document supprime" });
     },
     onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
   });
@@ -216,8 +302,11 @@ function SecretaryPatientDetailPage() {
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold truncate">{patient.prenom} {patient.nom}</h1>
               <div className="flex flex-wrap gap-2 mt-2">
+                <Badge variant={patient.status === "actif" ? "success" : patient.status === "ineligible" ? "destructive" : "warning"}>
+                  {patient.status === "actif" ? "Actif" : patient.status === "ineligible" ? "Ineligible" : "En attente"}
+                </Badge>
                 {patient.date_naissance && <Badge variant="secondary">{calculateAge(patient.date_naissance)} ans</Badge>}
-                {patient.sexe && <Badge variant="outline">{patient.sexe}</Badge>}
+                {patient.sexe && <Badge variant="outline">{patient.sexe === "F" ? "Femme" : "Homme"}</Badge>}
                 {patient.phototype && <Badge variant="outline">Phototype {patient.phototype}</Badge>}
                 {patient.code_carte && <Badge variant="outline" className="gap-1"><CreditCard className="h-3 w-3" />{patient.code_carte}</Badge>}
               </div>
@@ -234,6 +323,12 @@ function SecretaryPatientDetailPage() {
           <TabsTrigger value="sessions">Seances</TabsTrigger>
           <TabsTrigger value="payments">Paiements</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="absences">
+            Absences
+            {absencesData && absencesData.total > 0 && (
+              <Badge variant="destructive" size="sm" className="ml-1.5">{absencesData.total}</Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -244,16 +339,31 @@ function SecretaryPatientDetailPage() {
                 {patient.telephone && <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.telephone}</span></div>}
                 {patient.email && <div className="flex items-center gap-3"><Mail className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.email}</span></div>}
                 {patient.date_naissance && <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{formatDate(patient.date_naissance)}</span></div>}
-                {!patient.telephone && !patient.email && !patient.date_naissance && <p className="text-sm text-muted-foreground">Aucune coordonnee renseignee</p>}
+                {patient.adresse && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.adresse}</span></div>}
+                {patient.created_at && <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground" /><span className="text-sm">Inscrit le {formatDate(patient.created_at)}</span></div>}
+                {!patient.telephone && !patient.email && !patient.date_naissance && !patient.adresse && <p className="text-sm text-muted-foreground">Aucune coordonnee renseignee</p>}
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Informations medicales</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {patient.phototype && <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /><span className="text-sm">Phototype {patient.phototype}</span></div>}
-                {patient.sexe && <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.sexe}</span></div>}
-                {patient.notes && <p className="text-sm text-muted-foreground">{patient.notes}</p>}
-                {!patient.phototype && !patient.sexe && !patient.notes && <p className="text-sm text-muted-foreground">Aucune information medicale</p>}
+                {patient.sexe && <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.sexe === "F" ? "Femme" : "Homme"}</span></div>}
+                {patient.notes && <div><p className="text-xs font-medium text-muted-foreground mb-1">Notes</p><p className="text-sm">{patient.notes}</p></div>}
+                {preConsultation && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Pre-consultation</span>
+                    </div>
+                    <Link to="/secretary/pre-consultations/$id" params={{ id: preConsultation.id }}>
+                      <Badge variant={preConsultation.status === "validated" ? "success" : preConsultation.status === "rejected" ? "destructive" : "warning"} className="cursor-pointer">
+                        {preConsultation.status === "validated" ? "Validee" : preConsultation.status === "rejected" ? "Rejetee" : preConsultation.status === "pending_validation" ? "En attente" : "Brouillon"}
+                      </Badge>
+                    </Link>
+                  </div>
+                )}
+                {!patient.phototype && !patient.sexe && !patient.notes && !preConsultation && <p className="text-sm text-muted-foreground">Aucune information medicale</p>}
               </CardContent>
             </Card>
 
@@ -270,23 +380,47 @@ function SecretaryPatientDetailPage() {
               <CardContent>
                 {subscriptionsData?.subscriptions?.length ? (
                   <div className="space-y-2">
-                    {subscriptionsData.subscriptions.map((sub) => (
-                      <div key={sub.id} className="flex items-center justify-between p-3 border rounded-xl">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{sub.pack_nom || sub.type}</span>
-                            <Badge variant={sub.is_active ? "success" : "muted"} size="sm">{sub.type}</Badge>
+                    {subscriptionsData.subscriptions.map((sub) => {
+                      const remaining = sub.pack_prix ? sub.pack_prix - sub.montant_paye : 0;
+                      const isPaid = sub.pack_prix ? sub.montant_paye >= sub.pack_prix : false;
+                      const payProgress = sub.pack_prix ? Math.min(100, Math.round((sub.montant_paye / sub.pack_prix) * 100)) : 0;
+                      return (
+                        <div key={sub.id} className="p-3 border rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{sub.pack_nom || sub.type}</span>
+                              <Badge variant={sub.is_active ? "success" : "muted"} size="sm">{sub.type}</Badge>
+                              {isPaid && <Badge variant="success" size="sm">Paye</Badge>}
+                            </div>
+                            {sub.pack_prix && !isPaid ? (
+                              <Button size="sm" variant="outline" onClick={() => {
+                                setPayForm({ montant: String(remaining), mode_paiement: "especes", notes: `Paiement pack ${sub.pack_nom || sub.type}`, subscription_id: sub.id });
+                                setPayDialogOpen(true);
+                              }}>
+                                <CreditCard className="h-3.5 w-3.5 mr-1" />Payer le pack
+                              </Button>
+                            ) : (
+                              <span className="text-sm font-medium">{sub.montant_paye} DA</span>
+                            )}
                           </div>
+                          {sub.pack_prix && (
+                            <div>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                                <span>Paye: <strong className="text-foreground">{sub.montant_paye} DA</strong> / {sub.pack_prix} DA</span>
+                                {remaining > 0 && <span>reste {remaining} DA</span>}
+                              </div>
+                              <Progress value={payProgress} />
+                            </div>
+                          )}
                           {sub.date_debut && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <p className="text-xs text-muted-foreground">
                               {formatDate(sub.date_debut)}{sub.date_fin && ` - ${formatDate(sub.date_fin)}`}
                               {sub.days_remaining != null && sub.days_remaining > 0 && ` (${sub.days_remaining}j restants)`}
                             </p>
                           )}
                         </div>
-                        <span className="text-sm font-medium">{sub.montant_paye} DA</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : <p className="text-sm text-muted-foreground text-center py-4">Aucun abonnement</p>}
               </CardContent>
@@ -381,27 +515,137 @@ function SecretaryPatientDetailPage() {
         </TabsContent>
 
         <TabsContent value="documents">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Documents generes</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <a href={api.getPatientConsentUrl(id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 border rounded-xl hover:bg-muted/50 transition-colors">
+                    <Download className="h-5 w-5 text-primary" />
+                    <div><p className="text-sm font-medium">Consentement</p><p className="text-xs text-muted-foreground">Formulaire de consentement</p></div>
+                  </a>
+                  <a href={api.getPatientRulesUrl(id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 border rounded-xl hover:bg-muted/50 transition-colors">
+                    <Download className="h-5 w-5 text-primary" />
+                    <div><p className="text-sm font-medium">Reglement</p><p className="text-xs text-muted-foreground">Reglement interieur</p></div>
+                  </a>
+                  <a href={api.getPatientPrecautionsUrl(id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 border rounded-xl hover:bg-muted/50 transition-colors">
+                    <Download className="h-5 w-5 text-primary" />
+                    <div><p className="text-sm font-medium">Precautions</p><p className="text-xs text-muted-foreground">Precautions post-traitement</p></div>
+                  </a>
+                  <a href={api.getPatientQRCodeUrl(id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 border rounded-xl hover:bg-muted/50 transition-colors">
+                    <QrCode className="h-5 w-5 text-primary" />
+                    <div><p className="text-sm font-medium">QR Code</p><p className="text-xs text-muted-foreground">Code QR du patient</p></div>
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Feuilles de passage / Scans</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = "image/*,.pdf";
+                      input.multiple = true;
+                      input.onchange = () => {
+                        if (input.files) {
+                          Array.from(input.files).forEach((f) => uploadDocMutation.mutate(f));
+                        }
+                      };
+                      input.click();
+                    }}
+                    disabled={uploadDocMutation.isPending}
+                  >
+                    <Upload className="h-4 w-4 mr-1.5" />
+                    {uploadDocMutation.isPending ? "Envoi..." : "Ajouter"}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {docsData && docsData.documents.length > 0 ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {docsData.documents.map((doc) => (
+                      <div key={doc.id} className="group relative border rounded-xl overflow-hidden">
+                        {doc.content_type.startsWith("image/") ? (
+                          <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={doc.url}
+                              alt={doc.filename}
+                              className="w-full h-40 object-cover"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center h-40 bg-muted/30"
+                          >
+                            <FileText className="h-10 w-10 text-muted-foreground" />
+                          </a>
+                        )}
+                        <div className="p-2">
+                          <p className="text-xs font-medium truncate">{doc.filename}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {formatDate(doc.created_at)} - {(doc.size_bytes / 1024).toFixed(0)} Ko
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteDocMutation.mutate(doc.id)}
+                          className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Image className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">Aucun document televerse</p>
+                    <p className="text-xs text-muted-foreground mt-1">Ajoutez des photos ou scans des anciennes feuilles de passage</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="absences">
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">Documents</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Historique des absences</CardTitle></CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <a href={api.getPatientConsentUrl(id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 border rounded-xl hover:bg-muted/50 transition-colors">
-                  <Download className="h-5 w-5 text-primary" />
-                  <div><p className="text-sm font-medium">Consentement</p><p className="text-xs text-muted-foreground">Formulaire de consentement</p></div>
-                </a>
-                <a href={api.getPatientRulesUrl(id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 border rounded-xl hover:bg-muted/50 transition-colors">
-                  <Download className="h-5 w-5 text-primary" />
-                  <div><p className="text-sm font-medium">Reglement</p><p className="text-xs text-muted-foreground">Reglement interieur</p></div>
-                </a>
-                <a href={api.getPatientPrecautionsUrl(id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 border rounded-xl hover:bg-muted/50 transition-colors">
-                  <Download className="h-5 w-5 text-primary" />
-                  <div><p className="text-sm font-medium">Precautions</p><p className="text-xs text-muted-foreground">Precautions post-traitement</p></div>
-                </a>
-                <a href={api.getPatientQRCodeUrl(id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 border rounded-xl hover:bg-muted/50 transition-colors">
-                  <QrCode className="h-5 w-5 text-primary" />
-                  <div><p className="text-sm font-medium">QR Code</p><p className="text-xs text-muted-foreground">Code QR du patient</p></div>
-                </a>
-              </div>
+              {absencesData && absencesData.absences.length > 0 ? (
+                <div className="space-y-3">
+                  {absencesData.absences.map((a) => (
+                    <div key={a.id} className="flex items-center gap-4 p-3 border rounded-lg">
+                      <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">Absent(e)</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(a.date)}
+                          </span>
+                          {a.doctor_name && (
+                            <span className="text-xs text-muted-foreground">Dr. {a.doctor_name}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">Aucune absence enregistree</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -485,7 +729,7 @@ function SecretaryPatientDetailPage() {
             {subForm.type === "pack" && (
               <div className="space-y-2">
                 <Label>Pack</Label>
-                <Select value={subForm.pack_id} onValueChange={(v) => setSubForm((f) => ({ ...f, pack_id: v }))}>
+                <Select value={subForm.pack_id} onValueChange={(v) => setSubForm((f) => ({ ...f, pack_id: v, payFull: false }))}>
                   <SelectTrigger><SelectValue placeholder="Choisir un pack" /></SelectTrigger>
                   <SelectContent>
                     {(packsData?.packs ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.nom} - {p.prix} DA</SelectItem>)}
@@ -493,14 +737,80 @@ function SecretaryPatientDetailPage() {
                 </Select>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Montant (DA)</Label>
-              <Input type="number" min="0" value={subForm.montant_paye} onChange={(e) => setSubForm((f) => ({ ...f, montant_paye: e.target.value }))} />
-            </div>
+            {subForm.type === "pack" && selectedPack && (
+              <label className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={subForm.payFull}
+                  onChange={(e) => setSubForm((f) => ({
+                    ...f,
+                    payFull: e.target.checked,
+                    montant_paye: e.target.checked ? String(selectedPack.prix) : "",
+                  }))}
+                  className="rounded"
+                />
+                <div>
+                  <span className="text-sm font-medium">Payer le pack en totalite</span>
+                  <p className="text-xs text-muted-foreground">{selectedPack.prix} DA</p>
+                </div>
+              </label>
+            )}
+            {subForm.payFull ? (
+              <div className="space-y-2">
+                <Label>Mode de paiement</Label>
+                <Select value={subForm.mode_paiement} onValueChange={(v) => setSubForm((f) => ({ ...f, mode_paiement: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {activePaymentMethods.map((m) => (
+                      <SelectItem key={m.id} value={m.nom}>{m.nom}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Montant initial (DA)</Label>
+                <Input type="number" min="0" value={subForm.montant_paye} onChange={(e) => setSubForm((f) => ({ ...f, montant_paye: e.target.value }))} placeholder="0" />
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setSubOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createSubMutation.isPending}>
                 {createSubMutation.isPending ? "Creation..." : "Creer"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pay Pack Dialog */}
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Paiement pack</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); payMutation.mutate(); }} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Montant (DA)</Label>
+              <Input type="number" min="0" value={payForm.montant} onChange={(e) => setPayForm((f) => ({ ...f, montant: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Mode de paiement</Label>
+              <Select value={payForm.mode_paiement} onValueChange={(v) => setPayForm((f) => ({ ...f, mode_paiement: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {activePaymentMethods.map((m) => (
+                    <SelectItem key={m.id} value={m.nom}>{m.nom}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Input value={payForm.notes} onChange={(e) => setPayForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Notes optionnelles" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPayDialogOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={payMutation.isPending}>
+                {payMutation.isPending ? "Enregistrement..." : "Enregistrer le paiement"}
               </Button>
             </DialogFooter>
           </form>

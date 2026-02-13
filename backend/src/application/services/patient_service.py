@@ -1,6 +1,7 @@
 """Patient service."""
 
 from datetime import date
+from uuid import uuid4
 
 from src.domain.entities.patient import Patient
 from src.domain.exceptions import DuplicateCardCodeError, PatientNotFoundError
@@ -15,9 +16,9 @@ class PatientService:
 
     async def create_patient(
         self,
-        code_carte: str,
         nom: str,
         prenom: str,
+        code_carte: str | None = None,
         date_naissance: date | None = None,
         sexe: str | None = None,
         telephone: str | None = None,
@@ -25,9 +26,13 @@ class PatientService:
         adresse: str | None = None,
         notes: str | None = None,
         phototype: str | None = None,
-        status: str = "en_attente_evaluation",
+        status: str = "actif",
     ) -> Patient:
         """Create a new patient."""
+        # Auto-generate card code if not provided
+        if not code_carte:
+            code_carte = f"P-{uuid4().hex[:8].upper()}"
+
         # Check if card code already exists
         existing = await self.patient_repository.find_by_card_code(code_carte)
         if existing:

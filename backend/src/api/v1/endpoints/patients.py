@@ -97,9 +97,9 @@ async def create_patient(
     """
     try:
         patient = await patient_service.create_patient(
-            code_carte=request.code_carte,
             nom=request.nom,
             prenom=request.prenom,
+            code_carte=request.code_carte,
             date_naissance=request.date_naissance,
             sexe=request.sexe,
             telephone=request.telephone,

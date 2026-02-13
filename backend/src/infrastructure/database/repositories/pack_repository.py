@@ -134,6 +134,7 @@ class PatientSubscriptionRepository:
 
     def _to_entity(self, model: PatientSubscriptionModel) -> PatientSubscription:
         pack_nom = model.pack.nom if model.pack else None
+        pack_prix = model.pack.prix if model.pack else None
         return PatientSubscription(
             id=model.id,
             patient_id=model.patient_id,
@@ -145,6 +146,7 @@ class PatientSubscriptionRepository:
             montant_paye=model.montant_paye,
             notes=model.notes,
             pack_nom=pack_nom,
+            pack_prix=pack_prix,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

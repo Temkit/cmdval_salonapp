@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, redirect } from "@tanstack/react-router"
 import { useAuthStore } from "@/stores/auth-store";
 import { useQueueEvents } from "@/hooks/use-queue-events";
 import { useState } from "react";
-import { Users, LogOut, DoorOpen, KeyRound } from "lucide-react";
+import { Users, LogOut, DoorOpen, KeyRound, Search, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
@@ -50,6 +50,26 @@ function PractitionerShell() {
             {newCheckInCount > 0 && (
               <Badge variant="default" size="sm">{newCheckInCount}</Badge>
             )}
+          </Link>
+
+          <div className="h-6 w-px bg-border" />
+
+          <Link
+            to="/practitioner/mes-patients"
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Search className="h-4 w-4" />
+            <span className="hidden sm:inline">Mes patients</span>
+          </Link>
+
+          <div className="h-6 w-px bg-border" />
+
+          <Link
+            to="/practitioner/mes-seances"
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Activity className="h-4 w-4" />
+            <span className="hidden sm:inline">Mes seances</span>
           </Link>
 
           <div className="h-6 w-px bg-border" />
