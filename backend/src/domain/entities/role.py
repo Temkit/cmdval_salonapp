@@ -69,6 +69,7 @@ DEFAULT_SECRETAIRE_PERMISSIONS = [
     Permission.PRE_CONSULTATIONS_VIEW.value,
     Permission.PRE_CONSULTATIONS_CREATE.value,
     Permission.BOXES_VIEW.value,
+    Permission.USERS_VIEW.value,
     Permission.DASHBOARD_VIEW.value,
 ]
 
@@ -101,6 +102,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PRE_CONSULTATIONS_CREATE,
         Permission.PRE_CONSULTATIONS_EDIT,
         Permission.BOXES_VIEW,
+        Permission.USERS_VIEW,
         Permission.DASHBOARD_VIEW,
     ],
     "Praticien": [

@@ -128,6 +128,42 @@ async def create_pre_consultation(
         )
 
 
+# --- Static routes MUST come before /{pre_consultation_id} to avoid path conflicts ---
+
+
+@router.get("/stats/pending-count")
+async def get_pending_count(
+    _: Annotated[dict, Depends(require_permission("pre_consultations.view"))],
+    pre_consultation_service: Annotated[
+        PreConsultationService, Depends(get_pre_consultation_service)
+    ],
+):
+    """Get count of pending pre-consultations."""
+    count = await pre_consultation_service.count_by_status("pending_validation")
+    return {"count": count}
+
+
+@router.get("/by-patient/{patient_id}", response_model=PreConsultationResponse)
+async def get_pre_consultation_by_patient(
+    patient_id: str,
+    _: Annotated[dict, Depends(require_permission("pre_consultations.view"))],
+    pre_consultation_service: Annotated[
+        PreConsultationService, Depends(get_pre_consultation_service)
+    ],
+):
+    """Get pre-consultation for a patient."""
+    pre_consultation = await pre_consultation_service.get_by_patient_id(patient_id)
+    if not pre_consultation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pre-consultation not found for this patient",
+        )
+    return _to_response(pre_consultation)
+
+
+# --- Dynamic routes below ---
+
+
 @router.get("/{pre_consultation_id}", response_model=PreConsultationResponse)
 async def get_pre_consultation(
     pre_consultation_id: str,
@@ -444,36 +480,6 @@ async def create_patient_from_pre_consultation(
         )
 
 
-# Statistics endpoint
-@router.get("/stats/pending-count")
-async def get_pending_count(
-    _: Annotated[dict, Depends(require_permission("pre_consultations.view"))],
-    pre_consultation_service: Annotated[
-        PreConsultationService, Depends(get_pre_consultation_service)
-    ],
-):
-    """Get count of pending pre-consultations."""
-    count = await pre_consultation_service.count_by_status("pending_validation")
-    return {"count": count}
-
-
-# Get pre-consultation by patient ID
-@router.get("/by-patient/{patient_id}", response_model=PreConsultationResponse)
-async def get_pre_consultation_by_patient(
-    patient_id: str,
-    _: Annotated[dict, Depends(require_permission("pre_consultations.view"))],
-    pre_consultation_service: Annotated[
-        PreConsultationService, Depends(get_pre_consultation_service)
-    ],
-):
-    """Get pre-consultation for a patient."""
-    pre_consultation = await pre_consultation_service.get_by_patient_id(patient_id)
-    if not pre_consultation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Pre-consultation not found for this patient",
-        )
-    return _to_response(pre_consultation)
 
 
 def _to_response(pre_consultation) -> PreConsultationResponse:
