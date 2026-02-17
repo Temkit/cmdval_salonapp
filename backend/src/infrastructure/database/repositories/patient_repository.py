@@ -28,6 +28,8 @@ class PatientRepository(PatientRepositoryInterface):
             telephone=patient.telephone,
             email=patient.email,
             adresse=patient.adresse,
+            commune=patient.commune,
+            wilaya=patient.wilaya,
             notes=patient.notes,
             phototype=patient.phototype,
             status=patient.status,
@@ -183,6 +185,8 @@ class PatientRepository(PatientRepositoryInterface):
             db_patient.telephone = patient.telephone
             db_patient.email = patient.email
             db_patient.adresse = patient.adresse
+            db_patient.commune = patient.commune
+            db_patient.wilaya = patient.wilaya
             db_patient.notes = patient.notes
             db_patient.phototype = patient.phototype
             db_patient.status = patient.status
@@ -231,6 +235,8 @@ class PatientRepository(PatientRepositoryInterface):
             email=model.email,
             adresse=model.adresse,
             ville=model.ville,
+            commune=model.commune,
+            wilaya=model.wilaya,
             code_postal=model.code_postal,
             notes=model.notes,
             phototype=model.phototype,

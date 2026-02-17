@@ -62,8 +62,8 @@ function MesSeancesPage() {
               {sessions.map((session) => (
                 <Link
                   key={session.id}
-                  to="/practitioner/seance/$patientId"
-                  params={{ patientId: session.patient_id }}
+                  to="/practitioner/sessions/$id"
+                  params={{ id: session.id }}
                   className="flex items-center gap-4 p-4 border rounded-xl hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">

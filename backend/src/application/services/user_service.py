@@ -32,17 +32,16 @@ class UserService:
 
     async def create_user(
         self,
-        email: str,
+        username: str,
         password: str,
         nom: str,
         prenom: str,
         role_id: str,
     ) -> User:
         """Create a new user."""
-        # Check if email already exists (stored as username in DB)
-        existing = await self.user_repository.find_by_username(email)
+        existing = await self.user_repository.find_by_username(username)
         if existing:
-            raise DuplicateUsernameError(email)
+            raise DuplicateUsernameError(username)
 
         # Verify role exists
         role = await self.role_repository.find_by_id(role_id)
@@ -50,7 +49,7 @@ class UserService:
             raise RoleNotFoundError(role_id)
 
         user = User(
-            username=email,  # Store email as username
+            username=username,
             password_hash=hash_password(password),
             nom=nom,
             prenom=prenom,
@@ -73,7 +72,7 @@ class UserService:
     async def update_user(
         self,
         user_id: str,
-        email: str | None = None,
+        username: str | None = None,
         nom: str | None = None,
         prenom: str | None = None,
         role_id: str | None = None,
@@ -85,11 +84,11 @@ class UserService:
         if not user:
             raise UserNotFoundError(user_id)
 
-        if email and email != user.username:
-            existing = await self.user_repository.find_by_username(email)
+        if username and username != user.username:
+            existing = await self.user_repository.find_by_username(username)
             if existing:
-                raise DuplicateUsernameError(email)
-            user.username = email
+                raise DuplicateUsernameError(username)
+            user.username = username
 
         if nom:
             user.nom = nom

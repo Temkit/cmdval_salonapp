@@ -21,6 +21,8 @@ class PatientBase(AppBaseModel):
     telephone: str | None = Field(default=None, max_length=20)
     email: EmailStr | None = None
     adresse: str | None = None
+    commune: str | None = Field(default=None, max_length=100)
+    wilaya: str | None = Field(default=None, max_length=100)
     notes: str | None = None
     phototype: str | None = Field(default=None, pattern=r"^(I|II|III|IV|V|VI)$")
 
@@ -42,6 +44,8 @@ class PatientUpdate(AppBaseModel):
     telephone: str | None = Field(default=None, max_length=20)
     email: EmailStr | None = None
     adresse: str | None = None
+    commune: str | None = Field(default=None, max_length=100)
+    wilaya: str | None = Field(default=None, max_length=100)
     notes: str | None = None
     phototype: str | None = Field(default=None, pattern=r"^(I|II|III|IV|V|VI)$")
     status: PatientStatus | None = None

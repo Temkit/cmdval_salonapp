@@ -330,6 +330,79 @@ async def get_session(
         )
 
 
+@router.put("/sessions/{session_id}/notes")
+async def update_session_notes(
+    session_id: str,
+    _: Annotated[dict, Depends(require_permission("sessions.create"))],
+    session_service: Annotated[SessionService, Depends(get_session_service)],
+    notes: str = Form(...),
+):
+    """Update notes on an existing session."""
+    try:
+        session = await session_service.update_session_notes(session_id, notes)
+        return SessionResponse(
+            id=session.id,
+            patient_id=session.patient_id,
+            patient_zone_id=session.patient_zone_id,
+            zone_nom=session.zone_nom,
+            praticien_id=session.praticien_id,
+            praticien_nom=session.praticien_nom,
+            date_seance=session.date_seance,
+            type_laser=session.type_laser,
+            parametres=session.parametres,
+            notes=session.notes,
+            duree_minutes=session.duree_minutes,
+            photos=[
+                SessionPhotoResponse(
+                    id=p.id,
+                    filename=p.filename,
+                    url=session_service.get_photo_url(p),
+                    created_at=p.created_at,
+                )
+                for p in session.photos
+            ],
+            created_at=session.created_at,
+        )
+    except SessionNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.post("/sessions/{session_id}/photos", response_model=SessionPhotoResponse)
+async def add_session_photo(
+    session_id: str,
+    _: Annotated[dict, Depends(require_permission("sessions.create"))],
+    session_service: Annotated[SessionService, Depends(get_session_service)],
+    photo: UploadFile = File(...),
+):
+    """Add a photo to an existing session."""
+    try:
+        if not photo.filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Fichier photo requis",
+            )
+        content = await photo.read()
+        session_photo = await session_service.add_photo_to_session(
+            session_id=session_id,
+            filename=photo.filename,
+            file_data=content,
+        )
+        return SessionPhotoResponse(
+            id=session_photo.id,
+            filename=session_photo.filename,
+            url=session_service.get_photo_url(session_photo),
+            created_at=session_photo.created_at,
+        )
+    except SessionNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
 @router.get("/photos/{session_id}/{filename}")
 async def get_photo(
     session_id: str,

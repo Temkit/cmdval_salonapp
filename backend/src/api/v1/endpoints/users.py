@@ -28,7 +28,7 @@ async def list_users(
         users=[
             UserResponse(
                 id=u.id,
-                email=u.username,  # username stored as email
+                username=u.username,
                 nom=u.nom,
                 prenom=u.prenom,
                 role_id=u.role_id,
@@ -51,7 +51,7 @@ async def create_user(
     """Create a new user."""
     try:
         user = await user_service.create_user(
-            email=request.email,
+            username=request.username,
             password=request.password,
             nom=request.nom,
             prenom=request.prenom,
@@ -59,7 +59,7 @@ async def create_user(
         )
         return UserResponse(
             id=user.id,
-            email=user.username,
+            username=user.username,
             nom=user.nom,
             prenom=user.prenom,
             role_id=user.role_id,
@@ -91,7 +91,7 @@ async def get_user(
         user = await user_service.get_user(user_id)
         return UserResponse(
             id=user.id,
-            email=user.username,
+            username=user.username,
             nom=user.nom,
             prenom=user.prenom,
             role_id=user.role_id,
@@ -118,7 +118,7 @@ async def update_user(
     try:
         user = await user_service.update_user(
             user_id=user_id,
-            email=request.email,
+            username=request.username,
             nom=request.nom,
             prenom=request.prenom,
             role_id=request.role_id,
@@ -127,7 +127,7 @@ async def update_user(
         )
         return UserResponse(
             id=user.id,
-            email=user.username,
+            username=user.username,
             nom=user.nom,
             prenom=user.prenom,
             role_id=user.role_id,

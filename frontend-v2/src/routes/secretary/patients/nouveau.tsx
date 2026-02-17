@@ -27,6 +27,8 @@ function SecretaryPatientNouveauPage() {
     sexe: "" as "" | "M" | "F",
     email: "",
     adresse: "",
+    commune: "",
+    wilaya: "",
     phototype: "",
     notes: "",
   });
@@ -42,6 +44,8 @@ function SecretaryPatientNouveauPage() {
         sexe: form.sexe || undefined,
         email: form.email || undefined,
         adresse: form.adresse || undefined,
+        commune: form.commune || undefined,
+        wilaya: form.wilaya || undefined,
         phototype: form.phototype || undefined,
         notes: form.notes || undefined,
       }),
@@ -189,6 +193,25 @@ function SecretaryPatientNouveauPage() {
                 onChange={(e) => update("adresse", e.target.value)}
                 placeholder="Adresse complete"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Commune</Label>
+                <Input
+                  value={form.commune}
+                  onChange={(e) => update("commune", e.target.value)}
+                  placeholder="Commune"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Wilaya</Label>
+                <Input
+                  value={form.wilaya}
+                  onChange={(e) => update("wilaya", e.target.value)}
+                  placeholder="Wilaya"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

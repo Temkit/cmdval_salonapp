@@ -141,6 +141,18 @@ class SessionService:
             date_to=date_to,
         )
 
+    async def update_session_notes(
+        self,
+        session_id: str,
+        notes: str,
+    ) -> Session:
+        """Update notes on an existing session."""
+        session = await self.session_repository.find_by_id(session_id)
+        if not session:
+            raise SessionNotFoundError(session_id)
+        await self.session_repository.update_notes(session_id, notes)
+        return await self.session_repository.find_by_id(session_id)  # type: ignore
+
     async def add_photo_to_session(
         self,
         session_id: str,

@@ -11,6 +11,7 @@ from src.api.v1.dependencies import (
     require_permission,
 )
 from src.application.services import PatientService, PatientZoneService
+from src.domain.entities.patient import Patient
 from src.domain.exceptions import (
     DuplicateCardCodeError,
     DuplicateZoneError,
@@ -35,6 +36,29 @@ from src.schemas.zone import (
 router = APIRouter(prefix="/patients", tags=["Patients"])
 
 
+def _patient_response(p: "Patient") -> PatientResponse:
+    """Build PatientResponse from Patient entity."""
+    return PatientResponse(
+        id=p.id,
+        code_carte=p.code_carte,
+        nom=p.nom,
+        prenom=p.prenom,
+        date_naissance=p.date_naissance,
+        sexe=p.sexe,
+        telephone=p.telephone,
+        email=p.email,
+        adresse=p.adresse,
+        commune=p.commune,
+        wilaya=p.wilaya,
+        notes=p.notes,
+        phototype=p.phototype,
+        status=p.status,
+        age=p.age,
+        created_at=p.created_at,
+        updated_at=p.updated_at,
+    )
+
+
 @router.get("", response_model=PatientListResponse)
 async def list_patients(
     _: Annotated[dict, Depends(require_permission("patients.view"))],
@@ -53,26 +77,7 @@ async def list_patients(
         patients, total = await patient_service.get_all_patients(page, size)
 
     return PatientListResponse(
-        patients=[
-            PatientResponse(
-                id=p.id,
-                code_carte=p.code_carte,
-                nom=p.nom,
-                prenom=p.prenom,
-                date_naissance=p.date_naissance,
-                sexe=p.sexe,
-                telephone=p.telephone,
-                email=p.email,
-                adresse=p.adresse,
-                notes=p.notes,
-                phototype=p.phototype,
-                status=p.status,
-                age=p.age,
-                created_at=p.created_at,
-                updated_at=p.updated_at,
-            )
-            for p in patients
-        ],
+        patients=[_patient_response(p) for p in patients],
         total=total,
         page=page,
         size=size,
@@ -105,27 +110,13 @@ async def create_patient(
             telephone=request.telephone,
             email=request.email,
             adresse=request.adresse,
+            commune=request.commune,
+            wilaya=request.wilaya,
             notes=request.notes,
             phototype=request.phototype,
             status=request.status,
         )
-        return PatientResponse(
-            id=patient.id,
-            code_carte=patient.code_carte,
-            nom=patient.nom,
-            prenom=patient.prenom,
-            date_naissance=patient.date_naissance,
-            sexe=patient.sexe,
-            telephone=patient.telephone,
-            email=patient.email,
-            adresse=patient.adresse,
-            notes=patient.notes,
-            phototype=patient.phototype,
-            status=patient.status,
-            age=patient.age,
-            created_at=patient.created_at,
-            updated_at=patient.updated_at,
-        )
+        return _patient_response(patient)
     except DuplicateCardCodeError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -142,23 +133,7 @@ async def get_patient_by_card(
     """Get patient by card code (barcode scan)."""
     try:
         patient = await patient_service.get_patient_by_card(code)
-        return PatientResponse(
-            id=patient.id,
-            code_carte=patient.code_carte,
-            nom=patient.nom,
-            prenom=patient.prenom,
-            date_naissance=patient.date_naissance,
-            sexe=patient.sexe,
-            telephone=patient.telephone,
-            email=patient.email,
-            adresse=patient.adresse,
-            notes=patient.notes,
-            phototype=patient.phototype,
-            status=patient.status,
-            age=patient.age,
-            created_at=patient.created_at,
-            updated_at=patient.updated_at,
-        )
+        return _patient_response(patient)
     except PatientNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -179,21 +154,7 @@ async def get_patient(
         zones = await patient_zone_service.get_patient_zones(patient_id)
 
         return PatientDetailResponse(
-            id=patient.id,
-            code_carte=patient.code_carte,
-            nom=patient.nom,
-            prenom=patient.prenom,
-            date_naissance=patient.date_naissance,
-            sexe=patient.sexe,
-            telephone=patient.telephone,
-            email=patient.email,
-            adresse=patient.adresse,
-            notes=patient.notes,
-            phototype=patient.phototype,
-            status=patient.status,
-            age=patient.age,
-            created_at=patient.created_at,
-            updated_at=patient.updated_at,
+            **_patient_response(patient).model_dump(),
             zones=[PatientZoneResponse.from_entity(z) for z in zones],
         )
     except PatientNotFoundError as e:
@@ -221,27 +182,13 @@ async def update_patient(
             telephone=request.telephone,
             email=request.email,
             adresse=request.adresse,
+            commune=request.commune,
+            wilaya=request.wilaya,
             notes=request.notes,
             phototype=request.phototype,
             status=request.status,
         )
-        return PatientResponse(
-            id=patient.id,
-            code_carte=patient.code_carte,
-            nom=patient.nom,
-            prenom=patient.prenom,
-            date_naissance=patient.date_naissance,
-            sexe=patient.sexe,
-            telephone=patient.telephone,
-            email=patient.email,
-            adresse=patient.adresse,
-            notes=patient.notes,
-            phototype=patient.phototype,
-            status=patient.status,
-            age=patient.age,
-            created_at=patient.created_at,
-            updated_at=patient.updated_at,
-        )
+        return _patient_response(patient)
     except PatientNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

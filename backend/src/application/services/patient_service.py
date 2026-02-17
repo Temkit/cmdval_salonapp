@@ -24,6 +24,8 @@ class PatientService:
         telephone: str | None = None,
         email: str | None = None,
         adresse: str | None = None,
+        commune: str | None = None,
+        wilaya: str | None = None,
         notes: str | None = None,
         phototype: str | None = None,
         status: str = "actif",
@@ -47,6 +49,8 @@ class PatientService:
             telephone=telephone,
             email=email,
             adresse=adresse,
+            commune=commune,
+            wilaya=wilaya,
             notes=notes,
             phototype=phototype,
             status=status,
@@ -105,6 +109,8 @@ class PatientService:
         telephone: str | None = None,
         email: str | None = None,
         adresse: str | None = None,
+        commune: str | None = None,
+        wilaya: str | None = None,
         notes: str | None = None,
         phototype: str | None = None,
         status: str | None = None,
@@ -128,6 +134,10 @@ class PatientService:
             patient.email = email
         if adresse is not None:
             patient.adresse = adresse
+        if commune is not None:
+            patient.commune = commune
+        if wilaya is not None:
+            patient.wilaya = wilaya
         if notes is not None:
             patient.notes = notes
         if phototype is not None:

@@ -2,7 +2,7 @@
 
 from datetime import UTC, date, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.schedule import DailyScheduleEntry, WaitingQueueEntry
@@ -145,7 +145,12 @@ class WaitingQueueRepository:
             WaitingQueueModel.status.in_(["waiting", "in_treatment"])
         )
         if doctor_id:
-            query = query.where(WaitingQueueModel.doctor_id == doctor_id)
+            query = query.where(
+                or_(
+                    WaitingQueueModel.doctor_id == doctor_id,
+                    WaitingQueueModel.doctor_id.is_(None),
+                )
+            )
         query = query.order_by(WaitingQueueModel.position)
         result = await self.session.execute(query)
         return [self._to_entity(q) for q in result.scalars()]

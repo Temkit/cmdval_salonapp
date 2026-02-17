@@ -23,6 +23,8 @@ class Patient:
     email: str | None = None
     adresse: str | None = None
     ville: str | None = None
+    commune: str | None = None
+    wilaya: str | None = None
     code_postal: str | None = None
     notes: str | None = None
     phototype: str | None = None

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import EmailStr, Field
+from pydantic import Field
 
 from src.schemas.base import AppBaseModel
 
@@ -10,7 +10,7 @@ from src.schemas.base import AppBaseModel
 class UserBase(AppBaseModel):
     """Base user schema."""
 
-    email: EmailStr
+    username: str = Field(min_length=1, max_length=100)
     nom: str = Field(min_length=1, max_length=100)
     prenom: str = Field(min_length=1, max_length=100)
     role_id: str
@@ -25,7 +25,7 @@ class UserCreate(UserBase):
 class UserUpdate(AppBaseModel):
     """User update schema."""
 
-    email: EmailStr | None = None
+    username: str | None = Field(default=None, min_length=1, max_length=100)
     nom: str | None = Field(default=None, min_length=1, max_length=100)
     prenom: str | None = Field(default=None, min_length=1, max_length=100)
     role_id: str | None = None
@@ -37,7 +37,7 @@ class UserResponse(AppBaseModel):
     """User response schema."""
 
     id: str
-    email: str
+    username: str
     nom: str
     prenom: str
     role_id: str

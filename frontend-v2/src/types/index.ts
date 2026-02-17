@@ -1,7 +1,6 @@
 export interface User {
   id: string;
   username: string;
-  email: string;
   nom: string;
   prenom: string;
   role_id: string;
@@ -34,6 +33,8 @@ export interface Patient {
   telephone: string | null;
   email: string | null;
   adresse: string | null;
+  commune: string | null;
+  wilaya: string | null;
   notes: string | null;
   phototype: string | null;
   status: PatientStatus;
@@ -461,6 +462,8 @@ export interface CreatePatientRequest {
   telephone?: string | null;
   email?: string | null;
   adresse?: string | null;
+  commune?: string | null;
+  wilaya?: string | null;
   notes?: string | null;
   phototype?: string | null;
 }
@@ -553,7 +556,7 @@ export interface ManualScheduleEntryRequest {
   date: string;
   patient_nom: string;
   patient_prenom: string;
-  doctor_id: string;
+  doctor_id?: string;
   doctor_name?: string;
   start_time: string;
   end_time?: string;

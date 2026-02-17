@@ -112,11 +112,11 @@ class PreConsultationBase(AppBaseModel):
 
     # Peeling
     recent_peeling: bool = False
-    recent_peeling_date: date | None = None
+    recent_peeling_date: str | None = Field(None, max_length=100)
     peeling_zone: str | None = Field(None, max_length=100)
 
     # Previous laser dates
-    last_laser_date: date | None = None
+    last_laser_date: str | None = Field(None, max_length=100)
 
     # Phototype
     phototype: str | None = Field(None, pattern=r"^(I|II|III|IV|V|VI)$")
@@ -200,10 +200,10 @@ class PreConsultationUpdate(AppBaseModel):
     hormonal_disease_2years: bool | None = None
 
     recent_peeling: bool | None = None
-    recent_peeling_date: date | None = None
+    recent_peeling_date: str | None = Field(None, max_length=100)
     peeling_zone: str | None = Field(None, max_length=100)
 
-    last_laser_date: date | None = None
+    last_laser_date: str | None = Field(None, max_length=100)
 
     phototype: str | None = Field(None, pattern=r"^(I|II|III|IV|V|VI)$")
 

@@ -74,10 +74,15 @@ interface FormZone {
 
 function AdminPreConsultationNouveau() {
   const navigate = useNavigate();
-  const fromWorkflow = new URLSearchParams(window.location.search).get("from") === "nouveau-patient";
+  const searchParams = new URLSearchParams(window.location.search);
+  const fromWorkflow = searchParams.get("from") === "nouveau-patient";
+  const editId = searchParams.get("edit");
+  const editPatientId = searchParams.get("patient_id");
+  const isEditMode = !!editId;
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(isEditMode ? 1 : 0);
+  const [editLoaded, setEditLoaded] = useState(false);
 
   // Step 0 - Patient
   const [patientSearch, setPatientSearch] = useState("");
@@ -103,6 +108,7 @@ function AdminPreConsultationNouveau() {
   const [clarityII, setClarityII] = useState(false);
   const [laserSessions, setLaserSessions] = useState("");
   const [laserBrand, setLaserBrand] = useState("");
+  const [lastLaserDate, setLastLaserDate] = useState("");
 
   // Step 4 - Medical history
   const [medicalHistory, setMedicalHistory] = useState<Record<string, boolean>>({});
@@ -110,6 +116,8 @@ function AdminPreConsultationNouveau() {
   const [hasCurrentTreatments, setHasCurrentTreatments] = useState(false);
   const [treatmentDetails, setTreatmentDetails] = useState("");
   const [recentPeeling, setRecentPeeling] = useState(false);
+  const [recentPeelingDate, setRecentPeelingDate] = useState("");
+  const [peelingZone, setPeelingZone] = useState("");
 
   // Step 5 - Hair removal
   const [hairMethods, setHairMethods] = useState<string[]>([]);
@@ -120,6 +128,55 @@ function AdminPreConsultationNouveau() {
 
   // Step 7 - Questionnaire
   const [questionnaireResponses, setQuestionnaireResponses] = useState<Record<string, string | boolean | string[]>>({});
+
+  // Fetch existing pre-consultation for edit mode
+  const { data: editData } = useQuery({
+    queryKey: ["pre-consultation", editId],
+    queryFn: () => api.getPreConsultation(editId!),
+    enabled: isEditMode && !editLoaded,
+  });
+
+  // Pre-fill form when edit data loads
+  useEffect(() => {
+    if (!editData || editLoaded) return;
+    setSelectedPatient({
+      id: editData.patient_id,
+      nom: editData.patient_nom || "",
+      prenom: editData.patient_prenom || "",
+      telephone: editData.patient_telephone || null,
+      code_carte: editData.patient_code_carte || null,
+    } as Patient);
+    setSexe(editData.sexe as "F" | "M");
+    if (editData.date_naissance) setDateNaissance(String(editData.date_naissance));
+    if (editData.statut_marital) setMaritalStatus(editData.statut_marital);
+    if (editData.phototype) setPhototype(editData.phototype);
+    setIsPregnant(editData.is_pregnant);
+    setIsBreastfeeding(editData.is_breastfeeding);
+    setPregnancyPlanning(editData.pregnancy_planning);
+    setHasPreviousLaser(editData.has_previous_laser);
+    setClarityII(editData.previous_laser_clarity_ii);
+    if (editData.previous_laser_sessions) setLaserSessions(String(editData.previous_laser_sessions));
+    if (editData.previous_laser_brand) setLaserBrand(editData.previous_laser_brand);
+    if (editData.last_laser_date) setLastLaserDate(editData.last_laser_date);
+    setMedicalHistory(editData.medical_history || {});
+    setDermaConditions(editData.dermatological_conditions || []);
+    setHasCurrentTreatments(editData.has_current_treatments);
+    if (editData.current_treatments_details) setTreatmentDetails(editData.current_treatments_details);
+    setRecentPeeling(editData.recent_peeling);
+    if (editData.recent_peeling_date) setRecentPeelingDate(editData.recent_peeling_date);
+    if (editData.peeling_zone) setPeelingZone(editData.peeling_zone);
+    setHairMethods(editData.hair_removal_methods || []);
+    if (editData.notes) setNotes(editData.notes);
+    if (editData.zones?.length > 0) {
+      setFormZones(editData.zones.map((z) => ({
+        zone_id: z.zone_id,
+        zone_nom: z.zone_nom || z.zone_id,
+        is_eligible: z.is_eligible,
+        observations: z.observations || "",
+      })));
+    }
+    setEditLoaded(true);
+  }, [editData]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(patientSearch), 300);
@@ -184,12 +241,15 @@ function AdminPreConsultationNouveau() {
         previous_laser_clarity_ii: clarityII,
         previous_laser_sessions: laserSessions ? parseInt(laserSessions) : null,
         previous_laser_brand: laserBrand || null,
+        last_laser_date: lastLaserDate || null,
         hair_removal_methods: hairMethods,
         medical_history: medicalHistory,
         dermatological_conditions: dermaConditions,
         has_current_treatments: hasCurrentTreatments,
         current_treatments_details: treatmentDetails || null,
         recent_peeling: recentPeeling,
+        recent_peeling_date: recentPeelingDate || null,
+        peeling_zone: peelingZone || null,
         notes: notes || null,
         zones: formZones.map((z) => ({
           zone_id: z.zone_id,
@@ -197,7 +257,9 @@ function AdminPreConsultationNouveau() {
           observations: z.observations || null,
         })),
       };
-      const result = await api.createPreConsultation(data);
+      const result = isEditMode
+        ? await api.updatePreConsultation(editId!, data)
+        : await api.createPreConsultation(data);
 
       // Save questionnaire responses if any
       const responses: QuestionnaireResponseInput[] = Object.entries(questionnaireResponses)
@@ -215,7 +277,8 @@ function AdminPreConsultationNouveau() {
     },
     onSuccess: (result: { id: string }) => {
       queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
-      toast({ title: "Pre-consultation creee", description: "Soumettez-la pour validation." });
+      queryClient.invalidateQueries({ queryKey: ["pre-consultation", editId] });
+      toast({ title: isEditMode ? "Pre-consultation mise a jour" : "Pre-consultation creee", description: isEditMode ? undefined : "Soumettez-la pour validation." });
       const url = `/admin/pre-consultations/${result.id}${fromWorkflow ? "?from=nouveau-patient" : ""}`;
       navigate({ to: url });
     },
@@ -292,7 +355,7 @@ function AdminPreConsultationNouveau() {
           </Link>
         </Button>
         <div>
-          <h1 className="heading-2">Nouvelle pre-consultation</h1>
+          <h1 className="heading-2">{isEditMode ? "Modifier la pre-consultation" : "Nouvelle pre-consultation"}</h1>
           <p className="text-sm text-muted-foreground">Etape {step + 1} sur {TOTAL_STEPS}</p>
         </div>
       </div>
@@ -585,6 +648,14 @@ function AdminPreConsultationNouveau() {
                     placeholder="Ex: Soprano"
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Date de la derniere seance laser</Label>
+                  <Input
+                    value={lastLaserDate}
+                    onChange={(e) => setLastLaserDate(e.target.value)}
+                    placeholder="Ex: Janvier 2025, il y a 6 mois..."
+                  />
+                </div>
               </div>
             )}
           </CardContent>
@@ -660,6 +731,26 @@ function AdminPreConsultationNouveau() {
               />
               <span className="text-sm font-medium">Peeling recent</span>
             </label>
+            {recentPeeling && (
+              <div className="space-y-3 pl-4 border-l-2 border-primary/20">
+                <div className="space-y-1">
+                  <Label className="text-xs">Date du peeling</Label>
+                  <Input
+                    value={recentPeelingDate}
+                    onChange={(e) => setRecentPeelingDate(e.target.value)}
+                    placeholder="Ex: Decembre 2025, il y a 2 mois..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Zone du peeling</Label>
+                  <Input
+                    value={peelingZone}
+                    onChange={(e) => setPeelingZone(e.target.value)}
+                    placeholder="Ex: Visage, mains..."
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -884,7 +975,7 @@ function AdminPreConsultationNouveau() {
             onClick={() => submitMutation.mutate()}
             disabled={!canNext() || submitMutation.isPending}
           >
-            {submitMutation.isPending ? "Creation..." : "Creer la pre-consultation"}
+            {submitMutation.isPending ? (isEditMode ? "Mise a jour..." : "Creation...") : (isEditMode ? "Enregistrer les modifications" : "Creer la pre-consultation")}
             <Check className="h-4 w-4 ml-2" />
           </Button>
         )}

@@ -63,11 +63,11 @@ class PreConsultation:
 
     # Peeling
     recent_peeling: bool = False
-    recent_peeling_date: date | None = None
+    recent_peeling_date: str | None = None
     peeling_zone: str | None = None
 
     # Previous laser dates
-    last_laser_date: date | None = None
+    last_laser_date: str | None = None
 
     # Phototype
     phototype: str | None = None

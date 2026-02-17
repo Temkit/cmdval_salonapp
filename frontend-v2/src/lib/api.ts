@@ -10,6 +10,7 @@ import type {
   Question,
   Session,
   SessionDetail,
+  SessionPhoto,
   DashboardStats,
   Pack,
   PatientSubscription,
@@ -450,6 +451,26 @@ export const api = {
   async getSession(id: string) {
     const response = await wrapFetch(`${API_BASE}/sessions/${id}`);
     return handleResponse<SessionDetail>(response);
+  },
+
+  async updateSessionNotes(sessionId: string, notes: string) {
+    const formData = new FormData();
+    formData.append("notes", notes);
+    const response = await wrapFetch(
+      `${API_BASE}/sessions/${sessionId}/notes`,
+      { method: "PUT", body: formData },
+    );
+    return handleResponse<Session>(response);
+  },
+
+  async addSessionPhoto(sessionId: string, file: File) {
+    const formData = new FormData();
+    formData.append("photo", file);
+    const response = await wrapFetch(
+      `${API_BASE}/sessions/${sessionId}/photos`,
+      { method: "POST", body: formData },
+    );
+    return handleResponse<SessionPhoto>(response);
   },
 
   async getLastSessionParams(patientId: string, patientZoneId: string) {
@@ -1044,6 +1065,14 @@ export const api = {
       { method: "PUT" },
     );
     return handleResponse<WaitingQueueEntry>(response);
+  },
+
+  async markScheduleNoShow(entryId: string) {
+    const response = await wrapFetch(
+      `${API_BASE}/schedule/${entryId}/no-show`,
+      { method: "PUT" },
+    );
+    return handleResponse<DailyScheduleEntry>(response);
   },
 
   async markLeft(entryId: string) {

@@ -75,6 +75,22 @@ function AdminPatientDetailPage() {
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payForm, setPayForm] = useState({ montant: "", mode_paiement: "especes" as string, notes: "", subscription_id: "" });
 
+  // Edit patient dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    nom: "",
+    prenom: "",
+    date_naissance: "",
+    sexe: "" as string,
+    telephone: "",
+    email: "",
+    adresse: "",
+    commune: "",
+    wilaya: "",
+    notes: "",
+    phototype: "" as string,
+  });
+
   const { data: patient, isLoading, isError, error } = useQuery({
     queryKey: ["patient", id],
     queryFn: () => api.getPatient(id),
@@ -218,6 +234,49 @@ function AdminPatientDetailPage() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
   });
 
+  const openEditDialog = () => {
+    if (!patient) return;
+    setEditForm({
+      nom: patient.nom || "",
+      prenom: patient.prenom || "",
+      date_naissance: patient.date_naissance || "",
+      sexe: patient.sexe || "",
+      telephone: patient.telephone || "",
+      email: patient.email || "",
+      adresse: patient.adresse || "",
+      commune: patient.commune || "",
+      wilaya: patient.wilaya || "",
+      notes: patient.notes || "",
+      phototype: patient.phototype || "",
+    });
+    setEditOpen(true);
+  };
+
+  const editPatientMutation = useMutation({
+    mutationFn: () =>
+      api.updatePatient(id, {
+        nom: editForm.nom || undefined,
+        prenom: editForm.prenom || undefined,
+        date_naissance: editForm.date_naissance || undefined,
+        sexe: (editForm.sexe as "M" | "F") || undefined,
+        telephone: editForm.telephone || undefined,
+        email: editForm.email || undefined,
+        adresse: editForm.adresse || undefined,
+        commune: editForm.commune || undefined,
+        wilaya: editForm.wilaya || undefined,
+        notes: editForm.notes || undefined,
+        phototype: editForm.phototype || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient", id] });
+      toast({ title: "Patient mis a jour" });
+      setEditOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    },
+  });
+
   const uploadDocMutation = useMutation({
     mutationFn: (file: File) => api.uploadPatientDocument(id, file),
     onSuccess: () => {
@@ -300,7 +359,12 @@ function AdminPatientDetailPage() {
               <span className="text-2xl font-bold text-primary">{patient.prenom?.[0]}{patient.nom?.[0]}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold truncate">{patient.prenom} {patient.nom}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold truncate">{patient.prenom} {patient.nom}</h1>
+                <Button variant="ghost" size="icon-sm" onClick={openEditDialog}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-2 mt-2">
                 <Badge variant={patient.status === "actif" ? "success" : patient.status === "ineligible" ? "destructive" : "warning"}>
                   {patient.status === "actif" ? "Actif" : patient.status === "ineligible" ? "Ineligible" : "En attente"}
@@ -340,6 +404,7 @@ function AdminPatientDetailPage() {
                 {patient.email && <div className="flex items-center gap-3"><Mail className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.email}</span></div>}
                 {patient.date_naissance && <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{formatDate(patient.date_naissance)}</span></div>}
                 {patient.adresse && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.adresse}</span></div>}
+                {(patient.commune || patient.wilaya) && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{[patient.commune, patient.wilaya].filter(Boolean).join(", ")}</span></div>}
                 {patient.created_at && <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground" /><span className="text-sm">Inscrit le {formatDate(patient.created_at)}</span></div>}
                 {!patient.telephone && !patient.email && !patient.date_naissance && !patient.adresse && <p className="text-sm text-muted-foreground">Aucune coordonnee renseignee</p>}
               </CardContent>
@@ -811,6 +876,91 @@ function AdminPatientDetailPage() {
               <Button type="button" variant="outline" onClick={() => setPayDialogOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={payMutation.isPending}>
                 {payMutation.isPending ? "Enregistrement..." : "Enregistrer le paiement"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Patient Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Modifier le patient</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); editPatientMutation.mutate(); }} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nom</Label>
+                <Input value={editForm.nom} onChange={(e) => setEditForm((f) => ({ ...f, nom: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Prenom</Label>
+                <Input value={editForm.prenom} onChange={(e) => setEditForm((f) => ({ ...f, prenom: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date de naissance</Label>
+                <Input type="date" value={editForm.date_naissance} onChange={(e) => setEditForm((f) => ({ ...f, date_naissance: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Sexe</Label>
+                <Select value={editForm.sexe} onValueChange={(v) => setEditForm((f) => ({ ...f, sexe: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Sexe" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="M">Homme</SelectItem>
+                    <SelectItem value="F">Femme</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Telephone</Label>
+                <Input value={editForm.telephone} onChange={(e) => setEditForm((f) => ({ ...f, telephone: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Adresse</Label>
+              <Input value={editForm.adresse} onChange={(e) => setEditForm((f) => ({ ...f, adresse: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Commune</Label>
+                <Input value={editForm.commune} onChange={(e) => setEditForm((f) => ({ ...f, commune: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Wilaya</Label>
+                <Input value={editForm.wilaya} onChange={(e) => setEditForm((f) => ({ ...f, wilaya: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Phototype</Label>
+              <Select value={editForm.phototype} onValueChange={(v) => setEditForm((f) => ({ ...f, phototype: v }))}>
+                <SelectTrigger><SelectValue placeholder="Phototype" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="I">I</SelectItem>
+                  <SelectItem value="II">II</SelectItem>
+                  <SelectItem value="III">III</SelectItem>
+                  <SelectItem value="IV">IV</SelectItem>
+                  <SelectItem value="V">V</SelectItem>
+                  <SelectItem value="VI">VI</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Input value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={editPatientMutation.isPending}>
+                {editPatientMutation.isPending ? "Mise a jour..." : "Enregistrer"}
               </Button>
             </DialogFooter>
           </form>

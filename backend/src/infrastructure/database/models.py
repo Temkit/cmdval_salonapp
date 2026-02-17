@@ -85,6 +85,8 @@ class PatientModel(Base):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     adresse: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ville: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    commune: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    wilaya: Mapped[str | None] = mapped_column(String(100), nullable=True)
     code_postal: Mapped[str | None] = mapped_column(String(10), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     phototype: Mapped[str | None] = mapped_column(String(10), nullable=True)
@@ -319,11 +321,11 @@ class PreConsultationModel(Base):
 
     # Hair removal dates
     last_hair_removal_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    last_laser_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_laser_date: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Peeling
     recent_peeling: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    recent_peeling_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    recent_peeling_date: Mapped[str | None] = mapped_column(String(100), nullable=True)
     peeling_zone: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Phototype

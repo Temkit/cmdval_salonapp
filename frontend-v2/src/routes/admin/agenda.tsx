@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Plus,
   Check,
+  XCircle,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -163,6 +164,21 @@ function AdminAgendaPage() {
     },
   });
 
+  const noShowMutation = useMutation({
+    mutationFn: (entryId: string) => api.markScheduleNoShow(entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
+      toast({ title: "Patient marque absent" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message,
+      });
+    },
+  });
+
   const addEntryMutation = useMutation({
     mutationFn: (data: typeof addForm) => {
       const doctor = doctors.find((u) => u.id === data.doctor_id);
@@ -182,7 +198,7 @@ function AdminAgendaPage() {
         date: dateStr,
         patient_prenom: data.patient_prenom,
         patient_nom: data.patient_nom,
-        doctor_id: data.doctor_id,
+        doctor_id: data.doctor_id || undefined,
         doctor_name: doctor
           ? `${doctor.prenom} ${doctor.nom}`
           : undefined,
@@ -450,16 +466,29 @@ function AdminAgendaPage() {
                         </td>
                         <td className="py-3 px-4 text-right">
                           {entry.status === "expected" && (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                checkInMutation.mutate(entry.id)
-                              }
-                              disabled={checkInMutation.isPending}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Check-in
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  checkInMutation.mutate(entry.id)
+                                }
+                                disabled={checkInMutation.isPending}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Check-in
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  noShowMutation.mutate(entry.id)
+                                }
+                                disabled={noShowMutation.isPending}
+                                title="Marquer absent"
+                              >
+                                <XCircle className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -610,7 +639,6 @@ function AdminAgendaPage() {
                 type="submit"
                 disabled={
                   addEntryMutation.isPending ||
-                  !addForm.doctor_id ||
                   !addForm.patient_prenom ||
                   !addForm.patient_nom ||
                   !addForm.start_time

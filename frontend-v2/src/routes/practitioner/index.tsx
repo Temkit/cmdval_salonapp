@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Phone,
@@ -7,6 +8,12 @@ import {
   AlertTriangle,
   RefreshCw,
   XCircle,
+  Activity,
+  Play,
+  Camera,
+  MessageSquare,
+  CheckCircle,
+  Stethoscope,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +39,74 @@ function formatWaitTime(checkedInAt: string): string {
   return `${hours}h${mins > 0 ? `${mins.toString().padStart(2, "0")}` : ""}`;
 }
 
+
+function ActiveSessionBanner({ session, onNavigate }: { session: { patientName: string; zoneName: string; sessionNumber: number; totalSessions: number; startedAt: number; isPaused: boolean; totalPausedTime: number; pausedAt?: number }; onNavigate: () => void }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const calcElapsed = () => {
+      let e = Date.now() - session.startedAt - session.totalPausedTime;
+      if (session.isPaused && session.pausedAt) {
+        e -= Date.now() - session.pausedAt;
+      }
+      return Math.floor(e / 1000);
+    };
+    setElapsed(calcElapsed());
+    const interval = setInterval(() => setElapsed(calcElapsed()), 1000);
+    return () => clearInterval(interval);
+  }, [session.startedAt, session.totalPausedTime, session.isPaused, session.pausedAt]);
+
+  const h = Math.floor(elapsed / 3600);
+  const m = Math.floor((elapsed % 3600) / 60);
+  const s = elapsed % 60;
+  const display = h > 0
+    ? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+    : `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+
+  return (
+    <Card
+      className="border-amber-400 bg-amber-50/80 dark:bg-amber-950/20 hover:bg-amber-100/80 transition-colors cursor-pointer"
+      onClick={onNavigate}
+    >
+      <CardContent className="p-5">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+            <Activity className="h-7 w-7 text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Seance en cours</p>
+            <p className="font-semibold text-base mt-0.5">{session.patientName}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="secondary" size="sm">{session.zoneName}</Badge>
+              <Badge variant="outline" size="sm">{session.sessionNumber}/{session.totalSessions}</Badge>
+              {session.isPaused && <Badge variant="warning" size="sm">PAUSE</Badge>}
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <span className="font-mono text-2xl font-bold tabular-nums text-amber-600">
+              {display}
+            </span>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <Button size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); onNavigate(); }}>
+            <Play className="h-4 w-4 mr-1.5" />
+            Reprendre
+          </Button>
+          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onNavigate(); }}>
+            <Camera className="h-4 w-4 mr-1.5" />
+            Photo
+          </Button>
+          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onNavigate(); }}>
+            <MessageSquare className="h-4 w-4 mr-1.5" />
+            Note
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PractitionerHomePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -52,14 +127,21 @@ function PractitionerHomePage() {
     mutationFn: (entryId: string) => api.callPatient(entryId),
     onSuccess: (_data, entryId) => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
-      toast({ title: "Patient appele" });
       // Find the entry to get patient_id for seance wizard
       const entry = waitingEntries.find((e) => e.id === entryId);
       if (entry?.patient_id) {
+        toast({ title: "Patient appele" });
         navigate({
           to: "/practitioner/seance/$patientId",
           params: { patientId: entry.patient_id },
           search: { queueEntryId: entry.id },
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Patient non enregistre",
+          description:
+            "Ce patient n'a pas de dossier. Demandez a la secretaire de creer sa fiche avant de demarrer la seance.",
         });
       }
     },
@@ -87,59 +169,88 @@ function PractitionerHomePage() {
     },
   });
 
+  const completeMutation = useMutation({
+    mutationFn: (entryId: string) => api.completePatient(entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+      toast({ title: "Patient marque comme termine" });
+    },
+    onError: (err: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: err.message,
+      });
+    },
+  });
+
   const entries = data?.entries ?? [];
   const waitingEntries = entries.filter((e) => e.status === "waiting");
   const inTreatmentEntries = entries.filter((e) => e.status === "in_treatment");
+  // Exclude the patient currently active in Zustand (already shown in banner)
+  const staleInTreatment = inTreatmentEntries.filter(
+    (e) => !activeSession || e.patient_id !== activeSession.patientId,
+  );
   const nextPatient: WaitingQueueEntry | undefined = waitingEntries[0];
 
-  // If there's an active session, show a resume prompt
-  if (activeSession) {
-    return (
-      <div className="page-container flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-8 text-center space-y-4">
-            <div className="h-16 w-16 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
-              <Clock className="h-8 w-8 text-amber-600" />
-            </div>
-            <h2 className="text-xl font-bold">Seance en cours</h2>
-            <p className="text-muted-foreground">
-              {activeSession.patientName} — {activeSession.zoneName}
-            </p>
-            <Button
-              size="lg"
-              className="w-full"
-              onClick={() =>
-                navigate({ to: "/practitioner/active" as string } as Parameters<typeof navigate>[0])
-              }
-            >
-              Reprendre la seance
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const goToActive = () =>
+    navigate({ to: "/practitioner/active" as string } as Parameters<typeof navigate>[0]);
 
   return (
     <div className="page-container space-y-6 max-w-2xl mx-auto">
-      {/* In-treatment banner */}
-      {inTreatmentEntries.length > 0 && (
-        <Card className="border-amber-300/50 bg-amber-50 dark:bg-amber-950/10">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Clock className="h-5 w-5 text-amber-600 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">
-                  {inTreatmentEntries.length} patient{inTreatmentEntries.length > 1 ? "s" : ""} en
-                  traitement
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {inTreatmentEntries.map((e) => e.patient_name).join(", ")}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Active session banner — live timer with quick actions */}
+      {activeSession && (
+        <ActiveSessionBanner session={activeSession} onNavigate={goToActive} />
+      )}
+
+      {/* In-treatment entries not matching the active Zustand session */}
+      {staleInTreatment.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Stethoscope className="h-4 w-4 text-amber-600" />
+            <h3 className="text-sm font-medium">
+              {staleInTreatment.length} patient{staleInTreatment.length > 1 ? "s" : ""} en traitement
+            </h3>
+          </div>
+          {staleInTreatment.map((entry) => (
+            <Card key={entry.id} className="border-amber-200/50 bg-amber-50/30">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                    <User className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{entry.patient_name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      En traitement depuis {formatWaitTime(entry.checked_in_at)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => completeMutation.mutate(entry.id)}
+                    disabled={completeMutation.isPending}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Terminer
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => noShowMutation.mutate(entry.id)}
+                    disabled={noShowMutation.isPending}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Absent
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Next patient card */}

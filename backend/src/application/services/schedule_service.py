@@ -211,8 +211,8 @@ class ScheduleService:
         entry_date: date,
         patient_nom: str,
         patient_prenom: str,
-        doctor_name: str,
-        start_time: time,
+        doctor_name: str = "",
+        start_time: time = time(9, 0),
         end_time: time | None = None,
         duration_type: str | None = None,
         doctor_id: str | None = None,
@@ -223,7 +223,7 @@ class ScheduleService:
             date=entry_date,
             patient_nom=patient_nom,
             patient_prenom=patient_prenom,
-            doctor_name=doctor_name,
+            doctor_name=doctor_name or "Non assigné",
             doctor_id=doctor_id,
             start_time=start_time,
             end_time=end_time,
@@ -487,6 +487,18 @@ class ScheduleService:
         result = await self.queue_repo.update_status(entry_id, "left")
         if not result:
             raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
+        return result
+
+    async def mark_schedule_no_show(self, entry_id: str) -> DailyScheduleEntry:
+        """Mark a schedule entry as no-show directly (without check-in first)."""
+        entry = await self.schedule_repo.find_by_id(entry_id)
+        if not entry:
+            raise NotFoundError(f"Entrée planning {entry_id} non trouvée")
+        if entry.status != "expected":
+            raise ValidationError("Seuls les patients attendus peuvent être marqués absents")
+        result = await self.schedule_repo.update_status(entry_id, "no_show")
+        if not result:
+            raise NotFoundError(f"Entrée planning {entry_id} non trouvée")
         return result
 
     async def get_absences(self, patient_id: str | None = None) -> list[WaitingQueueEntry]:

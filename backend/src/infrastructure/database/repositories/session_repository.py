@@ -286,6 +286,16 @@ class SessionRepository(SessionRepositoryInterface):
         )
         return [self._to_entity(s) for s in result.unique().scalars()]
 
+    async def update_notes(self, session_id: str, notes: str) -> None:
+        """Update notes on a session."""
+        result = await self.session.execute(
+            select(SessionModel).where(SessionModel.id == session_id)
+        )
+        db_session = result.scalar_one_or_none()
+        if db_session:
+            db_session.notes = notes
+            await self.session.flush()
+
     async def add_photo(self, session_id: str, filename: str, filepath: str) -> SessionPhoto:
         """Add a photo to a session."""
         from uuid import uuid4

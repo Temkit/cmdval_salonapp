@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Calendar, Clock, User, Stethoscope } from "lucide-react";
+import { Activity, Calendar, Clock, Stethoscope } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,11 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
-export const Route = createFileRoute("/admin/sessions")({
-  component: AdminSessionsPage,
+export const Route = createFileRoute("/secretary/sessions/")({
+  component: SecretarySessionsPage,
 });
 
-function AdminSessionsPage() {
+function SecretarySessionsPage() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
@@ -58,8 +58,8 @@ function AdminSessionsPage() {
               {sessions.map((session) => (
                 <Link
                   key={session.id}
-                  to="/admin/patients/$id"
-                  params={{ id: session.patient_id }}
+                  to="/secretary/sessions/$id"
+                  params={{ id: session.id }}
                   className="flex items-center gap-4 p-4 border rounded-xl hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">

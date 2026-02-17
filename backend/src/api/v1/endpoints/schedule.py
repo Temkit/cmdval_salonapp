@@ -254,6 +254,23 @@ async def get_absences(
     return AbsenceListResponse(absences=absences, total=len(absences))
 
 
+@router.put("/{entry_id}/no-show", response_model=ScheduleEntryResponse)
+async def mark_schedule_no_show(
+    entry_id: str,
+    current_user: CurrentUser,
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+):
+    """Mark a schedule entry as no-show directly (without check-in)."""
+    try:
+        entry = await schedule_service.mark_schedule_no_show(entry_id)
+        return _schedule_response(entry)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
 # Dynamic path route MUST be last
 @router.get("/{target_date}", response_model=ScheduleListResponse)
 async def get_schedule(

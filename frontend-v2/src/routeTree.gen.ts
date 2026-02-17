@@ -18,7 +18,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SecretaryIndexRouteImport } from './routes/secretary/index'
 import { Route as PractitionerIndexRouteImport } from './routes/practitioner/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as SecretarySessionsRouteImport } from './routes/secretary/sessions'
 import { Route as SecretaryPaiementsRouteImport } from './routes/secretary/paiements'
 import { Route as SecretaryAgendaRouteImport } from './routes/secretary/agenda'
 import { Route as SecretaryAbsencesRouteImport } from './routes/secretary/absences'
@@ -26,20 +25,24 @@ import { Route as PractitionerSelectBoxRouteImport } from './routes/practitioner
 import { Route as PractitionerMesSeancesRouteImport } from './routes/practitioner/mes-seances'
 import { Route as PractitionerMesPatientsRouteImport } from './routes/practitioner/mes-patients'
 import { Route as PractitionerActiveRouteImport } from './routes/practitioner/active'
-import { Route as AdminSessionsRouteImport } from './routes/admin/sessions'
 import { Route as AdminQueueRouteImport } from './routes/admin/queue'
 import { Route as AdminPaiementsRouteImport } from './routes/admin/paiements'
 import { Route as AdminAgendaRouteImport } from './routes/admin/agenda'
 import { Route as AdminAbsencesRouteImport } from './routes/admin/absences'
+import { Route as SecretarySessionsIndexRouteImport } from './routes/secretary/sessions/index'
 import { Route as SecretaryPreConsultationsIndexRouteImport } from './routes/secretary/pre-consultations/index'
 import { Route as SecretaryPatientsIndexRouteImport } from './routes/secretary/patients/index'
+import { Route as AdminSessionsIndexRouteImport } from './routes/admin/sessions/index'
 import { Route as AdminPreConsultationsIndexRouteImport } from './routes/admin/pre-consultations/index'
 import { Route as AdminPatientsIndexRouteImport } from './routes/admin/patients/index'
+import { Route as SecretarySessionsIdRouteImport } from './routes/secretary/sessions/$id'
 import { Route as SecretaryPreConsultationsNouveauRouteImport } from './routes/secretary/pre-consultations/nouveau'
 import { Route as SecretaryPreConsultationsIdRouteImport } from './routes/secretary/pre-consultations/$id'
 import { Route as SecretaryPatientsNouveauRouteImport } from './routes/secretary/patients/nouveau'
 import { Route as SecretaryPatientsIdRouteImport } from './routes/secretary/patients/$id'
+import { Route as PractitionerSessionsIdRouteImport } from './routes/practitioner/sessions/$id'
 import { Route as PractitionerSeancePatientIdRouteImport } from './routes/practitioner/seance/$patientId'
+import { Route as AdminSessionsIdRouteImport } from './routes/admin/sessions/$id'
 import { Route as AdminPreConsultationsNouveauRouteImport } from './routes/admin/pre-consultations/nouveau'
 import { Route as AdminPreConsultationsIdRouteImport } from './routes/admin/pre-consultations/$id'
 import { Route as AdminPatientsNouveauRouteImport } from './routes/admin/patients/nouveau'
@@ -99,11 +102,6 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
-const SecretarySessionsRoute = SecretarySessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
-  getParentRoute: () => SecretaryRoute,
-} as any)
 const SecretaryPaiementsRoute = SecretaryPaiementsRouteImport.update({
   id: '/paiements',
   path: '/paiements',
@@ -139,11 +137,6 @@ const PractitionerActiveRoute = PractitionerActiveRouteImport.update({
   path: '/active',
   getParentRoute: () => PractitionerRoute,
 } as any)
-const AdminSessionsRoute = AdminSessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminQueueRoute = AdminQueueRouteImport.update({
   id: '/queue',
   path: '/queue',
@@ -164,6 +157,11 @@ const AdminAbsencesRoute = AdminAbsencesRouteImport.update({
   path: '/absences',
   getParentRoute: () => AdminRoute,
 } as any)
+const SecretarySessionsIndexRoute = SecretarySessionsIndexRouteImport.update({
+  id: '/sessions/',
+  path: '/sessions/',
+  getParentRoute: () => SecretaryRoute,
+} as any)
 const SecretaryPreConsultationsIndexRoute =
   SecretaryPreConsultationsIndexRouteImport.update({
     id: '/pre-consultations/',
@@ -175,6 +173,11 @@ const SecretaryPatientsIndexRoute = SecretaryPatientsIndexRouteImport.update({
   path: '/patients/',
   getParentRoute: () => SecretaryRoute,
 } as any)
+const AdminSessionsIndexRoute = AdminSessionsIndexRouteImport.update({
+  id: '/sessions/',
+  path: '/sessions/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPreConsultationsIndexRoute =
   AdminPreConsultationsIndexRouteImport.update({
     id: '/pre-consultations/',
@@ -185,6 +188,11 @@ const AdminPatientsIndexRoute = AdminPatientsIndexRouteImport.update({
   id: '/patients/',
   path: '/patients/',
   getParentRoute: () => AdminRoute,
+} as any)
+const SecretarySessionsIdRoute = SecretarySessionsIdRouteImport.update({
+  id: '/sessions/$id',
+  path: '/sessions/$id',
+  getParentRoute: () => SecretaryRoute,
 } as any)
 const SecretaryPreConsultationsNouveauRoute =
   SecretaryPreConsultationsNouveauRouteImport.update({
@@ -209,12 +217,22 @@ const SecretaryPatientsIdRoute = SecretaryPatientsIdRouteImport.update({
   path: '/patients/$id',
   getParentRoute: () => SecretaryRoute,
 } as any)
+const PractitionerSessionsIdRoute = PractitionerSessionsIdRouteImport.update({
+  id: '/sessions/$id',
+  path: '/sessions/$id',
+  getParentRoute: () => PractitionerRoute,
+} as any)
 const PractitionerSeancePatientIdRoute =
   PractitionerSeancePatientIdRouteImport.update({
     id: '/seance/$patientId',
     path: '/seance/$patientId',
     getParentRoute: () => PractitionerRoute,
   } as any)
+const AdminSessionsIdRoute = AdminSessionsIdRouteImport.update({
+  id: '/sessions/$id',
+  path: '/sessions/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPreConsultationsNouveauRoute =
   AdminPreConsultationsNouveauRouteImport.update({
     id: '/pre-consultations/nouveau',
@@ -294,7 +312,6 @@ export interface FileRoutesByFullPath {
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/queue': typeof AdminQueueRoute
-  '/admin/sessions': typeof AdminSessionsRoute
   '/practitioner/active': typeof PractitionerActiveRoute
   '/practitioner/mes-patients': typeof PractitionerMesPatientsRoute
   '/practitioner/mes-seances': typeof PractitionerMesSeancesRoute
@@ -302,7 +319,6 @@ export interface FileRoutesByFullPath {
   '/secretary/absences': typeof SecretaryAbsencesRoute
   '/secretary/agenda': typeof SecretaryAgendaRoute
   '/secretary/paiements': typeof SecretaryPaiementsRoute
-  '/secretary/sessions': typeof SecretarySessionsRoute
   '/admin/': typeof AdminIndexRoute
   '/practitioner/': typeof PractitionerIndexRoute
   '/secretary/': typeof SecretaryIndexRoute
@@ -319,15 +335,20 @@ export interface FileRoutesByFullPath {
   '/admin/patients/nouveau': typeof AdminPatientsNouveauRoute
   '/admin/pre-consultations/$id': typeof AdminPreConsultationsIdRoute
   '/admin/pre-consultations/nouveau': typeof AdminPreConsultationsNouveauRoute
+  '/admin/sessions/$id': typeof AdminSessionsIdRoute
   '/practitioner/seance/$patientId': typeof PractitionerSeancePatientIdRoute
+  '/practitioner/sessions/$id': typeof PractitionerSessionsIdRoute
   '/secretary/patients/$id': typeof SecretaryPatientsIdRoute
   '/secretary/patients/nouveau': typeof SecretaryPatientsNouveauRoute
   '/secretary/pre-consultations/$id': typeof SecretaryPreConsultationsIdRoute
   '/secretary/pre-consultations/nouveau': typeof SecretaryPreConsultationsNouveauRoute
+  '/secretary/sessions/$id': typeof SecretarySessionsIdRoute
   '/admin/patients/': typeof AdminPatientsIndexRoute
   '/admin/pre-consultations/': typeof AdminPreConsultationsIndexRoute
+  '/admin/sessions/': typeof AdminSessionsIndexRoute
   '/secretary/patients/': typeof SecretaryPatientsIndexRoute
   '/secretary/pre-consultations/': typeof SecretaryPreConsultationsIndexRoute
+  '/secretary/sessions/': typeof SecretarySessionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -337,7 +358,6 @@ export interface FileRoutesByTo {
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/queue': typeof AdminQueueRoute
-  '/admin/sessions': typeof AdminSessionsRoute
   '/practitioner/active': typeof PractitionerActiveRoute
   '/practitioner/mes-patients': typeof PractitionerMesPatientsRoute
   '/practitioner/mes-seances': typeof PractitionerMesSeancesRoute
@@ -345,7 +365,6 @@ export interface FileRoutesByTo {
   '/secretary/absences': typeof SecretaryAbsencesRoute
   '/secretary/agenda': typeof SecretaryAgendaRoute
   '/secretary/paiements': typeof SecretaryPaiementsRoute
-  '/secretary/sessions': typeof SecretarySessionsRoute
   '/admin': typeof AdminIndexRoute
   '/practitioner': typeof PractitionerIndexRoute
   '/secretary': typeof SecretaryIndexRoute
@@ -362,15 +381,20 @@ export interface FileRoutesByTo {
   '/admin/patients/nouveau': typeof AdminPatientsNouveauRoute
   '/admin/pre-consultations/$id': typeof AdminPreConsultationsIdRoute
   '/admin/pre-consultations/nouveau': typeof AdminPreConsultationsNouveauRoute
+  '/admin/sessions/$id': typeof AdminSessionsIdRoute
   '/practitioner/seance/$patientId': typeof PractitionerSeancePatientIdRoute
+  '/practitioner/sessions/$id': typeof PractitionerSessionsIdRoute
   '/secretary/patients/$id': typeof SecretaryPatientsIdRoute
   '/secretary/patients/nouveau': typeof SecretaryPatientsNouveauRoute
   '/secretary/pre-consultations/$id': typeof SecretaryPreConsultationsIdRoute
   '/secretary/pre-consultations/nouveau': typeof SecretaryPreConsultationsNouveauRoute
+  '/secretary/sessions/$id': typeof SecretarySessionsIdRoute
   '/admin/patients': typeof AdminPatientsIndexRoute
   '/admin/pre-consultations': typeof AdminPreConsultationsIndexRoute
+  '/admin/sessions': typeof AdminSessionsIndexRoute
   '/secretary/patients': typeof SecretaryPatientsIndexRoute
   '/secretary/pre-consultations': typeof SecretaryPreConsultationsIndexRoute
+  '/secretary/sessions': typeof SecretarySessionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -384,7 +408,6 @@ export interface FileRoutesById {
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/queue': typeof AdminQueueRoute
-  '/admin/sessions': typeof AdminSessionsRoute
   '/practitioner/active': typeof PractitionerActiveRoute
   '/practitioner/mes-patients': typeof PractitionerMesPatientsRoute
   '/practitioner/mes-seances': typeof PractitionerMesSeancesRoute
@@ -392,7 +415,6 @@ export interface FileRoutesById {
   '/secretary/absences': typeof SecretaryAbsencesRoute
   '/secretary/agenda': typeof SecretaryAgendaRoute
   '/secretary/paiements': typeof SecretaryPaiementsRoute
-  '/secretary/sessions': typeof SecretarySessionsRoute
   '/admin/': typeof AdminIndexRoute
   '/practitioner/': typeof PractitionerIndexRoute
   '/secretary/': typeof SecretaryIndexRoute
@@ -409,15 +431,20 @@ export interface FileRoutesById {
   '/admin/patients/nouveau': typeof AdminPatientsNouveauRoute
   '/admin/pre-consultations/$id': typeof AdminPreConsultationsIdRoute
   '/admin/pre-consultations/nouveau': typeof AdminPreConsultationsNouveauRoute
+  '/admin/sessions/$id': typeof AdminSessionsIdRoute
   '/practitioner/seance/$patientId': typeof PractitionerSeancePatientIdRoute
+  '/practitioner/sessions/$id': typeof PractitionerSessionsIdRoute
   '/secretary/patients/$id': typeof SecretaryPatientsIdRoute
   '/secretary/patients/nouveau': typeof SecretaryPatientsNouveauRoute
   '/secretary/pre-consultations/$id': typeof SecretaryPreConsultationsIdRoute
   '/secretary/pre-consultations/nouveau': typeof SecretaryPreConsultationsNouveauRoute
+  '/secretary/sessions/$id': typeof SecretarySessionsIdRoute
   '/admin/patients/': typeof AdminPatientsIndexRoute
   '/admin/pre-consultations/': typeof AdminPreConsultationsIndexRoute
+  '/admin/sessions/': typeof AdminSessionsIndexRoute
   '/secretary/patients/': typeof SecretaryPatientsIndexRoute
   '/secretary/pre-consultations/': typeof SecretaryPreConsultationsIndexRoute
+  '/secretary/sessions/': typeof SecretarySessionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -432,7 +459,6 @@ export interface FileRouteTypes {
     | '/admin/agenda'
     | '/admin/paiements'
     | '/admin/queue'
-    | '/admin/sessions'
     | '/practitioner/active'
     | '/practitioner/mes-patients'
     | '/practitioner/mes-seances'
@@ -440,7 +466,6 @@ export interface FileRouteTypes {
     | '/secretary/absences'
     | '/secretary/agenda'
     | '/secretary/paiements'
-    | '/secretary/sessions'
     | '/admin/'
     | '/practitioner/'
     | '/secretary/'
@@ -457,15 +482,20 @@ export interface FileRouteTypes {
     | '/admin/patients/nouveau'
     | '/admin/pre-consultations/$id'
     | '/admin/pre-consultations/nouveau'
+    | '/admin/sessions/$id'
     | '/practitioner/seance/$patientId'
+    | '/practitioner/sessions/$id'
     | '/secretary/patients/$id'
     | '/secretary/patients/nouveau'
     | '/secretary/pre-consultations/$id'
     | '/secretary/pre-consultations/nouveau'
+    | '/secretary/sessions/$id'
     | '/admin/patients/'
     | '/admin/pre-consultations/'
+    | '/admin/sessions/'
     | '/secretary/patients/'
     | '/secretary/pre-consultations/'
+    | '/secretary/sessions/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -475,7 +505,6 @@ export interface FileRouteTypes {
     | '/admin/agenda'
     | '/admin/paiements'
     | '/admin/queue'
-    | '/admin/sessions'
     | '/practitioner/active'
     | '/practitioner/mes-patients'
     | '/practitioner/mes-seances'
@@ -483,7 +512,6 @@ export interface FileRouteTypes {
     | '/secretary/absences'
     | '/secretary/agenda'
     | '/secretary/paiements'
-    | '/secretary/sessions'
     | '/admin'
     | '/practitioner'
     | '/secretary'
@@ -500,15 +528,20 @@ export interface FileRouteTypes {
     | '/admin/patients/nouveau'
     | '/admin/pre-consultations/$id'
     | '/admin/pre-consultations/nouveau'
+    | '/admin/sessions/$id'
     | '/practitioner/seance/$patientId'
+    | '/practitioner/sessions/$id'
     | '/secretary/patients/$id'
     | '/secretary/patients/nouveau'
     | '/secretary/pre-consultations/$id'
     | '/secretary/pre-consultations/nouveau'
+    | '/secretary/sessions/$id'
     | '/admin/patients'
     | '/admin/pre-consultations'
+    | '/admin/sessions'
     | '/secretary/patients'
     | '/secretary/pre-consultations'
+    | '/secretary/sessions'
   id:
     | '__root__'
     | '/'
@@ -521,7 +554,6 @@ export interface FileRouteTypes {
     | '/admin/agenda'
     | '/admin/paiements'
     | '/admin/queue'
-    | '/admin/sessions'
     | '/practitioner/active'
     | '/practitioner/mes-patients'
     | '/practitioner/mes-seances'
@@ -529,7 +561,6 @@ export interface FileRouteTypes {
     | '/secretary/absences'
     | '/secretary/agenda'
     | '/secretary/paiements'
-    | '/secretary/sessions'
     | '/admin/'
     | '/practitioner/'
     | '/secretary/'
@@ -546,15 +577,20 @@ export interface FileRouteTypes {
     | '/admin/patients/nouveau'
     | '/admin/pre-consultations/$id'
     | '/admin/pre-consultations/nouveau'
+    | '/admin/sessions/$id'
     | '/practitioner/seance/$patientId'
+    | '/practitioner/sessions/$id'
     | '/secretary/patients/$id'
     | '/secretary/patients/nouveau'
     | '/secretary/pre-consultations/$id'
     | '/secretary/pre-consultations/nouveau'
+    | '/secretary/sessions/$id'
     | '/admin/patients/'
     | '/admin/pre-consultations/'
+    | '/admin/sessions/'
     | '/secretary/patients/'
     | '/secretary/pre-consultations/'
+    | '/secretary/sessions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -631,13 +667,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/secretary/sessions': {
-      id: '/secretary/sessions'
-      path: '/sessions'
-      fullPath: '/secretary/sessions'
-      preLoaderRoute: typeof SecretarySessionsRouteImport
-      parentRoute: typeof SecretaryRoute
-    }
     '/secretary/paiements': {
       id: '/secretary/paiements'
       path: '/paiements'
@@ -687,13 +716,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PractitionerActiveRouteImport
       parentRoute: typeof PractitionerRoute
     }
-    '/admin/sessions': {
-      id: '/admin/sessions'
-      path: '/sessions'
-      fullPath: '/admin/sessions'
-      preLoaderRoute: typeof AdminSessionsRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/queue': {
       id: '/admin/queue'
       path: '/queue'
@@ -722,6 +744,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAbsencesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/secretary/sessions/': {
+      id: '/secretary/sessions/'
+      path: '/sessions'
+      fullPath: '/secretary/sessions/'
+      preLoaderRoute: typeof SecretarySessionsIndexRouteImport
+      parentRoute: typeof SecretaryRoute
+    }
     '/secretary/pre-consultations/': {
       id: '/secretary/pre-consultations/'
       path: '/pre-consultations'
@@ -736,6 +765,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SecretaryPatientsIndexRouteImport
       parentRoute: typeof SecretaryRoute
     }
+    '/admin/sessions/': {
+      id: '/admin/sessions/'
+      path: '/sessions'
+      fullPath: '/admin/sessions/'
+      preLoaderRoute: typeof AdminSessionsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/pre-consultations/': {
       id: '/admin/pre-consultations/'
       path: '/pre-consultations'
@@ -749,6 +785,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/patients/'
       preLoaderRoute: typeof AdminPatientsIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/secretary/sessions/$id': {
+      id: '/secretary/sessions/$id'
+      path: '/sessions/$id'
+      fullPath: '/secretary/sessions/$id'
+      preLoaderRoute: typeof SecretarySessionsIdRouteImport
+      parentRoute: typeof SecretaryRoute
     }
     '/secretary/pre-consultations/nouveau': {
       id: '/secretary/pre-consultations/nouveau'
@@ -778,12 +821,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SecretaryPatientsIdRouteImport
       parentRoute: typeof SecretaryRoute
     }
+    '/practitioner/sessions/$id': {
+      id: '/practitioner/sessions/$id'
+      path: '/sessions/$id'
+      fullPath: '/practitioner/sessions/$id'
+      preLoaderRoute: typeof PractitionerSessionsIdRouteImport
+      parentRoute: typeof PractitionerRoute
+    }
     '/practitioner/seance/$patientId': {
       id: '/practitioner/seance/$patientId'
       path: '/seance/$patientId'
       fullPath: '/practitioner/seance/$patientId'
       preLoaderRoute: typeof PractitionerSeancePatientIdRouteImport
       parentRoute: typeof PractitionerRoute
+    }
+    '/admin/sessions/$id': {
+      id: '/admin/sessions/$id'
+      path: '/sessions/$id'
+      fullPath: '/admin/sessions/$id'
+      preLoaderRoute: typeof AdminSessionsIdRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/pre-consultations/nouveau': {
       id: '/admin/pre-consultations/nouveau'
@@ -884,7 +941,6 @@ interface AdminRouteChildren {
   AdminAgendaRoute: typeof AdminAgendaRoute
   AdminPaiementsRoute: typeof AdminPaiementsRoute
   AdminQueueRoute: typeof AdminQueueRoute
-  AdminSessionsRoute: typeof AdminSessionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminConfigBoxesRoute: typeof AdminConfigBoxesRoute
   AdminConfigDocumentsRoute: typeof AdminConfigDocumentsRoute
@@ -899,8 +955,10 @@ interface AdminRouteChildren {
   AdminPatientsNouveauRoute: typeof AdminPatientsNouveauRoute
   AdminPreConsultationsIdRoute: typeof AdminPreConsultationsIdRoute
   AdminPreConsultationsNouveauRoute: typeof AdminPreConsultationsNouveauRoute
+  AdminSessionsIdRoute: typeof AdminSessionsIdRoute
   AdminPatientsIndexRoute: typeof AdminPatientsIndexRoute
   AdminPreConsultationsIndexRoute: typeof AdminPreConsultationsIndexRoute
+  AdminSessionsIndexRoute: typeof AdminSessionsIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -908,7 +966,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAgendaRoute: AdminAgendaRoute,
   AdminPaiementsRoute: AdminPaiementsRoute,
   AdminQueueRoute: AdminQueueRoute,
-  AdminSessionsRoute: AdminSessionsRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminConfigBoxesRoute: AdminConfigBoxesRoute,
   AdminConfigDocumentsRoute: AdminConfigDocumentsRoute,
@@ -923,8 +980,10 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPatientsNouveauRoute: AdminPatientsNouveauRoute,
   AdminPreConsultationsIdRoute: AdminPreConsultationsIdRoute,
   AdminPreConsultationsNouveauRoute: AdminPreConsultationsNouveauRoute,
+  AdminSessionsIdRoute: AdminSessionsIdRoute,
   AdminPatientsIndexRoute: AdminPatientsIndexRoute,
   AdminPreConsultationsIndexRoute: AdminPreConsultationsIndexRoute,
+  AdminSessionsIndexRoute: AdminSessionsIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -936,6 +995,7 @@ interface PractitionerRouteChildren {
   PractitionerSelectBoxRoute: typeof PractitionerSelectBoxRoute
   PractitionerIndexRoute: typeof PractitionerIndexRoute
   PractitionerSeancePatientIdRoute: typeof PractitionerSeancePatientIdRoute
+  PractitionerSessionsIdRoute: typeof PractitionerSessionsIdRoute
 }
 
 const PractitionerRouteChildren: PractitionerRouteChildren = {
@@ -945,6 +1005,7 @@ const PractitionerRouteChildren: PractitionerRouteChildren = {
   PractitionerSelectBoxRoute: PractitionerSelectBoxRoute,
   PractitionerIndexRoute: PractitionerIndexRoute,
   PractitionerSeancePatientIdRoute: PractitionerSeancePatientIdRoute,
+  PractitionerSessionsIdRoute: PractitionerSessionsIdRoute,
 }
 
 const PractitionerRouteWithChildren = PractitionerRoute._addFileChildren(
@@ -955,28 +1016,30 @@ interface SecretaryRouteChildren {
   SecretaryAbsencesRoute: typeof SecretaryAbsencesRoute
   SecretaryAgendaRoute: typeof SecretaryAgendaRoute
   SecretaryPaiementsRoute: typeof SecretaryPaiementsRoute
-  SecretarySessionsRoute: typeof SecretarySessionsRoute
   SecretaryIndexRoute: typeof SecretaryIndexRoute
   SecretaryPatientsIdRoute: typeof SecretaryPatientsIdRoute
   SecretaryPatientsNouveauRoute: typeof SecretaryPatientsNouveauRoute
   SecretaryPreConsultationsIdRoute: typeof SecretaryPreConsultationsIdRoute
   SecretaryPreConsultationsNouveauRoute: typeof SecretaryPreConsultationsNouveauRoute
+  SecretarySessionsIdRoute: typeof SecretarySessionsIdRoute
   SecretaryPatientsIndexRoute: typeof SecretaryPatientsIndexRoute
   SecretaryPreConsultationsIndexRoute: typeof SecretaryPreConsultationsIndexRoute
+  SecretarySessionsIndexRoute: typeof SecretarySessionsIndexRoute
 }
 
 const SecretaryRouteChildren: SecretaryRouteChildren = {
   SecretaryAbsencesRoute: SecretaryAbsencesRoute,
   SecretaryAgendaRoute: SecretaryAgendaRoute,
   SecretaryPaiementsRoute: SecretaryPaiementsRoute,
-  SecretarySessionsRoute: SecretarySessionsRoute,
   SecretaryIndexRoute: SecretaryIndexRoute,
   SecretaryPatientsIdRoute: SecretaryPatientsIdRoute,
   SecretaryPatientsNouveauRoute: SecretaryPatientsNouveauRoute,
   SecretaryPreConsultationsIdRoute: SecretaryPreConsultationsIdRoute,
   SecretaryPreConsultationsNouveauRoute: SecretaryPreConsultationsNouveauRoute,
+  SecretarySessionsIdRoute: SecretarySessionsIdRoute,
   SecretaryPatientsIndexRoute: SecretaryPatientsIndexRoute,
   SecretaryPreConsultationsIndexRoute: SecretaryPreConsultationsIndexRoute,
+  SecretarySessionsIndexRoute: SecretarySessionsIndexRoute,
 }
 
 const SecretaryRouteWithChildren = SecretaryRoute._addFileChildren(

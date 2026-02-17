@@ -13,7 +13,7 @@ class ManualScheduleEntryCreate(AppBaseModel):
     date: dt.date
     patient_nom: str = Field(min_length=1)
     patient_prenom: str = Field(min_length=1)
-    doctor_id: str = Field(min_length=1)
+    doctor_id: str | None = None
     doctor_name: str | None = None
     start_time: dt.time
     end_time: dt.time | None = None

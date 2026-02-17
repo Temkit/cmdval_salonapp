@@ -308,6 +308,7 @@ function SecretaryPreConsultationDetail() {
                 {pc.previous_laser_clarity_ii && <p>Clarity II: Oui</p>}
                 {pc.previous_laser_sessions && <p>Seances: {pc.previous_laser_sessions}</p>}
                 {pc.previous_laser_brand && <p>Marque: {pc.previous_laser_brand}</p>}
+                {pc.last_laser_date && <p>Derniere seance: {pc.last_laser_date}</p>}
               </>
             )}
           </CardContent>
@@ -333,7 +334,13 @@ function SecretaryPreConsultationDetail() {
             {pc.has_current_treatments && (
               <p>Traitements: {pc.current_treatments_details || "Oui"}</p>
             )}
-            {pc.recent_peeling && <p>Peeling recent: Oui</p>}
+            {pc.recent_peeling && (
+              <>
+                <p>Peeling recent: Oui</p>
+                {pc.recent_peeling_date && <p>Date du peeling: {pc.recent_peeling_date}</p>}
+                {pc.peeling_zone && <p>Zone du peeling: {pc.peeling_zone}</p>}
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -414,6 +421,12 @@ function SecretaryPreConsultationDetail() {
           <div className="flex flex-wrap gap-2">
             {pc.status === "draft" && (
               <>
+                <Button asChild variant="outline">
+                  <Link to="/secretary/pre-consultations/nouveau" search={{ edit: id, patient_id: pc.patient_id }}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Modifier
+                  </Link>
+                </Button>
                 <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
                   <Send className="h-4 w-4 mr-2" />
                   {submitMutation.isPending ? "Envoi..." : "Soumettre"}
