@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/stores/auth-store";
@@ -62,7 +63,7 @@ function ActiveSeancePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [elapsed, setElapsed] = useState(0);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const [showSideEffectForm, setShowSideEffectForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -464,15 +465,16 @@ function ActiveSeancePage() {
             <Card>
               <CardContent className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium">Note</Label>
+                  <Label className="text-xs font-medium">Note / Commentaire</Label>
                   <button onClick={() => setShowNoteForm(false)}>
                     <X className="h-4 w-4 text-muted-foreground" />
                   </button>
                 </div>
-                <Input
-                  placeholder="Ecrire une note..."
+                <Textarea
+                  placeholder="Ecrire un commentaire..."
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
+                  rows={3}
                 />
                 <Button
                   size="sm"
@@ -541,6 +543,24 @@ function ActiveSeancePage() {
                         ? "Modere"
                         : "Severe"}
                   </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Notes list */}
+          {session.notes && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">
+                Commentaires ({session.notes.split("\n").filter(Boolean).length})
+              </p>
+              {session.notes.split("\n").filter(Boolean).map((note: string, i: number) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-2 text-sm p-2 bg-muted/50 rounded-lg"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                  <span className="flex-1 text-xs">{note}</span>
                 </div>
               ))}
             </div>
