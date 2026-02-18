@@ -24,6 +24,7 @@ class DailyScheduleEntry:
     duration_type: str | None = None
     end_time: time | None = None
     notes: str | None = None
+    zone_ids: list[str] | None = None
     status: str = "expected"
     uploaded_by: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))

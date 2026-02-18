@@ -331,9 +331,16 @@ def get_schedule_service(
     patient_repo: Annotated[PatientRepository, Depends(get_patient_repository)],
     user_repo: Annotated[UserRepository, Depends(get_user_repository)],
     box_assignment_repo: Annotated[BoxAssignmentRepository, Depends(get_box_assignment_repository)],
+    patient_zone_repo: Annotated[PatientZoneRepository, Depends(get_patient_zone_repository)],
+    pre_consultation_repo: Annotated[PreConsultationRepository, Depends(get_pre_consultation_repository)],
+    zone_def_repo: Annotated[ZoneDefinitionRepository, Depends(get_zone_definition_repository)],
 ) -> ScheduleService:
     """Get schedule service."""
-    return ScheduleService(schedule_repo, queue_repo, patient_repo, user_repo, box_assignment_repo)
+    return ScheduleService(
+        schedule_repo, queue_repo, patient_repo, user_repo,
+        box_assignment_repo, patient_zone_repo, pre_consultation_repo,
+        zone_def_repo,
+    )
 
 
 # Authentication dependency

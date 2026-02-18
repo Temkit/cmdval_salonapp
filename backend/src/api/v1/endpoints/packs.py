@@ -26,7 +26,7 @@ router = APIRouter(prefix="/packs", tags=["packs"])
 
 @router.get("", response_model=PackListResponse)
 async def list_packs(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("sessions.view"))],
     pack_service: Annotated[PackService, Depends(get_pack_service)],
     include_inactive: bool = False,
 ):
@@ -122,7 +122,7 @@ async def delete_pack(
 async def create_subscription(
     patient_id: str,
     data: PatientSubscriptionCreate,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("payments.create"))],
     subscription_service: Annotated[SubscriptionService, Depends(get_subscription_service)],
 ):
     """Assign a subscription to a patient."""
@@ -158,7 +158,7 @@ async def create_subscription(
 )
 async def list_patient_subscriptions(
     patient_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("patients.view"))],
     subscription_service: Annotated[SubscriptionService, Depends(get_subscription_service)],
 ):
     """List subscriptions for a patient."""

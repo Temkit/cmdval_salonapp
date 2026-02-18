@@ -1,9 +1,12 @@
 """Pre-consultation management endpoints."""
 
+import csv
+import io
 import math
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from src.api.v1.dependencies import (
     CurrentUser,
@@ -15,10 +18,8 @@ from src.application.services.pre_consultation_service import PreConsultationSer
 from src.application.services.question_service import QuestionnaireService
 from src.domain.exceptions import NotFoundError, ValidationError
 from src.schemas.base import MessageResponse
-from src.schemas.patient import PatientResponse
 from src.schemas.pre_consultation import (
     PreConsultationCreate,
-    PreConsultationCreatePatientRequest,
     PreConsultationListResponse,
     PreConsultationPaginatedResponse,
     PreConsultationRejectRequest,
@@ -44,7 +45,7 @@ async def list_pre_consultations(
     ],
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    status_filter: Literal["draft", "pending_validation", "validated", "patient_created", "rejected"] | None = Query(None, alias="status"),
+    status_filter: Literal["in_progress", "completed", "rejected"] | None = Query(None, alias="status"),
     search: str | None = Query(None),
 ):
     """List pre-consultations with pagination and filters."""
@@ -80,6 +81,52 @@ async def list_pre_consultations(
         page=page,
         page_size=size,
         total_pages=math.ceil(total / size) if total > 0 else 0,
+    )
+
+
+@router.get("/export")
+async def export_pre_consultations_csv(
+    _: Annotated[dict, Depends(require_permission("pre_consultations.view"))],
+    pre_consultation_service: Annotated[
+        PreConsultationService, Depends(get_pre_consultation_service)
+    ],
+    status_filter: Literal["in_progress", "completed", "rejected"] | None = Query(None, alias="status"),
+    search: str | None = Query(None),
+):
+    """Export pre-consultations as CSV."""
+    pre_consultations, _ = await pre_consultation_service.list(
+        page=1, size=10000, status=status_filter, search=search,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Nom", "Prenom", "Sexe", "Age", "Phototype", "Statut",
+        "Zones", "Zones Ineligibles", "Contre-indications",
+        "Cree par", "Date Creation",
+    ])
+    for pc in pre_consultations:
+        zones_count = len(pc.zones)
+        ineligible_count = len([z for z in pc.zones if not z.is_eligible])
+        writer.writerow([
+            pc.patient_nom or "",
+            pc.patient_prenom or "",
+            pc.sexe or "",
+            pc.age or "",
+            pc.phototype or "",
+            pc.status or "",
+            zones_count,
+            ineligible_count,
+            "Oui" if pc.has_contraindications else "Non",
+            pc.created_by_name or "",
+            str(pc.created_at) if pc.created_at else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=pre-consultations_export.csv"},
     )
 
 
@@ -139,7 +186,7 @@ async def get_pending_count(
     ],
 ):
     """Get count of pending pre-consultations."""
-    count = await pre_consultation_service.count_by_status("pending_validation")
+    count = await pre_consultation_service.count_by_status("in_progress")
     return {"count": count}
 
 
@@ -345,32 +392,8 @@ async def delete_zone(
 
 
 # Workflow endpoints
-@router.post("/{pre_consultation_id}/submit", response_model=PreConsultationResponse)
-async def submit_pre_consultation(
-    pre_consultation_id: str,
-    _: Annotated[dict, Depends(require_permission("pre_consultations.edit"))],
-    pre_consultation_service: Annotated[
-        PreConsultationService, Depends(get_pre_consultation_service)
-    ],
-):
-    """Submit pre-consultation for validation."""
-    try:
-        pre_consultation = await pre_consultation_service.submit(pre_consultation_id)
-        return _to_response(pre_consultation)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
-
-@router.post("/{pre_consultation_id}/validate", response_model=PreConsultationResponse)
-async def validate_pre_consultation(
+@router.post("/{pre_consultation_id}/complete", response_model=PreConsultationResponse)
+async def complete_pre_consultation(
     pre_consultation_id: str,
     current_user: CurrentUser,
     _: Annotated[dict, Depends(require_permission("pre_consultations.validate"))],
@@ -378,10 +401,10 @@ async def validate_pre_consultation(
         PreConsultationService, Depends(get_pre_consultation_service)
     ],
 ):
-    """Validate pre-consultation (doctor action)."""
+    """Complete pre-consultation (doctor action)."""
     try:
-        pre_consultation = await pre_consultation_service.validate(
-            pre_consultation_id, validated_by=current_user["id"]
+        pre_consultation = await pre_consultation_service.complete(
+            pre_consultation_id, completed_by=current_user["id"]
         )
         return _to_response(pre_consultation)
     except NotFoundError as e:
@@ -425,59 +448,6 @@ async def reject_pre_consultation(
             detail=str(e),
         )
 
-
-@router.post("/{pre_consultation_id}/create-patient", response_model=PatientResponse)
-async def create_patient_from_pre_consultation(
-    pre_consultation_id: str,
-    request: PreConsultationCreatePatientRequest,
-    current_user: CurrentUser,
-    _: Annotated[dict, Depends(require_permission("patients.edit"))],
-    pre_consultation_service: Annotated[
-        PreConsultationService, Depends(get_pre_consultation_service)
-    ],
-):
-    """Create patient from validated pre-consultation."""
-    try:
-        patient = await pre_consultation_service.create_patient(
-            pre_consultation_id=pre_consultation_id,
-            nom=request.nom,
-            prenom=request.prenom,
-            created_by=current_user["id"],
-            date_naissance=request.date_naissance,
-            telephone=request.telephone,
-            email=request.email,
-            adresse=request.adresse,
-            ville=request.ville,
-            code_postal=request.code_postal,
-            zone_ids=request.zone_ids,
-            seances_per_zone=request.seances_per_zone,
-        )
-        return PatientResponse(
-            id=patient.id,
-            code_carte=patient.code_carte,
-            nom=patient.nom,
-            prenom=patient.prenom,
-            date_naissance=patient.date_naissance,
-            sexe=patient.sexe,
-            telephone=patient.telephone,
-            email=patient.email,
-            adresse=patient.adresse,
-            notes=patient.notes,
-            phototype=patient.phototype,
-            age=patient.age,
-            created_at=patient.created_at,
-            updated_at=patient.updated_at,
-        )
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
 
 
 

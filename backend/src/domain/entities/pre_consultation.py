@@ -76,7 +76,7 @@ class PreConsultation:
     notes: str | None = None
 
     # Workflow status
-    status: str = "draft"  # draft, pending_validation, validated, rejected
+    status: str = "in_progress"  # in_progress, completed, rejected
 
     # Zone eligibility
     zones: list[PreConsultationZone] = field(default_factory=list)
@@ -112,16 +112,6 @@ class PreConsultation:
     def is_female(self) -> bool:
         """Check if patient is female."""
         return self.sexe == "F"
-
-    @property
-    def can_submit(self) -> bool:
-        """Check if pre-consultation can be submitted for validation."""
-        return self.status == "draft" and len(self.zones) > 0
-
-    @property
-    def can_validate(self) -> bool:
-        """Check if pre-consultation can be validated."""
-        return self.status == "pending_validation"
 
     def get_eligible_zones(self) -> list[PreConsultationZone]:
         """Get list of eligible zones."""

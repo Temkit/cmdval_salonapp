@@ -608,6 +608,7 @@ class DailyScheduleModel(Base):
     start_time: Mapped[datetime] = mapped_column(Time, nullable=False)
     end_time: Mapped[datetime | None] = mapped_column(Time, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    zone_ids: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array of zone IDs
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="expected"
     )  # expected, checked_in, in_treatment, completed, no_show

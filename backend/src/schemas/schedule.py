@@ -13,6 +13,7 @@ class ManualScheduleEntryCreate(AppBaseModel):
     date: dt.date
     patient_nom: str = Field(min_length=1)
     patient_prenom: str = Field(min_length=1)
+    patient_id: str | None = None
     doctor_id: str | None = None
     doctor_name: str | None = None
     start_time: dt.time
@@ -38,6 +39,7 @@ class ScheduleEntryResponse(AppBaseModel):
     notes: str | None = None
     status: str
     created_at: dt.datetime
+    zone_warnings: list[str] = []
 
 
 class ScheduleListResponse(AppBaseModel):
@@ -66,6 +68,7 @@ class ScheduleUploadResponse(AppBaseModel):
     phone_conflicts: list[PhoneConflict] = []
     skipped_rows: int = 0
     total_rows: int = 0
+    patients_created: int = 0
 
 
 class QueueEntryResponse(AppBaseModel):
@@ -82,6 +85,9 @@ class QueueEntryResponse(AppBaseModel):
     status: str
     called_at: dt.datetime | None = None
     completed_at: dt.datetime | None = None
+    zone_names: list[str] = []
+    patient_code_carte: str | None = None
+    patient_telephone: str | None = None
 
 
 class QueueListResponse(AppBaseModel):

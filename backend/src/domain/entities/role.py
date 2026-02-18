@@ -50,6 +50,23 @@ class Permission(str, Enum):
     BOXES_ASSIGN = "boxes.assign"
     CONFIG_BOXES = "config.boxes"
 
+    # Schedule
+    SCHEDULE_VIEW = "schedule.view"
+    SCHEDULE_MANAGE = "schedule.manage"
+
+    # Queue
+    QUEUE_VIEW = "queue.view"
+    QUEUE_MANAGE = "queue.manage"
+
+    # Payments
+    PAYMENTS_VIEW = "payments.view"
+    PAYMENTS_CREATE = "payments.create"
+    PAYMENTS_EDIT = "payments.edit"
+
+    # Documents
+    DOCUMENTS_VIEW = "documents.view"
+    DOCUMENTS_MANAGE = "documents.manage"
+
     # Dashboard
     DASHBOARD_VIEW = "dashboard.view"
     DASHBOARD_FULL = "dashboard.full"
@@ -68,8 +85,17 @@ DEFAULT_SECRETAIRE_PERMISSIONS = [
     Permission.SESSIONS_VIEW.value,
     Permission.PRE_CONSULTATIONS_VIEW.value,
     Permission.PRE_CONSULTATIONS_CREATE.value,
+    Permission.PRE_CONSULTATIONS_EDIT.value,
     Permission.BOXES_VIEW.value,
     Permission.USERS_VIEW.value,
+    Permission.SCHEDULE_VIEW.value,
+    Permission.SCHEDULE_MANAGE.value,
+    Permission.QUEUE_VIEW.value,
+    Permission.QUEUE_MANAGE.value,
+    Permission.PAYMENTS_VIEW.value,
+    Permission.PAYMENTS_CREATE.value,
+    Permission.DOCUMENTS_VIEW.value,
+    Permission.DOCUMENTS_MANAGE.value,
     Permission.DASHBOARD_VIEW.value,
 ]
 
@@ -81,9 +107,15 @@ DEFAULT_PRATICIEN_PERMISSIONS = [
     Permission.SESSIONS_CREATE.value,
     Permission.PRE_CONSULTATIONS_VIEW.value,
     Permission.PRE_CONSULTATIONS_CREATE.value,
+    Permission.PRE_CONSULTATIONS_EDIT.value,
     Permission.PRE_CONSULTATIONS_VALIDATE.value,
     Permission.BOXES_VIEW.value,
     Permission.BOXES_ASSIGN.value,
+    Permission.SCHEDULE_VIEW.value,
+    Permission.QUEUE_VIEW.value,
+    Permission.QUEUE_MANAGE.value,
+    Permission.PAYMENTS_VIEW.value,
+    Permission.DOCUMENTS_VIEW.value,
     Permission.DASHBOARD_VIEW.value,
 ]
 
@@ -103,6 +135,14 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PRE_CONSULTATIONS_EDIT,
         Permission.BOXES_VIEW,
         Permission.USERS_VIEW,
+        Permission.SCHEDULE_VIEW,
+        Permission.SCHEDULE_MANAGE,
+        Permission.QUEUE_VIEW,
+        Permission.QUEUE_MANAGE,
+        Permission.PAYMENTS_VIEW,
+        Permission.PAYMENTS_CREATE,
+        Permission.DOCUMENTS_VIEW,
+        Permission.DOCUMENTS_MANAGE,
         Permission.DASHBOARD_VIEW,
     ],
     "Praticien": [
@@ -113,9 +153,15 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.SESSIONS_CREATE,
         Permission.PRE_CONSULTATIONS_VIEW,
         Permission.PRE_CONSULTATIONS_CREATE,
+        Permission.PRE_CONSULTATIONS_EDIT,
         Permission.PRE_CONSULTATIONS_VALIDATE,
         Permission.BOXES_VIEW,
         Permission.BOXES_ASSIGN,
+        Permission.SCHEDULE_VIEW,
+        Permission.QUEUE_VIEW,
+        Permission.QUEUE_MANAGE,
+        Permission.PAYMENTS_VIEW,
+        Permission.DOCUMENTS_VIEW,
         Permission.DASHBOARD_VIEW,
     ],
 }

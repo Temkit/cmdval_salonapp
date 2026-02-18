@@ -262,40 +262,10 @@ class PreConsultationListResponse(AppBaseModel):
     updated_at: datetime
 
 
-class PreConsultationSubmitRequest(AppBaseModel):
-    """Request schema for submitting pre-consultation."""
-
-    pass  # No additional data needed
-
-
-class PreConsultationValidateRequest(AppBaseModel):
-    """Request schema for validating pre-consultation."""
-
-    pass  # No additional data needed
-
-
 class PreConsultationRejectRequest(AppBaseModel):
     """Request schema for rejecting pre-consultation."""
 
     reason: str = Field(min_length=1, max_length=1000)
-
-
-class PreConsultationCreatePatientRequest(AppBaseModel):
-    """Request schema for creating patient from validated pre-consultation."""
-
-    # Patient personal info (entered only at this step)
-    nom: str = Field(min_length=1, max_length=100)
-    prenom: str = Field(min_length=1, max_length=100)
-    date_naissance: date | None = None
-    telephone: str | None = Field(None, max_length=20)
-    email: str | None = Field(None, max_length=255)
-    adresse: str | None = Field(None, max_length=255)
-    ville: str | None = Field(None, max_length=100)
-    code_postal: str | None = Field(None, max_length=10)
-
-    # Zones to add (from eligible zones)
-    zone_ids: list[str] = Field(default_factory=list)
-    seances_per_zone: int = Field(default=6, ge=1, le=20)
 
 
 class PreConsultationPaginatedResponse(AppBaseModel):

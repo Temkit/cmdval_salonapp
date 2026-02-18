@@ -44,7 +44,6 @@ import type {
   UpdatePromotionRequest,
   AddPreConsultationZoneRequest,
   QuestionnaireResponseInput,
-  CreatePatientFromPreConsultationRequest,
   ManualScheduleEntryRequest,
   UsersResponse,
   RolesResponse,
@@ -707,17 +706,9 @@ export const api = {
     return handleResponse<MessageResponse>(response);
   },
 
-  async submitPreConsultation(id: string) {
+  async completePreConsultation(id: string) {
     const response = await wrapFetch(
-      `${API_BASE}/pre-consultations/${id}/submit`,
-      { method: "POST" },
-    );
-    return handleResponse<PreConsultation>(response);
-  },
-
-  async validatePreConsultation(id: string) {
-    const response = await wrapFetch(
-      `${API_BASE}/pre-consultations/${id}/validate`,
+      `${API_BASE}/pre-consultations/${id}/complete`,
       { method: "POST" },
     );
     return handleResponse<PreConsultation>(response);
@@ -733,21 +724,6 @@ export const api = {
       },
     );
     return handleResponse<PreConsultation>(response);
-  },
-
-  async createPatientFromPreConsultation(
-    preConsultationId: string,
-    data: CreatePatientFromPreConsultationRequest,
-  ) {
-    const response = await wrapFetch(
-      `${API_BASE}/pre-consultations/${preConsultationId}/create-patient`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      },
-    );
-    return handleResponse<Patient>(response);
   },
 
   async getPendingPreConsultationsCount() {

@@ -11,7 +11,6 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,13 +33,8 @@ const statusConfig: Record<
     icon: typeof CheckCircle;
   }
 > = {
-  draft: { label: "Brouillon", variant: "muted", icon: FileText },
-  pending_validation: {
-    label: "En attente",
-    variant: "warning",
-    icon: Clock,
-  },
-  validated: { label: "Validee", variant: "success", icon: CheckCircle },
+  in_progress: { label: "En cours", variant: "info", icon: Clock },
+  completed: { label: "Terminee", variant: "success", icon: CheckCircle },
   rejected: { label: "Rejetee", variant: "destructive", icon: AlertCircle },
 };
 
@@ -72,9 +66,9 @@ function AdminPreConsultationsPage() {
 
   const statusFilters = [
     { value: "", label: "Toutes" },
-    { value: "draft", label: "Brouillons" },
-    { value: "pending_validation", label: "En attente" },
-    { value: "validated", label: "Validees" },
+    { value: "in_progress", label: "En cours" },
+    { value: "completed", label: "Terminees" },
+    { value: "rejected", label: "Rejetees" },
   ];
 
   return (
@@ -89,12 +83,6 @@ function AdminPreConsultationsPage() {
               : "Gerez les pre-consultations"}
           </p>
         </div>
-        <Button asChild className="w-full sm:w-auto">
-          <Link to="/admin/pre-consultations/nouveau">
-            <Plus className="h-5 w-5 mr-2" />
-            Nouvelle pre-consultation
-          </Link>
-        </Button>
       </div>
 
       {/* Filters */}
@@ -176,7 +164,7 @@ function AdminPreConsultationsPage() {
       ) : data?.items?.length ? (
         <div className="space-y-3">
           {data.items.map((pc) => {
-            const status = statusConfig[pc.status] ?? { label: "Brouillon", variant: "muted" as const, icon: FileText };
+            const status = statusConfig[pc.status] ?? { label: "En cours", variant: "info" as const, icon: Clock };
             const StatusIcon = status.icon;
             return (
               <Link

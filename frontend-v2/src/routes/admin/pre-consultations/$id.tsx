@@ -7,17 +7,11 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  FileText,
-  Send,
   Trash2,
-  Pencil,
-  UserPlus,
-  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,23 +25,19 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { PatientWorkflowStepper, statusToPhase } from "@/components/patient-workflow";
 
 export const Route = createFileRoute("/admin/pre-consultations/$id")({
   component: AdminPreConsultationDetail,
 });
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "muted" | "warning" | "success" | "destructive"; icon: typeof Clock }> = {
-  draft: { label: "Brouillon", variant: "muted", icon: FileText },
-  pending_validation: { label: "En attente de validation", variant: "warning", icon: Clock },
-  validated: { label: "Validee", variant: "success", icon: CheckCircle },
+  in_progress: { label: "En cours", variant: "warning", icon: Clock },
+  completed: { label: "Terminee", variant: "success", icon: CheckCircle },
   rejected: { label: "Rejetee", variant: "destructive", icon: XCircle },
-  patient_created: { label: "Patient cree", variant: "success", icon: UserPlus },
 };
 
 function AdminPreConsultationDetail() {
   const { id } = Route.useParams();
-  const fromWorkflow = new URLSearchParams(window.location.search).get("from") === "nouveau-patient";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -55,41 +45,10 @@ function AdminPreConsultationDetail() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [createPatientOpen, setCreatePatientOpen] = useState(false);
-  const [cpForm, setCpForm] = useState({
-    prenom: "", nom: "", telephone: "", email: "",
-    zone_ids: [] as string[], seances_per_zone: "6",
-  });
 
   const { data: pc, isLoading, isError, error } = useQuery({
     queryKey: ["pre-consultation", id],
     queryFn: () => api.getPreConsultation(id),
-  });
-
-  const { data: zonesData } = useQuery({
-    queryKey: ["zones"],
-    queryFn: () => api.getZones(),
-    enabled: !!pc,
-  });
-
-  const submitMutation = useMutation({
-    mutationFn: () => api.submitPreConsultation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pre-consultation", id] });
-      queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
-      toast({ title: "Pre-consultation soumise" });
-    },
-    onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
-  });
-
-  const validateMutation = useMutation({
-    mutationFn: () => api.validatePreConsultation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pre-consultation", id] });
-      queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
-      toast({ title: "Pre-consultation validee" });
-    },
-    onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
   });
 
   const rejectMutation = useMutation({
@@ -112,40 +71,6 @@ function AdminPreConsultationDetail() {
     },
     onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
   });
-
-  const createPatientMutation = useMutation({
-    mutationFn: () =>
-      api.createPatientFromPreConsultation(id, {
-        prenom: cpForm.prenom || undefined,
-        nom: cpForm.nom || undefined,
-        telephone: cpForm.telephone || undefined,
-        email: cpForm.email || undefined,
-        zone_ids: cpForm.zone_ids.length > 0 ? cpForm.zone_ids : undefined,
-        seances_per_zone: parseInt(cpForm.seances_per_zone) || 6,
-      }),
-    onSuccess: (patient) => {
-      queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
-      queryClient.invalidateQueries({ queryKey: ["patients"] });
-      toast({ title: "Patient cree avec succes" });
-      setCreatePatientOpen(false);
-      navigate({ to: "/admin/patients/$id", params: { id: patient.id } });
-    },
-    onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
-  });
-
-  const openCreatePatient = () => {
-    if (!pc) return;
-    const eligibleZones = pc.zones?.filter((z) => z.is_eligible) ?? [];
-    setCpForm({
-      prenom: pc.patient_prenom || "",
-      nom: pc.patient_nom || "",
-      telephone: pc.patient_telephone || "",
-      email: "",
-      zone_ids: eligibleZones.map((z) => z.zone_id),
-      seances_per_zone: "6",
-    });
-    setCreatePatientOpen(true);
-  };
 
   if (isLoading) {
     return (
@@ -173,7 +98,7 @@ function AdminPreConsultationDetail() {
     );
   }
 
-  const status = STATUS_CONFIG[pc.status] ?? STATUS_CONFIG.draft!;
+  const status = STATUS_CONFIG[pc.status] ?? STATUS_CONFIG.in_progress!;
   const eligibleZones = pc.zones?.filter((z) => z.is_eligible) ?? [];
   const ineligibleZones = pc.zones?.filter((z) => !z.is_eligible) ?? [];
 
@@ -194,60 +119,6 @@ function AdminPreConsultationDetail() {
         </div>
         <Badge variant={status.variant} dot size="lg">{status.label}</Badge>
       </div>
-
-      {/* Workflow stepper */}
-      {fromWorkflow && <PatientWorkflowStepper current={statusToPhase(pc.status)} />}
-
-      {/* Workflow guidance banner */}
-      {fromWorkflow && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-4 flex items-start gap-3">
-            <ArrowRight className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-            <div>
-              {pc.status === "draft" && (
-                <>
-                  <p className="text-sm font-medium">Etape suivante : soumettre pour validation</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Verifiez les informations puis cliquez sur « Soumettre » pour envoyer la pre-consultation au responsable.
-                  </p>
-                </>
-              )}
-              {pc.status === "pending_validation" && (
-                <>
-                  <p className="text-sm font-medium">En attente de validation</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    La pre-consultation a ete soumise. Un responsable doit la valider avant de pouvoir creer le dossier patient.
-                  </p>
-                </>
-              )}
-              {pc.status === "validated" && (
-                <>
-                  <p className="text-sm font-medium">Pre-consultation validee — creez le dossier patient</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Cliquez sur « Creer le patient » pour finaliser l'inscription avec les zones eligibles.
-                  </p>
-                </>
-              )}
-              {pc.status === "rejected" && (
-                <>
-                  <p className="text-sm font-medium">Pre-consultation refusee</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    La pre-consultation a ete refusee. Consultez la raison ci-dessous et creez-en une nouvelle si necessaire.
-                  </p>
-                </>
-              )}
-              {pc.status === "patient_created" && (
-                <>
-                  <p className="text-sm font-medium">Patient cree avec succes</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Le dossier patient a ete cree. Vous pouvez maintenant planifier des seances.
-                  </p>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Patient info */}
       <Card>
@@ -419,46 +290,21 @@ function AdminPreConsultationDetail() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-2">
-            {pc.status === "draft" && (
+            {pc.status === "in_progress" && (
               <>
-                <Button asChild variant="outline">
-                  <Link to="/admin/pre-consultations/nouveau" search={{ edit: id, patient_id: pc.patient_id }}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Modifier
-                  </Link>
+                <Button variant="destructive" size="sm" onClick={() => setRejectOpen(true)}>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Refuser
                 </Button>
-                <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
-                  <Send className="h-4 w-4 mr-2" />
-                  {submitMutation.isPending ? "Envoi..." : "Soumettre"}
-                </Button>
-                <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Supprimer
                 </Button>
               </>
             )}
-            {pc.status === "pending_validation" && (
-              <>
-                <Button onClick={() => validateMutation.mutate()} disabled={validateMutation.isPending}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {validateMutation.isPending ? "Validation..." : "Valider"}
-                </Button>
-                <Button variant="destructive" onClick={() => setRejectOpen(true)}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Refuser
-                </Button>
-              </>
-            )}
-            {pc.status === "validated" && (
-              <Button onClick={openCreatePatient}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Creer le patient
-              </Button>
-            )}
-            {pc.status === "patient_created" && pc.patient_id && (
-              <Button asChild>
+            {pc.patient_id && (
+              <Button asChild variant="outline" size="sm">
                 <Link to="/admin/patients/$id" params={{ id: pc.patient_id }}>
-                  <UserPlus className="h-4 w-4 mr-2" />
                   Voir le patient
                 </Link>
               </Button>
@@ -504,79 +350,6 @@ function AdminPreConsultationDetail() {
         onConfirm={() => deleteMutation.mutate()}
         isLoading={deleteMutation.isPending}
       />
-
-      {/* Create Patient Dialog */}
-      <Dialog open={createPatientOpen} onOpenChange={setCreatePatientOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader><DialogTitle>Creer le patient</DialogTitle></DialogHeader>
-          <form
-            onSubmit={(e) => { e.preventDefault(); createPatientMutation.mutate(); }}
-            className="space-y-4"
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Prenom</Label>
-                <Input value={cpForm.prenom} onChange={(e) => setCpForm((f) => ({ ...f, prenom: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Nom</Label>
-                <Input value={cpForm.nom} onChange={(e) => setCpForm((f) => ({ ...f, nom: e.target.value }))} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Telephone</Label>
-                <Input value={cpForm.telephone} onChange={(e) => setCpForm((f) => ({ ...f, telephone: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Email</Label>
-                <Input type="email" value={cpForm.email} onChange={(e) => setCpForm((f) => ({ ...f, email: e.target.value }))} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Zones (eligibles uniquement)</Label>
-              <div className="flex flex-wrap gap-2">
-                {eligibleZones.map((z) => {
-                  const selected = cpForm.zone_ids.includes(z.zone_id);
-                  return (
-                    <Button
-                      key={z.id}
-                      type="button"
-                      variant={selected ? "default" : "outline"}
-                      size="sm"
-                      onClick={() =>
-                        setCpForm((f) => ({
-                          ...f,
-                          zone_ids: selected
-                            ? f.zone_ids.filter((i) => i !== z.zone_id)
-                            : [...f.zone_ids, z.zone_id],
-                        }))
-                      }
-                    >
-                      {z.zone_nom || z.zone_id}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Seances par zone</Label>
-              <Input
-                type="number"
-                min="1"
-                value={cpForm.seances_per_zone}
-                onChange={(e) => setCpForm((f) => ({ ...f, seances_per_zone: e.target.value }))}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreatePatientOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createPatientMutation.isPending}>
-                {createPatientMutation.isPending ? "Creation..." : "Creer le patient"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

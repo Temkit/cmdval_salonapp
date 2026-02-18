@@ -12,10 +12,13 @@ import {
   ArrowRightLeft,
   XCircle,
   LogOut,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import type { PaiementType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { useQueueEvents } from "@/hooks/use-queue-events";
@@ -62,16 +66,22 @@ interface QueueEntry {
   checked_in_at?: string;
   time?: string;
   heure?: string;
+  zone_names?: string[];
+  patient_code_carte?: string | null;
+  patient_telephone?: string | null;
 }
 
 function SecretaryQueuePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuthStore();
+  const { user, hasPermission } = useAuthStore();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [reassignEntry, setReassignEntry] = useState<QueueEntry | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
+  const [paymentEntry, setPaymentEntry] = useState<QueueEntry | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMode, setPaymentMode] = useState("");
   const canReassign =
     user?.role_nom === "Admin" || user?.role_nom === "Secretaire";
   const { newCheckInCount: newCheckIns, resetCount } = useQueueEvents({
@@ -87,7 +97,7 @@ function SecretaryQueuePage() {
 
   const callMutation = useMutation({
     mutationFn: (entry: QueueEntry) => api.callPatient(entry.id),
-    onSuccess: async (data, entry) => {
+    onSuccess: (data, entry) => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
       const patientId = data?.patient_id || entry.patient_id;
       if (!patientId) {
@@ -98,34 +108,11 @@ function SecretaryQueuePage() {
         });
         return;
       }
-
-      try {
-        const preConsult = await api.getPatientPreConsultation(patientId);
-        if (!preConsult) {
-          toast({
-            title: "Pre-consultation requise",
-            description: "Veuillez creer une pre-consultation pour ce patient.",
-          });
-          navigate({ to: "/secretary/pre-consultations" as string });
-        } else if (preConsult.status !== "validated") {
-          toast({
-            title: "Pre-consultation en attente",
-            description:
-              "Veuillez la valider avant de demarrer la seance.",
-          });
-          navigate({ to: "/secretary/pre-consultations" as string });
-        } else {
-          navigate({
-            to: "/secretary/patients/$id" as string,
-            params: { id: patientId },
-          });
-        }
-      } catch {
-        navigate({
-          to: "/secretary/patients/$id" as string,
-          params: { id: patientId },
-        });
-      }
+      toast({ title: "Patient appele" });
+      navigate({
+        to: "/secretary/patients/$id" as string,
+        params: { id: patientId },
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -185,6 +172,37 @@ function SecretaryQueuePage() {
       toast({ title: "Patient reassigne" });
       setReassignEntry(null);
       setSelectedDoctorId("");
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message,
+      });
+    },
+  });
+
+  const { data: paymentMethods } = useQuery({
+    queryKey: ["payment-methods"],
+    queryFn: () => api.getPaymentMethods(),
+    enabled: !!paymentEntry,
+  });
+
+  const paymentMutation = useMutation({
+    mutationFn: () =>
+      api.createPaiement({
+        patient_id: paymentEntry!.patient_id!,
+        montant: parseFloat(paymentAmount),
+        type: "encaissement" as PaiementType,
+        mode_paiement: paymentMode || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+      queryClient.invalidateQueries({ queryKey: ["paiements"] });
+      toast({ title: "Paiement enregistre" });
+      setPaymentEntry(null);
+      setPaymentAmount("");
+      setPaymentMode("");
     },
     onError: (error: Error) => {
       toast({
@@ -375,14 +393,31 @@ function SecretaryQueuePage() {
 
                           {/* Patient info */}
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">
-                              {getPatientDisplayName(entry)}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm truncate">
+                                {getPatientDisplayName(entry)}
+                              </p>
+                              {entry.patient_code_carte && (
+                                <Badge variant="outline" size="sm" className="shrink-0 text-[10px] px-1.5">
+                                  {entry.patient_code_carte}
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">
                               {entry.heure || entry.time || ""}
                               {entry.checked_in_at &&
                                 ` - Arrive a ${new Date(entry.checked_in_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                              {entry.patient_telephone && ` · ${entry.patient_telephone}`}
                             </p>
+                            {entry.zone_names && entry.zone_names.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {entry.zone_names.map((zone) => (
+                                  <Badge key={zone} variant="secondary" size="sm" className="text-[10px] px-1.5 py-0">
+                                    {zone}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
                           {/* Box */}
@@ -411,6 +446,7 @@ function SecretaryQueuePage() {
                           </div>
 
                           {/* Actions */}
+                          {hasPermission("queue.manage") && (
                           <div className="flex gap-1 shrink-0">
                             {canReassign && isWaiting && (
                               <Button
@@ -466,7 +502,23 @@ function SecretaryQueuePage() {
                                 Parti
                               </Button>
                             )}
+                            {(entry.status === "done" || entry.status === "completed") && entry.patient_id && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setPaymentEntry(entry);
+                                  setPaymentAmount("");
+                                  setPaymentMode("");
+                                }}
+                                className="text-green-700 border-green-300 hover:bg-green-50"
+                              >
+                                <Banknote className="h-4 w-4 mr-1" />
+                                Paiement
+                              </Button>
+                            )}
                           </div>
+                          )}
                         </div>
                       );
                     })}
@@ -556,6 +608,73 @@ function SecretaryQueuePage() {
               }}
             >
               {reassignMutation.isPending ? "Reassignation..." : "Confirmer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment dialog */}
+      <Dialog
+        open={!!paymentEntry}
+        onOpenChange={(open) => {
+          if (!open) setPaymentEntry(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-green-600" />
+              Paiement - {paymentEntry ? getPatientDisplayName(paymentEntry) : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Montant (DA) *</Label>
+              <Input
+                type="number"
+                min="0"
+                step="100"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="Ex: 5000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Mode de paiement</Label>
+              <div className="flex flex-wrap gap-2">
+                {(paymentMethods ?? [])
+                  .filter((m) => m.is_active)
+                  .sort((a, b) => a.ordre - b.ordre)
+                  .map((method) => (
+                    <Button
+                      key={method.id}
+                      type="button"
+                      variant={paymentMode === method.nom ? "default" : "outline"}
+                      size="sm"
+                      onClick={() =>
+                        setPaymentMode(paymentMode === method.nom ? "" : method.nom)
+                      }
+                    >
+                      {method.nom}
+                    </Button>
+                  ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentEntry(null)}>
+              Annuler
+            </Button>
+            <Button
+              disabled={
+                !paymentAmount ||
+                parseFloat(paymentAmount) <= 0 ||
+                paymentMutation.isPending
+              }
+              onClick={() => paymentMutation.mutate()}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {paymentMutation.isPending ? "Enregistrement..." : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>

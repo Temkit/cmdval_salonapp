@@ -7,6 +7,7 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,39 +38,102 @@ const PERMISSION_GROUPS: {
   {
     label: "Patients",
     permissions: [
-      { value: "patients.read", label: "Consulter" },
+      { value: "patients.view", label: "Consulter" },
       { value: "patients.create", label: "Creer" },
-      { value: "patients.update", label: "Modifier" },
+      { value: "patients.edit", label: "Modifier" },
       { value: "patients.delete", label: "Supprimer" },
+      { value: "patients.questionnaire.view", label: "Voir questionnaire" },
+      { value: "patients.questionnaire.edit", label: "Modifier questionnaire" },
+    ],
+  },
+  {
+    label: "Agenda / Planning",
+    permissions: [
+      { value: "schedule.view", label: "Consulter" },
+      { value: "schedule.manage", label: "Gerer" },
+    ],
+  },
+  {
+    label: "File d'attente",
+    permissions: [
+      { value: "queue.view", label: "Consulter" },
+      { value: "queue.manage", label: "Gerer" },
     ],
   },
   {
     label: "Seances",
     permissions: [
-      { value: "sessions.read", label: "Consulter" },
+      { value: "sessions.view", label: "Consulter" },
       { value: "sessions.create", label: "Creer" },
     ],
   },
   {
-    label: "Configuration",
+    label: "Pre-consultations",
     permissions: [
-      { value: "config.read", label: "Consulter" },
-      { value: "config.write", label: "Modifier" },
+      { value: "pre_consultations.view", label: "Consulter" },
+      { value: "pre_consultations.create", label: "Creer" },
+      { value: "pre_consultations.edit", label: "Modifier" },
+      { value: "pre_consultations.delete", label: "Supprimer" },
+      { value: "pre_consultations.validate", label: "Valider" },
+    ],
+  },
+  {
+    label: "Paiements",
+    permissions: [
+      { value: "payments.view", label: "Consulter" },
+      { value: "payments.create", label: "Creer" },
+      { value: "payments.edit", label: "Modifier" },
+    ],
+  },
+  {
+    label: "Documents",
+    permissions: [
+      { value: "documents.view", label: "Consulter" },
+      { value: "documents.manage", label: "Gerer" },
+    ],
+  },
+  {
+    label: "Zones",
+    permissions: [
+      { value: "zones.view", label: "Consulter" },
+      { value: "zones.manage", label: "Gerer" },
+    ],
+  },
+  {
+    label: "Cabines",
+    permissions: [
+      { value: "boxes.view", label: "Consulter" },
+      { value: "boxes.assign", label: "Assigner" },
+      { value: "config.boxes", label: "Configurer" },
     ],
   },
   {
     label: "Utilisateurs",
     permissions: [
-      { value: "users.read", label: "Consulter" },
-      { value: "users.create", label: "Creer" },
-      { value: "users.update", label: "Modifier" },
-      { value: "users.delete", label: "Supprimer" },
+      { value: "users.view", label: "Consulter" },
+      { value: "users.manage", label: "Gerer" },
+    ],
+  },
+  {
+    label: "Roles",
+    permissions: [
+      { value: "roles.view", label: "Consulter" },
+      { value: "roles.manage", label: "Gerer" },
+    ],
+  },
+  {
+    label: "Configuration",
+    permissions: [
+      { value: "config.questionnaire", label: "Questionnaire" },
+      { value: "config.zones", label: "Zones" },
+      { value: "config.manage", label: "Gestion generale" },
     ],
   },
   {
     label: "Dashboard",
     permissions: [
-      { value: "dashboard.read", label: "Consulter" },
+      { value: "dashboard.view", label: "Consulter" },
+      { value: "dashboard.full", label: "Complet" },
     ],
   },
 ];
@@ -149,6 +213,23 @@ function AdminRolesPage() {
         ? f.permissions.filter((p) => p !== perm)
         : [...f.permissions, perm],
     }));
+  };
+
+  const toggleGroup = (group: typeof PERMISSION_GROUPS[number]) => {
+    const groupPerms = group.permissions.map((p) => p.value);
+    const allSelected = groupPerms.every((p) => form.permissions.includes(p));
+    setForm((f) => ({
+      ...f,
+      permissions: allSelected
+        ? f.permissions.filter((p) => !groupPerms.includes(p))
+        : [...new Set([...f.permissions, ...groupPerms])],
+    }));
+  };
+
+  const allPermissions = PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.value));
+  const toggleAll = () => {
+    const allSelected = allPermissions.every((p) => form.permissions.includes(p));
+    setForm((f) => ({ ...f, permissions: allSelected ? [] : [...allPermissions] }));
   };
 
   const roles = data?.roles ?? [];
@@ -255,29 +336,65 @@ function AdminRolesPage() {
               )}
             </div>
 
-            <div className="space-y-3">
-              <Label>Permissions</Label>
-              {PERMISSION_GROUPS.map((group) => (
-                <div key={group.label} className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">{group.label}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {group.permissions.map((perm) => (
-                      <label
-                        key={perm.value}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={form.permissions.includes(perm.value)}
-                          onChange={() => togglePermission(perm.value)}
-                          className="rounded"
-                        />
-                        <span className="text-sm">{perm.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Permissions ({form.permissions.length}/{allPermissions.length})</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={toggleAll}
+                >
+                  {allPermissions.every((p) => form.permissions.includes(p))
+                    ? "Tout deselectionner"
+                    : "Tout selectionner"}
+                </Button>
+              </div>
+              <div className="max-h-[50vh] overflow-y-auto rounded-lg border divide-y">
+                {PERMISSION_GROUPS.map((group) => {
+                  const groupPerms = group.permissions.map((p) => p.value);
+                  const selectedCount = groupPerms.filter((p) => form.permissions.includes(p)).length;
+                  const allGroupSelected = selectedCount === groupPerms.length;
+                  return (
+                    <div key={group.label} className="px-3 py-2">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(group)}
+                          className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
+                        >
+                          <div className={`h-4 w-4 rounded border flex items-center justify-center transition-colors ${allGroupSelected ? "bg-primary border-primary" : selectedCount > 0 ? "bg-primary/30 border-primary" : "border-muted-foreground/30"}`}>
+                            {allGroupSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                            {!allGroupSelected && selectedCount > 0 && <div className="h-1.5 w-1.5 rounded-sm bg-primary-foreground" />}
+                          </div>
+                          {group.label}
+                        </button>
+                        <span className="text-xs text-muted-foreground">{selectedCount}/{groupPerms.length}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {group.permissions.map((perm) => {
+                          const active = form.permissions.includes(perm.value);
+                          return (
+                            <button
+                              key={perm.value}
+                              type="button"
+                              onClick={() => togglePermission(perm.value)}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                                active
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              }`}
+                            >
+                              {perm.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <DialogFooter>

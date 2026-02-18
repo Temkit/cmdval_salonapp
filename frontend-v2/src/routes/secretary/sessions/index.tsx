@@ -1,20 +1,44 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Calendar, Clock, Stethoscope } from "lucide-react";
+import { Activity, Calendar, Clock, Stethoscope, Download } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 
 export const Route = createFileRoute("/secretary/sessions/")({
   component: SecretarySessionsPage,
 });
 
 function SecretarySessionsPage() {
+  const { hasPermission } = useAuthStore();
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const response = await fetch("/api/v1/sessions/export", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Export echoue");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "seances_export.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silent fail
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["sessions", page],
@@ -26,11 +50,23 @@ function SecretarySessionsPage() {
 
   return (
     <div className="page-container space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="heading-2">Seances</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {data?.total !== undefined && `${data.total} seance(s) au total`}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="heading-2">Seances</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {data?.total !== undefined && `${data.total} seance(s) au total`}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportCSV}
+          disabled={exporting}
+          className="shrink-0"
+        >
+          <Download className="h-4 w-4 mr-1.5" />
+          {exporting ? "Export..." : "Exporter CSV"}
+        </Button>
       </div>
 
       <Card>

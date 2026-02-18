@@ -4,11 +4,20 @@ import re
 import unicodedata
 from datetime import date, datetime, time
 from io import BytesIO
+from uuid import uuid4
 
+from src.domain.entities.patient import Patient
 from src.domain.entities.schedule import DailyScheduleEntry, WaitingQueueEntry
+from src.domain.entities.zone import PatientZone
 from src.domain.exceptions import NotFoundError, ValidationError
 from src.infrastructure.events import event_bus
-from src.infrastructure.database.repositories import PatientRepository, UserRepository
+from src.infrastructure.database.repositories import (
+    PatientRepository,
+    PatientZoneRepository,
+    PreConsultationRepository,
+    UserRepository,
+    ZoneDefinitionRepository,
+)
 from src.infrastructure.database.repositories.box_repository import BoxAssignmentRepository
 from src.infrastructure.database.repositories.schedule_repository import (
     ScheduleRepository,
@@ -38,12 +47,18 @@ class ScheduleService:
         patient_repo: PatientRepository,
         user_repo: UserRepository,
         box_assignment_repo: BoxAssignmentRepository | None = None,
+        patient_zone_repo: PatientZoneRepository | None = None,
+        pre_consultation_repo: PreConsultationRepository | None = None,
+        zone_def_repo: ZoneDefinitionRepository | None = None,
     ):
         self.schedule_repo = schedule_repo
         self.queue_repo = queue_repo
         self.patient_repo = patient_repo
         self.user_repo = user_repo
         self.box_assignment_repo = box_assignment_repo
+        self.patient_zone_repo = patient_zone_repo
+        self.pre_consultation_repo = pre_consultation_repo
+        self.zone_def_repo = zone_def_repo
 
     async def upload_schedule(
         self, file_data: bytes, uploaded_by: str | None = None
@@ -189,6 +204,20 @@ class ScheduleService:
 
             entries.append(entry)
 
+        # Auto-create patients for unmatched entries
+        patients_created = 0
+        for entry in entries:
+            if not entry.patient_id:
+                new_patient = Patient(
+                    nom=entry.patient_nom,
+                    prenom=entry.patient_prenom,
+                    telephone=entry.patient_telephone,
+                    code_carte=f"IMP{uuid4().hex[:8].upper()}",
+                )
+                created_patient = await self.patient_repo.create(new_patient)
+                entry.patient_id = created_patient.id
+                patients_created += 1
+
         if not entries:
             raise ValidationError("Aucune entrée valide trouvée dans le fichier")
 
@@ -204,7 +233,44 @@ class ScheduleService:
             "phone_conflicts": phone_conflicts,
             "skipped_rows": skipped_rows,
             "total_rows": total_rows,
+            "patients_created": patients_created,
         }
+
+    async def _ensure_patient_zones(
+        self, patient_id: str, zone_ids: list[str]
+    ) -> list[str]:
+        """Create missing PatientZones. Return warning list for ineligible zones."""
+        warnings: list[str] = []
+        if not self.patient_zone_repo or not zone_ids:
+            return warnings
+
+        for zone_id in zone_ids:
+            existing = await self.patient_zone_repo.find_by_patient_and_zone(
+                patient_id, zone_id
+            )
+            if not existing:
+                new_pz = PatientZone(
+                    patient_id=patient_id,
+                    zone_id=zone_id,
+                    seances_total=6,
+                )
+                await self.patient_zone_repo.create(new_pz)
+
+            # Check pre-consultation eligibility (warning only)
+            if self.pre_consultation_repo:
+                pc = await self.pre_consultation_repo.find_by_patient_id(patient_id)
+                if pc:
+                    ineligible = next(
+                        (z for z in pc.zones if z.zone_id == zone_id and not z.is_eligible),
+                        None,
+                    )
+                    if ineligible:
+                        zone_name = ineligible.zone_nom or zone_id
+                        warnings.append(
+                            f"Zone '{zone_name}' marquee ineligible dans la pre-consultation"
+                        )
+
+        return warnings
 
     async def create_manual_entry(
         self,
@@ -217,29 +283,41 @@ class ScheduleService:
         duration_type: str | None = None,
         doctor_id: str | None = None,
         notes: str | None = None,
+        zone_ids: list[str] | None = None,
+        patient_id: str | None = None,
     ) -> DailyScheduleEntry:
         """Create a manual schedule entry (walk-in patient)."""
         entry = DailyScheduleEntry(
             date=entry_date,
             patient_nom=patient_nom,
             patient_prenom=patient_prenom,
+            patient_id=patient_id,
             doctor_name=doctor_name or "Non assigné",
             doctor_id=doctor_id,
             start_time=start_time,
             end_time=end_time,
             duration_type=duration_type,
+            zone_ids=zone_ids if zone_ids else None,
             notes=notes,
         )
 
-        # Try to match patient by name
-        matched, _ = await self.patient_repo.search(patient_nom, page=1, size=10)
-        for p in matched:
-            if p.prenom and p.prenom.lower() == patient_prenom.lower():
-                entry.patient_id = p.id
-                break
+        # Try to match patient by name if not already provided
+        if not entry.patient_id:
+            matched, _ = await self.patient_repo.search(patient_nom, page=1, size=10)
+            for p in matched:
+                if p.prenom and p.prenom.lower() == patient_prenom.lower():
+                    entry.patient_id = p.id
+                    break
+
+        # Auto-create PatientZones if patient and zones are set
+        zone_warnings: list[str] = []
+        if entry.patient_id and zone_ids:
+            zone_warnings = await self._ensure_patient_zones(entry.patient_id, zone_ids)
 
         created = await self.schedule_repo.create_batch([entry])
-        return created[0]
+        result = created[0]
+        result._zone_warnings = zone_warnings  # type: ignore[attr-defined]
+        return result
 
     async def get_schedule(self, target_date: date) -> list[DailyScheduleEntry]:
         return await self.schedule_repo.find_by_date(target_date)
@@ -292,6 +370,10 @@ class ScheduleService:
                     "message": "Plusieurs patients correspondent à ce nom",
                 }
             # If no candidates, patient_id stays None - will be created on resolve
+
+        # Auto-create PatientZones if patient and zones are set
+        if patient_id and entry.zone_ids:
+            await self._ensure_patient_zones(patient_id, entry.zone_ids)
 
         # Update schedule status
         await self.schedule_repo.update_status(entry_id, "checked_in")
@@ -504,6 +586,36 @@ class ScheduleService:
     async def get_absences(self, patient_id: str | None = None) -> list[WaitingQueueEntry]:
         """Get no-show entries, optionally filtered by patient."""
         return await self.queue_repo.find_no_shows(patient_id)
+
+    async def enrich_queue_entries(
+        self, entries: list[WaitingQueueEntry]
+    ) -> list[dict]:
+        """Enrich queue entries with zone names, patient code_carte, telephone."""
+        enriched = []
+        for entry in entries:
+            extra: dict = {
+                "zone_names": [],
+                "patient_code_carte": None,
+                "patient_telephone": None,
+            }
+            # Get patient info
+            if entry.patient_id:
+                patient = await self.patient_repo.find_by_id(entry.patient_id)
+                if patient:
+                    extra["patient_code_carte"] = patient.code_carte
+                    extra["patient_telephone"] = patient.telephone
+
+            # Get zone names from schedule entry
+            if entry.schedule_id and self.zone_def_repo:
+                schedule_entry = await self.schedule_repo.find_by_id(entry.schedule_id)
+                if schedule_entry and schedule_entry.zone_ids:
+                    for zone_id in schedule_entry.zone_ids:
+                        zone = await self.zone_def_repo.find_by_id(zone_id)
+                        if zone:
+                            extra["zone_names"].append(zone.nom)
+
+            enriched.append({"entry": entry, **extra})
+        return enriched
 
     def _parse_time(self, value) -> time | None:
         if value is None:

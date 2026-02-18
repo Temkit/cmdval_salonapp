@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -13,6 +13,7 @@ import {
   Plus,
   Check,
   XCircle,
+  Search,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { PatientConflictDialog } from "@/components/patient-conflict-dialog";
-import type { CheckInConflictResponse, PhoneConflict } from "@/types";
+import { useAuthStore } from "@/stores/auth-store";
+import type { CheckInConflictResponse, PhoneConflict, Patient, PatientZone } from "@/types";
 
 export const Route = createFileRoute("/admin/agenda")({
   component: AdminAgendaPage,
@@ -74,6 +76,7 @@ function formatDateDisplay(date: Date): string {
 }
 
 function AdminAgendaPage() {
+  const { hasPermission } = useAuthStore();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -85,11 +88,20 @@ function AdminAgendaPage() {
   const [addForm, setAddForm] = useState({
     patient_prenom: "",
     patient_nom: "",
+    patient_id: "" as string,
     doctor_id: "",
     start_time: "",
     selected_zone_ids: [] as string[],
     notes: "",
   });
+  const [patientSearch, setPatientSearch] = useState("");
+  const [patientResults, setPatientResults] = useState<Patient[]>([]);
+  const [searchingPatients, setSearchingPatients] = useState(false);
+  const [showPatientResults, setShowPatientResults] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [patientZones, setPatientZones] = useState<PatientZone[]>([]);
+  const [patientMode, setPatientMode] = useState<"existing" | "new">("existing");
+  const [newPatientPhone, setNewPatientPhone] = useState("");
 
   const dateStr = formatDateForApi(selectedDate);
   const isToday = dateStr === formatDateForApi(new Date());
@@ -133,6 +145,57 @@ function AdminAgendaPage() {
         : [...f.selected_zone_ids, zoneId],
     }));
   };
+
+  const handlePatientSearch = useCallback((query: string) => {
+    setPatientSearch(query);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (query.length < 2) {
+      setPatientResults([]);
+      setShowPatientResults(false);
+      return;
+    }
+    setSearchingPatients(true);
+    setShowPatientResults(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const result = await api.getPatients({ q: query, size: 8 });
+        setPatientResults(result.patients);
+      } catch {
+        setPatientResults([]);
+      } finally {
+        setSearchingPatients(false);
+      }
+    }, 300);
+  }, []);
+
+  const selectPatient = useCallback(async (patient: Patient) => {
+    setAddForm((f) => ({
+      ...f,
+      patient_prenom: patient.prenom,
+      patient_nom: patient.nom,
+      patient_id: patient.id,
+    }));
+    setPatientSearch(`${patient.prenom} ${patient.nom}`);
+    setShowPatientResults(false);
+    try {
+      const zonesResult = await api.getPatientZones(patient.id);
+      setPatientZones(zonesResult.zones);
+    } catch {
+      setPatientZones([]);
+    }
+  }, []);
+
+  const clearSelectedPatient = useCallback(() => {
+    setAddForm((f) => ({
+      ...f,
+      patient_prenom: "",
+      patient_nom: "",
+      patient_id: "",
+    }));
+    setPatientSearch("");
+    setPatientZones([]);
+    setPatientResults([]);
+  }, []);
 
   const {
     data: scheduleData,
@@ -180,7 +243,19 @@ function AdminAgendaPage() {
   });
 
   const addEntryMutation = useMutation({
-    mutationFn: (data: typeof addForm) => {
+    mutationFn: async (data: typeof addForm) => {
+      let patientId = data.patient_id || undefined;
+
+      // If "new" mode, create patient first
+      if (patientMode === "new" && !patientId) {
+        const newPatient = await api.createPatient({
+          prenom: data.patient_prenom,
+          nom: data.patient_nom,
+          telephone: newPatientPhone || undefined,
+        });
+        patientId = newPatient.id;
+      }
+
       const doctor = doctors.find((u) => u.id === data.doctor_id);
       const selectedZones = zones.filter((z) =>
         data.selected_zone_ids.includes(z.id),
@@ -198,6 +273,7 @@ function AdminAgendaPage() {
         date: dateStr,
         patient_prenom: data.patient_prenom,
         patient_nom: data.patient_nom,
+        patient_id: patientId,
         doctor_id: data.doctor_id || undefined,
         doctor_name: doctor
           ? `${doctor.prenom} ${doctor.nom}`
@@ -211,18 +287,32 @@ function AdminAgendaPage() {
         notes: data.notes || undefined,
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
       toast({ title: "Rendez-vous ajoute" });
+      if (data?.zone_warnings?.length) {
+        toast({
+          title: "Avertissement zones",
+          description: data.zone_warnings.join(". "),
+        });
+      }
       setAddDialogOpen(false);
       setAddForm({
         patient_prenom: "",
         patient_nom: "",
+        patient_id: "",
         doctor_id: "",
         start_time: "",
         selected_zone_ids: [],
         notes: "",
       });
+      setPatientSearch("");
+      setPatientZones([]);
+      setPatientMode("existing");
+      setNewPatientPhone("");
+      if (patientMode === "new") {
+        queryClient.invalidateQueries({ queryKey: ["patients"] });
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -249,6 +339,7 @@ function AdminAgendaPage() {
       const result = await api.uploadSchedule(file);
       const parts: string[] = [];
       parts.push(`${result.entries_created} entree(s) creee(s)`);
+      if (result.patients_created > 0) parts.push(`${result.patients_created} patient(s) cree(s)`);
       if (result.phone_matched > 0) parts.push(`${result.phone_matched} reliee(s) par telephone`);
       if (result.skipped_rows > 0) parts.push(`${result.skipped_rows} ligne(s) ignoree(s)`);
       toast({ title: "Planning importe", description: parts.join(", ") });
@@ -289,27 +380,29 @@ function AdminAgendaPage() {
               ` - ${scheduleData.total} rendez-vous`}
           </p>
         </div>
-        <div className="flex gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            {uploading ? "Import en cours..." : "Importer"}
-          </Button>
-          <Button onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter
-          </Button>
-        </div>
+        {hasPermission("schedule.manage") && (
+          <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {uploading ? "Import en cours..." : "Importer"}
+            </Button>
+            <Button onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Date picker */}
@@ -465,7 +558,7 @@ function AdminAgendaPage() {
                           </Badge>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          {entry.status === "expected" && (
+                          {entry.status === "expected" && hasPermission("schedule.manage") && (
                             <div className="flex items-center justify-end gap-1">
                               <Button
                                 size="sm"
@@ -512,7 +605,7 @@ function AdminAgendaPage() {
       </Card>
 
       {/* Add manual entry dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+      <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) { setPatientMode("existing"); setNewPatientPhone(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ajouter un rendez-vous</DialogTitle>
@@ -524,30 +617,127 @@ function AdminAgendaPage() {
             }}
             className="space-y-4"
           >
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Prenom</Label>
-                <Input
-                  required
-                  value={addForm.patient_prenom}
-                  onChange={(e) =>
-                    setAddForm((f) => ({
-                      ...f,
-                      patient_prenom: e.target.value,
-                    }))
-                  }
-                />
+            {/* Patient mode tabs */}
+            <div className="space-y-3">
+              <Label>Patient</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={patientMode === "existing" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setPatientMode("existing");
+                    setAddForm((f) => ({ ...f, patient_prenom: "", patient_nom: "", patient_id: "" }));
+                    setNewPatientPhone("");
+                  }}
+                >
+                  <Search className="h-3.5 w-3.5 mr-1.5" />
+                  Patient existant
+                </Button>
+                <Button
+                  type="button"
+                  variant={patientMode === "new" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setPatientMode("new");
+                    clearSelectedPatient();
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Nouveau patient
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label>Nom</Label>
-                <Input
-                  required
-                  value={addForm.patient_nom}
-                  onChange={(e) =>
-                    setAddForm((f) => ({ ...f, patient_nom: e.target.value }))
-                  }
-                />
-              </div>
+
+              {patientMode === "existing" ? (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Rechercher par nom..."
+                      value={patientSearch}
+                      onChange={(e) => handlePatientSearch(e.target.value)}
+                      onFocus={() => patientSearch.length >= 2 && setShowPatientResults(true)}
+                      className="pl-9"
+                    />
+                    {addForm.patient_id && (
+                      <button
+                        type="button"
+                        onClick={clearSelectedPatient}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    )}
+                    {showPatientResults && (
+                      <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto">
+                        {searchingPatients ? (
+                          <div className="p-3 text-sm text-muted-foreground text-center">Recherche...</div>
+                        ) : patientResults.length > 0 ? (
+                          patientResults.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => selectPatient(p)}
+                              className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted text-sm"
+                            >
+                              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium">{p.prenom} {p.nom}</span>
+                                {p.telephone && (
+                                  <span className="text-muted-foreground ml-2">{p.telephone}</span>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-3 text-sm text-muted-foreground text-center">Aucun patient trouve</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {addForm.patient_id && (
+                    <Badge variant="success" className="gap-1">
+                      <Check className="h-3 w-3" />
+                      {addForm.patient_prenom} {addForm.patient_nom}
+                    </Badge>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Prenom</Label>
+                      <Input
+                        required
+                        placeholder="Prenom"
+                        value={addForm.patient_prenom}
+                        onChange={(e) =>
+                          setAddForm((f) => ({ ...f, patient_prenom: e.target.value, patient_id: "" }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nom</Label>
+                      <Input
+                        required
+                        placeholder="Nom"
+                        value={addForm.patient_nom}
+                        onChange={(e) =>
+                          setAddForm((f) => ({ ...f, patient_nom: e.target.value, patient_id: "" }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Telephone</Label>
+                    <Input
+                      placeholder="06 XX XX XX XX"
+                      value={newPatientPhone}
+                      onChange={(e) => setNewPatientPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -596,12 +786,16 @@ function AdminAgendaPage() {
                   const isSelected = addForm.selected_zone_ids.includes(
                     zone.id,
                   );
+                  const pZone = addForm.patient_id
+                    ? patientZones.find((pz) => pz.zone_definition_id === zone.id)
+                    : null;
+                  const exhausted = pZone && pZone.seances_restantes === 0;
                   return (
                     <button
                       key={zone.id}
                       type="button"
                       onClick={() => toggleZone(zone.id)}
-                      className={`flex items-center gap-2 text-left text-sm px-3 py-2 rounded-md border transition-colors ${isSelected ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}
+                      className={`flex items-center gap-2 text-left text-sm px-3 py-2 rounded-md border transition-colors ${isSelected ? (exhausted ? "bg-destructive text-destructive-foreground border-destructive" : "bg-primary text-primary-foreground border-primary") : "hover:bg-muted"}`}
                     >
                       {isSelected && <Check className="h-3 w-3 shrink-0" />}
                       <span className="truncate">
@@ -612,10 +806,31 @@ function AdminAgendaPage() {
                           </span>
                         )}
                       </span>
+                      {exhausted && (
+                        <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
+                      )}
                     </button>
                   );
                 })}
               </div>
+              {addForm.patient_id && addForm.selected_zone_ids.length > 0 && (() => {
+                const warnings = addForm.selected_zone_ids
+                  .map((zid) => {
+                    const pz = patientZones.find((p) => p.zone_definition_id === zid);
+                    if (pz && pz.seances_restantes === 0) return pz.zone_nom;
+                    return null;
+                  })
+                  .filter(Boolean);
+                if (warnings.length === 0) return null;
+                return (
+                  <div className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-md">
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                    <p className="text-xs text-destructive">
+                      Seances epuisees pour : {warnings.join(", ")}. Le patient n'a plus de seances restantes sur ces zones.
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -639,9 +854,8 @@ function AdminAgendaPage() {
                 type="submit"
                 disabled={
                   addEntryMutation.isPending ||
-                  !addForm.patient_prenom ||
-                  !addForm.patient_nom ||
-                  !addForm.start_time
+                  !addForm.start_time ||
+                  (patientMode === "existing" ? !addForm.patient_id : (!addForm.patient_prenom || !addForm.patient_nom))
                 }
               >
                 {addEntryMutation.isPending ? "Ajout..." : "Ajouter"}

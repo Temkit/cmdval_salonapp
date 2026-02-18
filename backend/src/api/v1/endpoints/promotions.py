@@ -35,7 +35,7 @@ def _to_response(p) -> PromotionResponse:
 
 @router.get("", response_model=PromotionListResponse)
 async def list_promotions(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("sessions.view"))],
     promotion_service: Annotated[PromotionService, Depends(get_promotion_service)],
     include_inactive: bool = False,
 ):
@@ -45,7 +45,7 @@ async def list_promotions(
 
 @router.get("/active", response_model=PromotionListResponse)
 async def list_active_promotions(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("sessions.view"))],
     promotion_service: Annotated[PromotionService, Depends(get_promotion_service)],
 ):
     promos = await promotion_service.get_active_promotions()
@@ -96,7 +96,7 @@ async def delete_promotion(
 async def get_zone_price(
     zone_id: str,
     original_price: int,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("sessions.view"))],
     promotion_service: Annotated[PromotionService, Depends(get_promotion_service)],
 ):
     return await promotion_service.get_zone_price(zone_id, original_price)

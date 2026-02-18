@@ -27,6 +27,7 @@ import {
 } from "@/stores/session-store";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import { PatientInfoSheet } from "@/components/patient-info-sheet";
 
 export const Route = createFileRoute("/practitioner/active")({
   component: ActiveSeancePage,
@@ -70,6 +71,7 @@ function ActiveSeancePage() {
   const [sideEffectDesc, setSideEffectDesc] = useState("");
   const [sideEffectSeverity, setSideEffectSeverity] = useState<SideEffect["severity"]>("mild");
   const [noteText, setNoteText] = useState("");
+  const [showPatientInfo, setShowPatientInfo] = useState(false);
 
   const praticienId = user?.id ?? "";
   const session = getSession(praticienId);
@@ -281,7 +283,10 @@ function ActiveSeancePage() {
       {/* Timer area — top 60% */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 select-none">
         {/* Patient & zone info */}
-        <p className="text-sm text-muted-foreground mb-1">
+        <p
+          className="text-sm text-muted-foreground mb-1 cursor-pointer hover:text-primary transition-colors"
+          onClick={() => setShowPatientInfo(true)}
+        >
           {session.patientName}
         </p>
         <div className="flex items-center gap-2 mb-6">
@@ -604,6 +609,12 @@ function ActiveSeancePage() {
           )}
         </div>
       </div>
+
+      <PatientInfoSheet
+        patientId={session.patientId}
+        open={showPatientInfo}
+        onOpenChange={setShowPatientInfo}
+      />
     </div>
   );
 }

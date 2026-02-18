@@ -422,8 +422,8 @@ function SecretaryPatientDetailPage() {
                       <span className="text-sm">Pre-consultation</span>
                     </div>
                     <Link to="/secretary/pre-consultations/$id" params={{ id: preConsultation.id }}>
-                      <Badge variant={preConsultation.status === "validated" ? "success" : preConsultation.status === "rejected" ? "destructive" : "warning"} className="cursor-pointer">
-                        {preConsultation.status === "validated" ? "Validee" : preConsultation.status === "rejected" ? "Rejetee" : preConsultation.status === "pending_validation" ? "En attente" : "Brouillon"}
+                      <Badge variant={preConsultation.status === "completed" ? "success" : preConsultation.status === "rejected" ? "destructive" : "warning"} className="cursor-pointer">
+                        {preConsultation.status === "completed" ? "Terminee" : preConsultation.status === "rejected" ? "Rejetee" : "En cours"}
                       </Badge>
                     </Link>
                   </div>

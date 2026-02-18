@@ -45,37 +45,40 @@ export const Route = createFileRoute("/admin")({
   component: AdminShell,
 });
 
-const mainNav: Array<{ to: string; label: string; icon: typeof BarChart3; exact?: boolean }> = [
-  { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true },
-  { to: "/admin/queue", label: "File d'attente", icon: LayoutGrid },
-  { to: "/admin/agenda", label: "Agenda", icon: Calendar },
-  { to: "/admin/patients", label: "Patients", icon: Users },
-  { to: "/admin/pre-consultations", label: "Pre-consult.", icon: FileText },
-  { to: "/admin/sessions", label: "Seances", icon: Activity },
-  { to: "/admin/paiements", label: "Paiements", icon: CreditCard },
-  { to: "/admin/absences", label: "Absences", icon: UserX },
+const mainNav: Array<{ to: string; label: string; icon: typeof BarChart3; exact?: boolean; permission: string }> = [
+  { to: "/admin", label: "Dashboard", icon: BarChart3, exact: true, permission: "dashboard.view" },
+  { to: "/admin/queue", label: "File d'attente", icon: LayoutGrid, permission: "queue.view" },
+  { to: "/admin/agenda", label: "Agenda", icon: Calendar, permission: "schedule.view" },
+  { to: "/admin/patients", label: "Patients", icon: Users, permission: "patients.view" },
+  { to: "/admin/pre-consultations", label: "Pre-consult.", icon: FileText, permission: "pre_consultations.view" },
+  { to: "/admin/sessions", label: "Seances", icon: Activity, permission: "sessions.view" },
+  { to: "/admin/paiements", label: "Paiements", icon: CreditCard, permission: "payments.view" },
+  { to: "/admin/absences", label: "Absences", icon: UserX, permission: "schedule.view" },
 ];
 
-const configNav: Array<{ to: string; label: string; icon: typeof MapPin }> = [
-  { to: "/admin/config/zones", label: "Zones", icon: MapPin },
-  { to: "/admin/config/packs", label: "Packs", icon: Package },
-  { to: "/admin/config/promotions", label: "Promotions", icon: Percent },
-  { to: "/admin/config/users", label: "Utilisateurs", icon: UserCog },
-  { to: "/admin/config/questionnaire", label: "Questionnaire", icon: ClipboardList },
-  { to: "/admin/config/roles", label: "Roles", icon: Shield },
-  { to: "/admin/config/boxes", label: "Cabines", icon: DoorOpen },
-  { to: "/admin/config/paiements", label: "Paiements", icon: Wallet },
-  { to: "/admin/config/documents", label: "Documents", icon: FilePen },
+const configNav: Array<{ to: string; label: string; icon: typeof MapPin; permission: string }> = [
+  { to: "/admin/config/zones", label: "Zones", icon: MapPin, permission: "config.zones" },
+  { to: "/admin/config/packs", label: "Packs", icon: Package, permission: "config.manage" },
+  { to: "/admin/config/promotions", label: "Promotions", icon: Percent, permission: "config.manage" },
+  { to: "/admin/config/users", label: "Utilisateurs", icon: UserCog, permission: "users.view" },
+  { to: "/admin/config/questionnaire", label: "Questionnaire", icon: ClipboardList, permission: "config.questionnaire" },
+  { to: "/admin/config/roles", label: "Roles", icon: Shield, permission: "roles.view" },
+  { to: "/admin/config/boxes", label: "Cabines", icon: DoorOpen, permission: "boxes.view" },
+  { to: "/admin/config/paiements", label: "Paiements", icon: Wallet, permission: "config.manage" },
+  { to: "/admin/config/documents", label: "Documents", icon: FilePen, permission: "config.manage" },
 ];
 
 function AdminShell() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, hasPermission } = useAuthStore();
   const { newCheckInCount } = useQueueEvents({
     showToasts: true,
     invalidateQueries: true,
   });
   const [configOpen, setConfigOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+
+  const visibleMainNav = mainNav.filter((item) => hasPermission(item.permission));
+  const visibleConfigNav = configNav.filter((item) => hasPermission(item.permission));
 
   return (
     <div className="min-h-screen flex">
@@ -87,7 +90,7 @@ function AdminShell() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {mainNav.map((item) => (
+          {visibleMainNav.map((item) => (
             <Link
               key={item.to}
               to={item.to as "/admin"}
@@ -110,7 +113,7 @@ function AdminShell() {
             </Link>
           ))}
 
-          <div className="pt-4">
+          {visibleConfigNav.length > 0 && <div className="pt-4">
             <button
               onClick={() => setConfigOpen(!configOpen)}
               className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground w-full"
@@ -129,7 +132,7 @@ function AdminShell() {
             </button>
             {configOpen && (
               <div className="ml-4 mt-1 space-y-1">
-                {configNav.map((item) => (
+                {visibleConfigNav.map((item) => (
                   <Link
                     key={item.to}
                     to={item.to as "/admin"}
@@ -147,7 +150,7 @@ function AdminShell() {
                 ))}
               </div>
             )}
-          </div>
+          </div>}
         </nav>
 
         <div className="border-t p-4 shrink-0">
@@ -189,7 +192,7 @@ function AdminShell() {
         </main>
 
         <nav className="lg:hidden flex items-center justify-around border-t bg-card safe-area-bottom h-16">
-          {mainNav.slice(0, 5).map((item) => (
+          {visibleMainNav.slice(0, 5).map((item) => (
             <Link
               key={item.to}
               to={item.to as "/admin"}

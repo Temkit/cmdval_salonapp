@@ -34,23 +34,25 @@ export const Route = createFileRoute("/secretary")({
   component: SecretaryShell,
 });
 
-const navItems: Array<{ to: string; label: string; icon: typeof LayoutGrid; exact?: boolean }> = [
-  { to: "/secretary", label: "File d'attente", icon: LayoutGrid, exact: true },
-  { to: "/secretary/agenda", label: "Agenda", icon: Calendar },
-  { to: "/secretary/patients", label: "Patients", icon: Users },
-  { to: "/secretary/pre-consultations", label: "Pre-consult.", icon: FileText },
-  { to: "/secretary/sessions", label: "Seances", icon: Activity },
-  { to: "/secretary/paiements", label: "Paiements", icon: CreditCard },
-  { to: "/secretary/absences", label: "Absences", icon: UserX },
+const navItems: Array<{ to: string; label: string; icon: typeof LayoutGrid; exact?: boolean; permission: string }> = [
+  { to: "/secretary", label: "File d'attente", icon: LayoutGrid, exact: true, permission: "queue.view" },
+  { to: "/secretary/agenda", label: "Agenda", icon: Calendar, permission: "schedule.view" },
+  { to: "/secretary/patients", label: "Patients", icon: Users, permission: "patients.view" },
+  { to: "/secretary/pre-consultations", label: "Pre-consult.", icon: FileText, permission: "pre_consultations.view" },
+  { to: "/secretary/sessions", label: "Seances", icon: Activity, permission: "sessions.view" },
+  { to: "/secretary/paiements", label: "Paiements", icon: CreditCard, permission: "payments.view" },
+  { to: "/secretary/absences", label: "Absences", icon: UserX, permission: "schedule.view" },
 ];
 
 function SecretaryShell() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, hasPermission } = useAuthStore();
   const { newCheckInCount } = useQueueEvents({
     showToasts: true,
     invalidateQueries: true,
   });
   const [passwordOpen, setPasswordOpen] = useState(false);
+
+  const visibleNav = navItems.filter((item) => hasPermission(item.permission));
 
   return (
     <div className="min-h-screen flex">
@@ -62,7 +64,7 @@ function SecretaryShell() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <Link
               key={item.to}
               to={item.to as "/secretary"}
@@ -126,7 +128,7 @@ function SecretaryShell() {
         </main>
 
         <nav className="lg:hidden flex items-center justify-around border-t bg-card safe-area-bottom h-16">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <Link
               key={item.to}
               to={item.to as "/secretary"}

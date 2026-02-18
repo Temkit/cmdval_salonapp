@@ -201,7 +201,7 @@ export interface PreConsultation {
   last_laser_date: string | null;
   phototype: string | null;
   notes: string | null;
-  status: "draft" | "pending_validation" | "validated" | "rejected" | "patient_created";
+  status: "in_progress" | "completed" | "rejected";
   rejection_reason: string | null;
   created_by: string | null;
   created_by_name: string | null;
@@ -381,6 +381,7 @@ export interface DailyScheduleEntry {
   notes: string | null;
   status: ScheduleStatus;
   created_at: string;
+  zone_warnings?: string[];
 }
 
 export type QueueStatus = "waiting" | "in_treatment" | "done";
@@ -399,6 +400,9 @@ export interface WaitingQueueEntry {
   status: QueueStatus;
   called_at: string | null;
   completed_at: string | null;
+  zone_names?: string[];
+  patient_code_carte?: string | null;
+  patient_telephone?: string | null;
 }
 
 export interface PatientCandidate {
@@ -441,6 +445,7 @@ export interface UpdateUserRequest {
   prenom?: string;
   role_id?: string;
   is_active?: boolean;
+  password?: string;
 }
 
 export interface CreateRoleRequest {
@@ -556,6 +561,7 @@ export interface ManualScheduleEntryRequest {
   date: string;
   patient_nom: string;
   patient_prenom: string;
+  patient_id?: string;
   doctor_id?: string;
   doctor_name?: string;
   start_time: string;
@@ -583,6 +589,7 @@ export interface ScheduleUploadResponse {
   phone_conflicts: PhoneConflict[];
   skipped_rows: number;
   total_rows: number;
+  patients_created: number;
 }
 
 export interface AddPreConsultationZoneRequest {
@@ -596,16 +603,7 @@ export interface QuestionnaireResponseInput {
   reponse: string | boolean | string[];
 }
 
-export interface CreatePatientFromPreConsultationRequest {
-  code_carte?: string;
-  nom?: string;
-  prenom?: string;
-  telephone?: string;
-  email?: string;
-  zone_ids?: string[];
-  seances_per_zone?: number;
-  notes?: string | null;
-}
+
 
 // Response types
 export interface UsersResponse {

@@ -23,6 +23,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import { PatientInfoSheet } from "@/components/patient-info-sheet";
 import type { WaitingQueueEntry } from "@/types";
 
 export const Route = createFileRoute("/practitioner/")({
@@ -113,6 +114,7 @@ function PractitionerHomePage() {
   const { toast } = useToast();
   const { user } = useAuthStore();
   const { getSession } = useSessionStore();
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
   // Check for active session — redirect to timer
   const activeSession = user ? getSession(user.id) : null;
@@ -125,23 +127,53 @@ function PractitionerHomePage() {
 
   const callMutation = useMutation({
     mutationFn: (entryId: string) => api.callPatient(entryId),
-    onSuccess: (_data, entryId) => {
+    onSuccess: async (_data, entryId) => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
-      // Find the entry to get patient_id for seance wizard
       const entry = waitingEntries.find((e) => e.id === entryId);
-      if (entry?.patient_id) {
-        toast({ title: "Patient appele" });
-        navigate({
-          to: "/practitioner/seance/$patientId",
-          params: { patientId: entry.patient_id },
-          search: { queueEntryId: entry.id },
-        });
-      } else {
+      if (!entry?.patient_id) {
         toast({
           variant: "destructive",
           title: "Patient non enregistre",
           description:
             "Ce patient n'a pas de dossier. Demandez a la secretaire de creer sa fiche avant de demarrer la seance.",
+        });
+        return;
+      }
+      // Check pre-consultation before starting session
+      try {
+        const preConsult = await api.getPatientPreConsultation(entry.patient_id);
+        if (!preConsult) {
+          toast({
+            title: "Pre-consultation requise",
+            description: "Veuillez creer une pre-consultation pour ce patient.",
+          });
+          navigate({
+            to: "/practitioner/pre-consultations/nouveau" as string,
+            search: { patient_id: entry.patient_id },
+          });
+        } else if (preConsult.status !== "completed") {
+          toast({
+            title: "Pre-consultation en cours",
+            description: "Veuillez la terminer avant de demarrer la seance.",
+          });
+          navigate({
+            to: `/practitioner/pre-consultations/${preConsult.id}` as string,
+          });
+        } else {
+          toast({ title: "Patient appele" });
+          navigate({
+            to: "/practitioner/seance/$patientId",
+            params: { patientId: entry.patient_id },
+            search: { queueEntryId: entry.id },
+          });
+        }
+      } catch {
+        // If pre-consultation check fails, proceed to seance anyway
+        toast({ title: "Patient appele" });
+        navigate({
+          to: "/practitioner/seance/$patientId",
+          params: { patientId: entry.patient_id },
+          search: { queueEntryId: entry.id },
         });
       }
     },
@@ -220,7 +252,12 @@ function PractitionerHomePage() {
                     <User className="h-5 w-5 text-amber-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{entry.patient_name}</p>
+                    <p
+                      className="font-medium text-sm cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => entry.patient_id && setSelectedPatientId(entry.patient_id)}
+                    >
+                      {entry.patient_name}
+                    </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       En traitement depuis {formatWaitTime(entry.checked_in_at)}
                     </p>
@@ -289,7 +326,12 @@ function PractitionerHomePage() {
 
               {/* Patient name */}
               <div>
-                <h2 className="text-2xl font-bold">{nextPatient.patient_name}</h2>
+                <h2
+                  className="text-2xl font-bold cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => nextPatient.patient_id && setSelectedPatientId(nextPatient.patient_id)}
+                >
+                  {nextPatient.patient_name}
+                </h2>
                 <div className="flex items-center justify-center gap-2 mt-2">
                   <Badge variant="secondary">
                     <Clock className="h-3 w-3 mr-1" />
@@ -354,7 +396,10 @@ function PractitionerHomePage() {
                       <User className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p
+                        className="text-sm font-medium truncate cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => entry.patient_id && setSelectedPatientId(entry.patient_id)}
+                      >
                         {entry.patient_name}
                       </p>
                     </div>
@@ -368,6 +413,12 @@ function PractitionerHomePage() {
           </div>
         </div>
       )}
+
+      <PatientInfoSheet
+        patientId={selectedPatientId}
+        open={!!selectedPatientId}
+        onOpenChange={(open) => { if (!open) setSelectedPatientId(null); }}
+      />
     </div>
   );
 }

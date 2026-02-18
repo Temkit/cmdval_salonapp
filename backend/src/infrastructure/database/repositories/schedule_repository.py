@@ -1,5 +1,6 @@
 """Schedule and waiting queue repository implementations."""
 
+import json
 from datetime import UTC, date, datetime
 
 from sqlalchemy import func, or_, select
@@ -32,6 +33,7 @@ class ScheduleRepository:
                 start_time=entry.start_time,
                 end_time=entry.end_time,
                 notes=entry.notes,
+                zone_ids=json.dumps(entry.zone_ids) if entry.zone_ids else None,
                 status=entry.status,
                 uploaded_by=entry.uploaded_by,
             )
@@ -79,6 +81,12 @@ class ScheduleRepository:
         return count
 
     def _to_entity(self, model: DailyScheduleModel) -> DailyScheduleEntry:
+        zone_ids = None
+        if model.zone_ids:
+            try:
+                zone_ids = json.loads(model.zone_ids)
+            except (json.JSONDecodeError, TypeError):
+                zone_ids = None
         return DailyScheduleEntry(
             id=model.id,
             date=model.date,
@@ -93,6 +101,7 @@ class ScheduleRepository:
             start_time=model.start_time,
             end_time=model.end_time,
             notes=model.notes,
+            zone_ids=zone_ids,
             status=model.status,
             uploaded_by=model.uploaded_by,
             created_at=model.created_at,

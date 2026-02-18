@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +21,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
-export const Route = createFileRoute("/secretary/pre-consultations/")({
-  component: SecretaryPreConsultationsPage,
+export const Route = createFileRoute("/practitioner/pre-consultations/")({
+  component: PractitionerPreConsultationsPage,
 });
 
 const statusConfig: Record<
@@ -37,7 +38,7 @@ const statusConfig: Record<
   rejected: { label: "Rejetee", variant: "destructive", icon: AlertCircle },
 };
 
-function SecretaryPreConsultationsPage() {
+function PractitionerPreConsultationsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -81,7 +82,12 @@ function SecretaryPreConsultationsPage() {
               : "Gerez les pre-consultations"}
           </p>
         </div>
-{/* Creation reserved for practitioners */}
+        <Button asChild className="w-full sm:w-auto">
+          <Link to="/practitioner/pre-consultations/nouveau">
+            <Plus className="h-5 w-5 mr-2" />
+            Nouvelle pre-consultation
+          </Link>
+        </Button>
       </div>
 
       {/* Filters */}
@@ -168,7 +174,7 @@ function SecretaryPreConsultationsPage() {
             return (
               <Link
                 key={pc.id}
-                to={"/secretary/pre-consultations/$id" as string}
+                to={"/practitioner/pre-consultations/$id" as string}
                 params={{ id: pc.id }}
               >
               <Card

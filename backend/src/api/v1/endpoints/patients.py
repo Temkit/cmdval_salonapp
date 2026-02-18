@@ -1,9 +1,12 @@
 """Patient management endpoints."""
 
+import csv
+import io
 import math
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from src.api.v1.dependencies import (
     get_patient_service,
@@ -85,10 +88,53 @@ async def list_patients(
     )
 
 
+@router.get("/export")
+async def export_patients_csv(
+    _: Annotated[dict, Depends(require_permission("patients.view"))],
+    patient_service: Annotated[PatientService, Depends(get_patient_service)],
+    q: str | None = Query(None, max_length=100),
+):
+    """Export patients as CSV."""
+    if q:
+        patients, _ = await patient_service.search_patients(q, page=1, size=10000)
+    else:
+        patients, _ = await patient_service.get_all_patients(page=1, size=10000)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Code Carte", "Nom", "Prenom", "Date Naissance", "Sexe",
+        "Telephone", "Email", "Wilaya", "Commune", "Phototype",
+        "Statut", "Date Creation",
+    ])
+    for p in patients:
+        writer.writerow([
+            p.code_carte or "",
+            p.nom or "",
+            p.prenom or "",
+            p.date_naissance or "",
+            p.sexe or "",
+            p.telephone or "",
+            p.email or "",
+            p.wilaya or "",
+            p.commune or "",
+            p.phototype or "",
+            p.status or "",
+            str(p.created_at) if p.created_at else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=patients_export.csv"},
+    )
+
+
 @router.post("", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
 async def create_patient(
     request: PatientCreate,
-    _: Annotated[dict, Depends(require_permission("patients.edit"))],
+    _: Annotated[dict, Depends(require_permission("patients.create"))],
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ):
     """

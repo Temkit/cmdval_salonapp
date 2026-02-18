@@ -1,5 +1,7 @@
 """Session management endpoints."""
 
+import csv
+import io
 import json
 import math
 import os
@@ -7,7 +9,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from src.api.v1.dependencies import (
     CurrentUser,
@@ -203,6 +205,43 @@ async def create_session(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Paramètres JSON invalides",
         )
+
+
+@router.get("/sessions/export")
+async def export_sessions_csv(
+    _: Annotated[dict, Depends(require_permission("sessions.view"))],
+    session_service: Annotated[SessionService, Depends(get_session_service)],
+    praticien_id: str | None = Query(None),
+):
+    """Export sessions as CSV."""
+    sessions, _ = await session_service.get_all_sessions(
+        page=1, size=10000, praticien_id=praticien_id,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Date", "Patient", "Zone", "Praticien", "Type Laser",
+        "Duree (min)", "Parametres", "Notes",
+    ])
+    for s in sessions:
+        writer.writerow([
+            str(s.date_seance) if s.date_seance else "",
+            "",  # patient name not on session entity
+            s.zone_nom or "",
+            s.praticien_nom or "",
+            s.type_laser or "",
+            s.duree_minutes or "",
+            s.parametres or "",
+            s.notes or "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=seances_export.csv"},
+    )
 
 
 @router.get("/sessions", response_model=SessionListResponse)

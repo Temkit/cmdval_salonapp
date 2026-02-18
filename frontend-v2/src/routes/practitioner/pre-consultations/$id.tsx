@@ -1,20 +1,25 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   AlertTriangle,
   CheckCircle,
   XCircle,
   Clock,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
-export const Route = createFileRoute("/secretary/pre-consultations/$id")({
-  component: SecretaryPreConsultationDetail,
+export const Route = createFileRoute("/practitioner/pre-consultations/$id")({
+  component: PractitionerPreConsultationDetail,
 });
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "muted" | "warning" | "success" | "destructive"; icon: typeof Clock }> = {
@@ -23,12 +28,27 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "muted" | "warning
   rejected: { label: "Rejetee", variant: "destructive", icon: XCircle },
 };
 
-function SecretaryPreConsultationDetail() {
+function PractitionerPreConsultationDetail() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: pc, isLoading, isError, error } = useQuery({
     queryKey: ["pre-consultation", id],
     queryFn: () => api.getPreConsultation(id),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.deletePreConsultation(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
+      toast({ title: "Pre-consultation supprimee" });
+      navigate({ to: "/practitioner/pre-consultations" });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
   });
 
   if (isLoading) {
@@ -49,7 +69,7 @@ function SecretaryPreConsultationDetail() {
             <p className="font-medium">Erreur de chargement</p>
             <p className="text-sm text-muted-foreground mt-1">{(error as Error)?.message}</p>
             <Button asChild variant="outline" className="mt-4">
-              <Link to="/secretary/pre-consultations">Retour</Link>
+              <Link to="/practitioner/pre-consultations">Retour</Link>
             </Button>
           </CardContent>
         </Card>
@@ -67,7 +87,7 @@ function SecretaryPreConsultationDetail() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="icon-sm">
-            <Link to="/secretary/pre-consultations"><ArrowLeft className="h-4 w-4" /></Link>
+            <Link to="/practitioner/pre-consultations"><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
           <div>
             <h1 className="heading-2">Pre-consultation</h1>
@@ -245,18 +265,39 @@ function SecretaryPreConsultationDetail() {
         </Card>
       )}
 
-      {/* Patient link */}
-      {pc.patient_id && (
-        <Card>
-          <CardContent className="p-4">
-            <Button asChild variant="outline">
-              <Link to="/secretary/patients/$id" params={{ id: pc.patient_id }}>
-                Voir le patient
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* Actions */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-2">
+            {pc.status === "in_progress" && (
+              <>
+                <Button asChild variant="outline">
+                  <Link to="/practitioner/pre-consultations/nouveau" search={{ edit: id, patient_id: pc.patient_id }}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Modifier
+                  </Link>
+                </Button>
+                <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirm */}
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Supprimer la pre-consultation"
+        description="Cette action est irreversible."
+        variant="danger"
+        confirmLabel="Supprimer"
+        onConfirm={() => deleteMutation.mutate()}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

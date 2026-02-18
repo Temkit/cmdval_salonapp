@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
-from src.api.v1.dependencies import CurrentUser, get_db, get_paiement_service
+from src.api.v1.dependencies import CurrentUser, get_db, get_paiement_service, require_permission
 from src.application.services.paiement_service import PaiementService
 from src.infrastructure.database.models import PaymentMethodModel
 from src.schemas.paiement import (
@@ -45,7 +45,7 @@ def _to_response(p) -> PaiementResponse:
 @router.post("", response_model=PaiementResponse, status_code=201)
 async def create_paiement(
     data: PaiementCreate,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("payments.create"))],
     paiement_service: Annotated[PaiementService, Depends(get_paiement_service)],
 ):
     """Record a payment."""
@@ -65,7 +65,7 @@ async def create_paiement(
 
 @router.get("", response_model=PaiementListResponse)
 async def list_paiements(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("payments.view"))],
     paiement_service: Annotated[PaiementService, Depends(get_paiement_service)],
     patient_id: str | None = None,
     type: str | None = None,
@@ -95,7 +95,7 @@ async def list_paiements(
 @router.get("/patients/{patient_id}")
 async def get_patient_paiements(
     patient_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("payments.view"))],
     paiement_service: Annotated[PaiementService, Depends(get_paiement_service)],
 ):
     """Get payment history for a patient."""
@@ -105,7 +105,7 @@ async def get_patient_paiements(
 
 @router.get("/stats", response_model=RevenueStatsResponse)
 async def get_revenue_stats(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("dashboard.view"))],
     paiement_service: Annotated[PaiementService, Depends(get_paiement_service)],
     date_from: datetime | None = None,
     date_to: datetime | None = None,
@@ -119,7 +119,7 @@ async def get_revenue_stats(
 
 @router.get("/methods", response_model=list[PaymentMethodResponse])
 async def list_payment_methods(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("payments.view"))],
     session=Depends(get_db),
 ):
     """List all payment methods (active only by default)."""
@@ -139,7 +139,7 @@ async def list_payment_methods(
 @router.post("/methods", response_model=PaymentMethodResponse, status_code=201)
 async def create_payment_method(
     data: PaymentMethodCreate,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     session=Depends(get_db),
 ):
     """Create a payment method."""
@@ -162,7 +162,7 @@ async def create_payment_method(
 async def update_payment_method(
     method_id: str,
     data: PaymentMethodUpdate,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     session=Depends(get_db),
 ):
     """Update a payment method."""
@@ -191,7 +191,7 @@ async def update_payment_method(
 @router.delete("/methods/{method_id}", status_code=204)
 async def delete_payment_method(
     method_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     session=Depends(get_db),
 ):
     """Delete a payment method."""

@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sse_starlette.sse import EventSourceResponse
 
-from src.api.v1.dependencies import CurrentUser, get_schedule_service
+from src.api.v1.dependencies import CurrentUser, get_schedule_service, require_permission
 from src.application.services.schedule_service import ScheduleService
 from src.domain.exceptions import NotFoundError
 from src.infrastructure.events import event_bus
@@ -30,7 +30,7 @@ from src.schemas.schedule import (
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
 
-def _schedule_response(e) -> ScheduleEntryResponse:
+def _schedule_response(e, zone_warnings: list[str] | None = None) -> ScheduleEntryResponse:
     return ScheduleEntryResponse(
         id=e.id,
         date=e.date,
@@ -47,10 +47,16 @@ def _schedule_response(e) -> ScheduleEntryResponse:
         notes=e.notes,
         status=e.status,
         created_at=e.created_at,
+        zone_warnings=zone_warnings or [],
     )
 
 
-def _queue_response(e) -> QueueEntryResponse:
+def _queue_response(
+    e,
+    zone_names: list[str] | None = None,
+    patient_code_carte: str | None = None,
+    patient_telephone: str | None = None,
+) -> QueueEntryResponse:
     return QueueEntryResponse(
         id=e.id,
         schedule_id=e.schedule_id,
@@ -65,12 +71,15 @@ def _queue_response(e) -> QueueEntryResponse:
         status=e.status,
         called_at=e.called_at,
         completed_at=e.completed_at,
+        zone_names=zone_names or [],
+        patient_code_carte=patient_code_carte,
+        patient_telephone=patient_telephone,
     )
 
 
 @router.post("/upload", response_model=ScheduleUploadResponse)
 async def upload_schedule(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("schedule.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
     file: UploadFile = File(...),
 ):
@@ -80,6 +89,7 @@ async def upload_schedule(
     entries = result["entries"]
     phone_conflicts = result.get("phone_conflicts", [])
     target_date = entries[0].date if entries else None
+    patients_created = result.get("patients_created", 0)
     return ScheduleUploadResponse(
         message=f"{len(entries)} entrées créées",
         entries_created=len(entries),
@@ -88,12 +98,13 @@ async def upload_schedule(
         phone_conflicts=[PhoneConflict(**c) for c in phone_conflicts],
         skipped_rows=result.get("skipped_rows", 0),
         total_rows=result.get("total_rows", 0),
+        patients_created=patients_created,
     )
 
 
 @router.get("/today", response_model=ScheduleListResponse)
 async def get_today_schedule(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("schedule.view"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     entries = await schedule_service.get_today_schedule()
@@ -107,12 +118,24 @@ async def get_today_schedule(
 # Queue routes MUST be before /{target_date} to avoid path conflict
 @router.get("/queue", response_model=QueueListResponse, tags=["queue"])
 async def get_queue(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("queue.view"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
     doctor_id: str | None = None,
 ):
     entries = await schedule_service.get_queue(doctor_id)
-    return QueueListResponse(entries=[_queue_response(e) for e in entries], total=len(entries))
+    enriched = await schedule_service.enrich_queue_entries(entries)
+    return QueueListResponse(
+        entries=[
+            _queue_response(
+                item["entry"],
+                zone_names=item.get("zone_names"),
+                patient_code_carte=item.get("patient_code_carte"),
+                patient_telephone=item.get("patient_telephone"),
+            )
+            for item in enriched
+        ],
+        total=len(entries),
+    )
 
 
 @router.get("/queue/display", response_model=QueueDisplayResponse, tags=["queue"])
@@ -127,7 +150,7 @@ async def get_display_queue(
 @router.put("/queue/{entry_id}/call", response_model=QueueEntryResponse, tags=["queue"])
 async def call_patient(
     entry_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("queue.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     entry = await schedule_service.call_patient(entry_id, caller_user_id=current_user.get("id"))
@@ -137,7 +160,7 @@ async def call_patient(
 @router.put("/queue/{entry_id}/complete", response_model=QueueEntryResponse, tags=["queue"])
 async def complete_patient(
     entry_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("queue.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     entry = await schedule_service.complete_patient(entry_id)
@@ -147,7 +170,7 @@ async def complete_patient(
 @router.put("/queue/{entry_id}/no-show", response_model=QueueEntryResponse, tags=["queue"])
 async def mark_no_show(
     entry_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("queue.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     entry = await schedule_service.mark_no_show(entry_id)
@@ -157,7 +180,7 @@ async def mark_no_show(
 @router.put("/queue/{entry_id}/left", response_model=QueueEntryResponse, tags=["queue"])
 async def mark_left(
     entry_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("queue.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     entry = await schedule_service.mark_left(entry_id)
@@ -195,7 +218,7 @@ async def queue_events(
 @router.post("/manual", response_model=ScheduleEntryResponse, status_code=status.HTTP_201_CREATED)
 async def create_manual_entry(
     request: ManualScheduleEntryCreate,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("schedule.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     """Create a manual schedule entry (walk-in patient)."""
@@ -203,20 +226,23 @@ async def create_manual_entry(
         entry_date=request.date,
         patient_nom=request.patient_nom,
         patient_prenom=request.patient_prenom,
+        patient_id=request.patient_id,
         doctor_name=request.doctor_name or "",
         doctor_id=request.doctor_id,
         start_time=request.start_time,
         end_time=request.end_time,
         duration_type=request.duration_type,
+        zone_ids=request.zone_ids if request.zone_ids else None,
         notes=request.notes,
     )
-    return _schedule_response(entry)
+    zone_warnings = getattr(entry, "_zone_warnings", [])
+    return _schedule_response(entry, zone_warnings=zone_warnings)
 
 
 @router.put("/queue/{entry_id}/reassign", response_model=QueueEntryResponse, tags=["queue"])
 async def reassign_patient(
     entry_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("queue.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
     doctor_id: str = Query(..., description="New doctor ID"),
 ):
@@ -233,7 +259,7 @@ async def reassign_patient(
 
 @router.get("/absences", response_model=AbsenceListResponse, tags=["absences"])
 async def get_absences(
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("schedule.view"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
     patient_id: str | None = Query(None, description="Filtrer par patient"),
 ):
@@ -257,7 +283,7 @@ async def get_absences(
 @router.put("/{entry_id}/no-show", response_model=ScheduleEntryResponse)
 async def mark_schedule_no_show(
     entry_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("schedule.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     """Mark a schedule entry as no-show directly (without check-in)."""
@@ -275,7 +301,7 @@ async def mark_schedule_no_show(
 @router.get("/{target_date}", response_model=ScheduleListResponse)
 async def get_schedule(
     target_date: date,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("schedule.view"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     entries = await schedule_service.get_schedule(target_date)
@@ -289,7 +315,7 @@ async def get_schedule(
 @router.post("/{entry_id}/check-in", response_model=QueueEntryResponse | CheckInConflictResponse)
 async def check_in_patient(
     entry_id: str,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("schedule.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     result = await schedule_service.check_in(entry_id)
@@ -302,7 +328,7 @@ async def check_in_patient(
 @router.post("/resolve-conflict", response_model=QueueEntryResponse)
 async def resolve_check_in_conflict(
     request: ResolveConflictRequest,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("schedule.manage"))],
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     """Resolve a check-in conflict by selecting existing patient or creating new."""

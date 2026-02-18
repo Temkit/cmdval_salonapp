@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel
 
-from src.api.v1.dependencies import CurrentUser, DbSession, get_patient_service
+from src.api.v1.dependencies import CurrentUser, DbSession, get_patient_service, require_permission
 from src.application.services.patient_service import PatientService
 from src.application.services.pdf_service import PDFService
 from src.application.services.qr_service import QRService
@@ -60,7 +60,7 @@ async def _get_template_content(db: AsyncSession, document_type: str) -> dict | 
 @router.get("/patients/{patient_id}/documents/consent")
 async def get_consent_form(
     patient_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.view"))],
     db: DbSession,
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ):
@@ -89,7 +89,7 @@ async def get_consent_form(
 @router.get("/patients/{patient_id}/documents/rules")
 async def get_clinic_rules(
     patient_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.view"))],
     db: DbSession,
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ):
@@ -116,7 +116,7 @@ async def get_clinic_rules(
 @router.get("/patients/{patient_id}/documents/precautions")
 async def get_precautions(
     patient_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.view"))],
     db: DbSession,
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ):
@@ -145,7 +145,7 @@ async def get_precautions(
 @router.get("/patients/{patient_id}/qr-code")
 async def get_patient_qr_code(
     patient_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.view"))],
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
 ):
     """Generate and return a QR code PNG containing the patient's card code."""
@@ -182,7 +182,7 @@ class TemplateUpdateRequest(BaseModel):
 
 @router.get("/templates")
 async def list_templates(
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     db: DbSession,
 ):
     """List all document templates with customization status."""
@@ -207,7 +207,7 @@ async def list_templates(
 @router.get("/templates/{document_type}")
 async def get_template(
     document_type: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     db: DbSession,
 ):
     """Get a single document template content."""
@@ -238,7 +238,7 @@ async def get_template(
 async def update_template(
     document_type: str,
     body: TemplateUpdateRequest,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     db: DbSession,
 ):
     """Update or create a custom document template."""
@@ -281,7 +281,7 @@ async def update_template(
 @router.delete("/templates/{document_type}", status_code=status.HTTP_204_NO_CONTENT)
 async def reset_template(
     document_type: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("config.manage"))],
     db: DbSession,
 ):
     """Reset a document template to defaults by deleting the custom version."""
@@ -321,7 +321,7 @@ def _cleanup_old_temp_photos(max_age_hours: int = 24) -> None:
 
 @router.post("/temp-photo", status_code=status.HTTP_201_CREATED)
 async def upload_temp_photo(
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.manage"))],
     photo: UploadFile = File(...),
 ):
     """Upload a temporary photo. Returns ID and URL for retrieval."""
@@ -354,7 +354,7 @@ async def upload_temp_photo(
 @router.get("/temp-photo/{photo_id}")
 async def get_temp_photo(
     photo_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.view"))],
 ):
     """Serve a temporary photo by ID."""
     if not os.path.exists(TEMP_PHOTOS_DIR):
@@ -371,7 +371,7 @@ async def get_temp_photo(
 @router.delete("/temp-photo/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_temp_photo(
     photo_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.manage"))],
 ):
     """Delete a temporary photo."""
     if not os.path.exists(TEMP_PHOTOS_DIR):
@@ -389,7 +389,7 @@ async def delete_temp_photo(
 @router.post("/patients/{patient_id}/uploads", status_code=status.HTTP_201_CREATED)
 async def upload_patient_document(
     patient_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.manage"))],
     db: DbSession,
     patient_service: Annotated[PatientService, Depends(get_patient_service)],
     file: UploadFile = File(...),
@@ -454,7 +454,7 @@ async def upload_patient_document(
 @router.get("/patients/{patient_id}/uploads")
 async def list_patient_documents(
     patient_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.view"))],
     db: DbSession,
 ):
     """List all uploaded documents for a patient."""
@@ -484,7 +484,7 @@ async def list_patient_documents(
 @router.get("/uploads/{doc_id}/file")
 async def serve_patient_document(
     doc_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.view"))],
     db: DbSession,
 ):
     """Serve an uploaded patient document file."""
@@ -508,7 +508,7 @@ async def serve_patient_document(
 @router.delete("/uploads/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_patient_document(
     doc_id: str,
-    _current_user: CurrentUser,
+    _current_user: Annotated[dict, Depends(require_permission("documents.manage"))],
     db: DbSession,
 ):
     """Delete an uploaded patient document."""

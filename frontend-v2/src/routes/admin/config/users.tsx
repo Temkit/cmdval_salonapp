@@ -78,6 +78,7 @@ function AdminUsersPage() {
         nom: form.nom,
         prenom: form.prenom,
         role_id: form.role_id,
+        ...(form.password ? { password: form.password } : {}),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -230,26 +231,25 @@ function AdminUsersPage() {
             className="space-y-4"
           >
             {!editingUser && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nom d'utilisateur</Label>
-                  <Input
-                    required
-                    value={form.username}
-                    onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Mot de passe</Label>
-                  <Input
-                    type="password"
-                    required
-                    value={form.password}
-                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Nom d'utilisateur</Label>
+                <Input
+                  required
+                  value={form.username}
+                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                />
               </div>
             )}
+            <div className="space-y-2">
+              <Label>{editingUser ? "Nouveau mot de passe" : "Mot de passe"}</Label>
+              <Input
+                type="password"
+                required={!editingUser}
+                placeholder={editingUser ? "Laisser vide pour ne pas changer" : ""}
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Prenom</Label>

@@ -109,7 +109,7 @@ async def delete_box(
 @router.post("/assign", response_model=BoxAssignmentResponse)
 async def assign_box(
     request: BoxAssignRequest,
-    current_user: CurrentUser,
+    current_user: Annotated[dict, Depends(require_permission("boxes.assign"))],
     box_service: Annotated[BoxService, Depends(get_box_service)],
 ):
     """Assign current user to a box."""

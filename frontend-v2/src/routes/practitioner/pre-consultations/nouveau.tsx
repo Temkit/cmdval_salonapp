@@ -18,14 +18,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { PatientWorkflowStepper } from "@/components/patient-workflow";
 import type { Patient, QuestionnaireResponseInput } from "@/types";
 
-export const Route = createFileRoute("/secretary/pre-consultations/nouveau")({
-  component: SecretaryPreConsultationNouveau,
+export const Route = createFileRoute("/practitioner/pre-consultations/nouveau")({
+  component: PractitionerPreConsultationNouveau,
 });
 
-const TOTAL_STEPS = 8; // Added questionnaire step
+const TOTAL_STEPS = 8;
 
 const PHOTOTYPES = ["I", "II", "III", "IV", "V", "VI"];
 const MARITAL_STATUSES = [
@@ -33,7 +32,6 @@ const MARITAL_STATUSES = [
   { value: "marie", label: "Marie(e)" },
 ];
 
-// Backend expects these exact English values
 const HAIR_REMOVAL_METHODS = [
   { value: "razor", label: "Rasoir" },
   { value: "wax", label: "Cire" },
@@ -45,7 +43,6 @@ const HAIR_REMOVAL_METHODS = [
   { value: "laser", label: "Laser" },
 ];
 
-// Backend expects these exact English keys
 const MEDICAL_CONDITIONS = [
   { key: "epilepsy", label: "Epilepsie" },
   { key: "pcos", label: "SOPK" },
@@ -72,25 +69,24 @@ interface FormZone {
   observations: string;
 }
 
-function SecretaryPreConsultationNouveau() {
+function PractitionerPreConsultationNouveau() {
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(window.location.search);
-  const fromWorkflow = searchParams.get("from") === "nouveau-patient";
   const editId = searchParams.get("edit");
-  const editPatientId = searchParams.get("patient_id");
+  const patientIdParam = searchParams.get("patient_id");
   const isEditMode = !!editId;
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [step, setStep] = useState(isEditMode ? 1 : 0);
+  const [step, setStep] = useState(isEditMode || patientIdParam ? 1 : 0);
   const [editLoaded, setEditLoaded] = useState(false);
+  const [patientParamLoaded, setPatientParamLoaded] = useState(false);
 
   // Step 0 - Patient
   const [patientSearch, setPatientSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [newPatient, setNewPatient] = useState({ prenom: "", nom: "", telephone: "", code_carte: "" });
-  // When coming from "nouveau patient" workflow, skip search and go straight to create form
-  const [creatingNew, setCreatingNew] = useState(fromWorkflow);
+  const [creatingNew, setCreatingNew] = useState(false);
 
   // Step 1 - Demographics
   const [sexe, setSexe] = useState<"F" | "M">("F");
@@ -177,6 +173,21 @@ function SecretaryPreConsultationNouveau() {
     }
     setEditLoaded(true);
   }, [editData]);
+
+  // Fetch patient from URL param (when redirected from queue)
+  const { data: paramPatientData } = useQuery({
+    queryKey: ["patient", patientIdParam],
+    queryFn: () => api.getPatient(patientIdParam!),
+    enabled: !!patientIdParam && !patientParamLoaded && !isEditMode,
+  });
+
+  useEffect(() => {
+    if (!paramPatientData || patientParamLoaded) return;
+    setSelectedPatient(paramPatientData);
+    if (paramPatientData.sexe) setSexe(paramPatientData.sexe);
+    if (paramPatientData.date_naissance) setDateNaissance(paramPatientData.date_naissance);
+    setPatientParamLoaded(true);
+  }, [paramPatientData, patientParamLoaded]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(patientSearch), 300);
@@ -273,14 +284,16 @@ function SecretaryPreConsultationNouveau() {
         await api.updatePreConsultationQuestionnaire(result.id, responses);
       }
 
+      // Complete the pre-consultation (single step - no submit/validate)
+      await api.completePreConsultation(result.id);
+
       return result;
     },
     onSuccess: (result: { id: string }) => {
       queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
       queryClient.invalidateQueries({ queryKey: ["pre-consultation", editId] });
-      toast({ title: isEditMode ? "Pre-consultation mise a jour" : "Pre-consultation creee", description: isEditMode ? undefined : "Soumettez-la pour validation." });
-      const url = `/secretary/pre-consultations/${result.id}${fromWorkflow ? "?from=nouveau-patient" : ""}`;
-      navigate({ to: url });
+      toast({ title: isEditMode ? "Pre-consultation mise a jour" : "Pre-consultation creee" });
+      navigate({ to: `/practitioner/pre-consultations/${result.id}` });
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: err.message });
@@ -312,9 +325,8 @@ function SecretaryPreConsultationNouveau() {
     switch (step) {
       case 0: return !!selectedPatient;
       case 1: return !!dateNaissance;
-      case 6: return true; // All zones auto-loaded
+      case 6: return true;
       case 7: {
-        // Check if all required questions are answered
         const requiredQuestions = activeQuestions.filter((q) => q.obligatoire);
         return requiredQuestions.every((q) => {
           const response = questionnaireResponses[q.id];
@@ -350,7 +362,7 @@ function SecretaryPreConsultationNouveau() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="icon-sm">
-          <Link to={fromWorkflow ? "/secretary/patients/nouveau" : "/secretary/pre-consultations"}>
+          <Link to="/practitioner/pre-consultations">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -359,9 +371,6 @@ function SecretaryPreConsultationNouveau() {
           <p className="text-sm text-muted-foreground">Etape {step + 1} sur {TOTAL_STEPS}</p>
         </div>
       </div>
-
-      {/* Workflow stepper */}
-      {fromWorkflow && <PatientWorkflowStepper current="preconsult" />}
 
       {/* Step dots */}
       <div className="flex gap-1.5 justify-center">
@@ -380,14 +389,7 @@ function SecretaryPreConsultationNouveau() {
       {step === 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              {fromWorkflow ? "Nouveau patient" : "Patient"}
-            </CardTitle>
-            {fromWorkflow && !selectedPatient && (
-              <p className="text-sm text-muted-foreground">
-                Saisissez les informations du nouveau patient
-              </p>
-            )}
+            <CardTitle className="text-base">Patient</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {selectedPatient ? (
@@ -399,11 +401,9 @@ function SecretaryPreConsultationNouveau() {
                     {selectedPatient.code_carte && ` · ${selectedPatient.code_carte}`}
                   </p>
                 </div>
-                {!fromWorkflow && (
-                  <Button variant="outline" size="sm" onClick={() => setSelectedPatient(null)}>
-                    Changer
-                  </Button>
-                )}
+                <Button variant="outline" size="sm" onClick={() => setSelectedPatient(null)}>
+                  Changer
+                </Button>
               </div>
             ) : creatingNew ? (
               <div className="space-y-3">
@@ -414,7 +414,6 @@ function SecretaryPreConsultationNouveau() {
                       value={newPatient.prenom}
                       onChange={(e) => setNewPatient((p) => ({ ...p, prenom: e.target.value }))}
                       placeholder="Prenom"
-                      autoFocus={fromWorkflow}
                     />
                   </div>
                   <div className="space-y-1">
@@ -445,14 +444,11 @@ function SecretaryPreConsultationNouveau() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {!fromWorkflow && (
-                    <Button variant="outline" size="sm" onClick={() => setCreatingNew(false)}>
-                      Annuler
-                    </Button>
-                  )}
+                  <Button variant="outline" size="sm" onClick={() => setCreatingNew(false)}>
+                    Annuler
+                  </Button>
                   <Button
                     size="sm"
-                    className={fromWorkflow ? "w-full" : ""}
                     disabled={!newPatient.prenom || !newPatient.nom || createPatientMutation.isPending}
                     onClick={() => createPatientMutation.mutate()}
                   >
@@ -862,7 +858,6 @@ function SecretaryPreConsultationNouveau() {
                     {question.obligatoire && <span className="text-destructive">*</span>}
                   </Label>
 
-                  {/* Boolean question */}
                   {question.type_reponse === "boolean" && (
                     <div className="flex gap-2">
                       <Button
@@ -884,7 +879,6 @@ function SecretaryPreConsultationNouveau() {
                     </div>
                   )}
 
-                  {/* Text question */}
                   {question.type_reponse === "text" && (
                     <Textarea
                       value={(questionnaireResponses[question.id] as string) || ""}
@@ -894,7 +888,6 @@ function SecretaryPreConsultationNouveau() {
                     />
                   )}
 
-                  {/* Number question */}
                   {question.type_reponse === "number" && (
                     <Input
                       type="number"
@@ -904,7 +897,6 @@ function SecretaryPreConsultationNouveau() {
                     />
                   )}
 
-                  {/* Single choice question */}
                   {question.type_reponse === "choice" && question.options && (
                     <div className="flex flex-wrap gap-2">
                       {question.options.map((option) => (
@@ -921,7 +913,6 @@ function SecretaryPreConsultationNouveau() {
                     </div>
                   )}
 
-                  {/* Multiple choice question */}
                   {question.type_reponse === "multiple" && question.options && (
                     <div className="space-y-2">
                       {question.options.map((option) => {
@@ -975,7 +966,7 @@ function SecretaryPreConsultationNouveau() {
             onClick={() => submitMutation.mutate()}
             disabled={!canNext() || submitMutation.isPending}
           >
-            {submitMutation.isPending ? (isEditMode ? "Mise a jour..." : "Creation...") : (isEditMode ? "Enregistrer les modifications" : "Creer la pre-consultation")}
+            {submitMutation.isPending ? (isEditMode ? "Mise a jour..." : "Enregistrement...") : (isEditMode ? "Enregistrer les modifications" : "Terminer la pre-consultation")}
             <Check className="h-4 w-4 ml-2" />
           </Button>
         )}

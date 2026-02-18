@@ -68,7 +68,7 @@ function AdminQueuePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuthStore();
+  const { user, hasPermission } = useAuthStore();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [reassignEntry, setReassignEntry] = useState<QueueEntry | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
@@ -107,13 +107,13 @@ function AdminQueuePage() {
             description: "Veuillez creer une pre-consultation pour ce patient.",
           });
           navigate({ to: "/secretary/pre-consultations" as string });
-        } else if (preConsult.status !== "validated") {
+        } else if (preConsult.status !== "completed") {
           toast({
-            title: "Pre-consultation en attente",
+            title: "Pre-consultation en cours",
             description:
-              "Veuillez la valider avant de demarrer la seance.",
+              "Veuillez la terminer avant de demarrer la seance.",
           });
-          navigate({ to: "/secretary/pre-consultations" as string });
+          navigate({ to: "/admin/pre-consultations" as string });
         } else {
           navigate({
             to: "/admin/patients/$id" as string,
@@ -411,6 +411,7 @@ function AdminQueuePage() {
                           </div>
 
                           {/* Actions */}
+                          {hasPermission("queue.manage") && (
                           <div className="flex gap-1 shrink-0">
                             {canReassign && isWaiting && (
                               <Button
@@ -467,6 +468,7 @@ function AdminQueuePage() {
                               </Button>
                             )}
                           </div>
+                          )}
                         </div>
                       );
                     })}
