@@ -149,17 +149,10 @@ function PractitionerHomePage() {
           });
           navigate({
             to: "/practitioner/pre-consultations/nouveau" as string,
-            search: { patient_id: entry.patient_id },
-          });
-        } else if (preConsult.status !== "completed") {
-          toast({
-            title: "Pre-consultation en cours",
-            description: "Veuillez la terminer avant de demarrer la seance.",
-          });
-          navigate({
-            to: `/practitioner/pre-consultations/${preConsult.id}` as string,
+            search: { patient_id: entry.patient_id, queueEntryId: entry.id },
           });
         } else {
+          // Pre-consultation exists — proceed to seance
           toast({ title: "Patient appele" });
           navigate({
             to: "/practitioner/seance/$patientId",

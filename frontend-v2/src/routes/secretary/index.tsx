@@ -502,7 +502,7 @@ function SecretaryQueuePage() {
                                 Parti
                               </Button>
                             )}
-                            {(entry.status === "done" || entry.status === "completed") && entry.patient_id && (
+                            {(entry.status === "done" || entry.status === "completed" || entry.status === "left") && entry.patient_id && (
                               <Button
                                 size="sm"
                                 variant="outline"

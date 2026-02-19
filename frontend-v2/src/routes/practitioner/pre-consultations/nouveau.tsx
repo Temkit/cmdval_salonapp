@@ -74,6 +74,7 @@ function PractitionerPreConsultationNouveau() {
   const searchParams = new URLSearchParams(window.location.search);
   const editId = searchParams.get("edit");
   const patientIdParam = searchParams.get("patient_id");
+  const queueEntryId = searchParams.get("queueEntryId");
   const isEditMode = !!editId;
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -284,16 +285,27 @@ function PractitionerPreConsultationNouveau() {
         await api.updatePreConsultationQuestionnaire(result.id, responses);
       }
 
-      // Complete the pre-consultation (single step - no submit/validate)
-      await api.completePreConsultation(result.id);
-
       return result;
     },
-    onSuccess: (result: { id: string }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
       queryClient.invalidateQueries({ queryKey: ["pre-consultation", editId] });
       toast({ title: isEditMode ? "Pre-consultation mise a jour" : "Pre-consultation creee" });
-      navigate({ to: `/practitioner/pre-consultations/${result.id}` });
+      // Continue to seance if coming from queue, otherwise go to list
+      if (selectedPatient?.id && queueEntryId) {
+        navigate({
+          to: "/practitioner/seance/$patientId",
+          params: { patientId: selectedPatient.id },
+          search: { queueEntryId },
+        });
+      } else if (selectedPatient?.id) {
+        navigate({
+          to: "/practitioner/seance/$patientId",
+          params: { patientId: selectedPatient.id },
+        });
+      } else {
+        navigate({ to: "/practitioner/pre-consultations" });
+      }
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Erreur", description: err.message });

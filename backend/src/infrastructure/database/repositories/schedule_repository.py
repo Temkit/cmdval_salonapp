@@ -151,7 +151,7 @@ class WaitingQueueRepository:
 
     async def find_active(self, doctor_id: str | None = None) -> list[WaitingQueueEntry]:
         query = select(WaitingQueueModel).where(
-            WaitingQueueModel.status.in_(["waiting", "in_treatment"])
+            WaitingQueueModel.status.in_(["waiting", "in_treatment", "done", "left"])
         )
         if doctor_id:
             query = query.where(
