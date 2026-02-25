@@ -604,7 +604,7 @@ class DailyScheduleModel(Base):
     doctor_name: Mapped[str] = mapped_column(String(100), nullable=False)
     doctor_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     specialite: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    duration_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    duration_type: Mapped[str | None] = mapped_column(Text, nullable=True)
     start_time: Mapped[datetime] = mapped_column(Time, nullable=False)
     end_time: Mapped[datetime | None] = mapped_column(Time, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

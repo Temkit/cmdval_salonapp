@@ -22,13 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -102,6 +95,11 @@ function AdminAgendaPage() {
   const [patientZones, setPatientZones] = useState<PatientZone[]>([]);
   const [patientMode, setPatientMode] = useState<"existing" | "new">("existing");
   const [newPatientPhone, setNewPatientPhone] = useState("");
+  const [doctorSearch, setDoctorSearch] = useState("");
+  const [showDoctorResults, setShowDoctorResults] = useState(false);
+  const [doctorMode, setDoctorMode] = useState<"select" | "create">("select");
+  const [newDoctorForm, setNewDoctorForm] = useState({ prenom: "", nom: "", username: "", password: "" });
+  const [creatingDoctor, setCreatingDoctor] = useState(false);
 
   const dateStr = formatDateForApi(selectedDate);
   const isToday = dateStr === formatDateForApi(new Date());
@@ -109,6 +107,11 @@ function AdminAgendaPage() {
   const { data: usersData } = useQuery({
     queryKey: ["users"],
     queryFn: () => api.getUsers(),
+  });
+
+  const { data: rolesData } = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => api.getRoles(),
   });
 
   const { data: zonesData } = useQuery({
@@ -125,6 +128,14 @@ function AdminAgendaPage() {
         /praticien|medecin|médecin/i.test(u.role_nom),
     );
   }, [usersData]);
+
+  const filteredDoctors = useMemo(() => {
+    if (!doctorSearch) return doctors;
+    const q = doctorSearch.toLowerCase();
+    return doctors.filter(
+      (d) => `${d.prenom} ${d.nom}`.toLowerCase().includes(q)
+    );
+  }, [doctors, doctorSearch]);
 
   const zones = useMemo(() => {
     if (!zonesData?.zones) return [];
@@ -196,6 +207,45 @@ function AdminAgendaPage() {
     setPatientZones([]);
     setPatientResults([]);
   }, []);
+
+  const selectDoctor = useCallback((doctor: (typeof doctors)[0]) => {
+    setAddForm((f) => ({ ...f, doctor_id: doctor.id }));
+    setDoctorSearch(`${doctor.prenom} ${doctor.nom}`);
+    setShowDoctorResults(false);
+  }, []);
+
+  const clearSelectedDoctor = useCallback(() => {
+    setAddForm((f) => ({ ...f, doctor_id: "" }));
+    setDoctorSearch("");
+  }, []);
+
+  const handleCreateDoctor = useCallback(async () => {
+    const medecinRole = rolesData?.roles.find((r) => /praticien|medecin|médecin/i.test(r.nom));
+    if (!medecinRole) {
+      toast({ variant: "destructive", title: "Erreur", description: "Role medecin introuvable" });
+      return;
+    }
+    setCreatingDoctor(true);
+    try {
+      const newUser = await api.createUser({
+        prenom: newDoctorForm.prenom,
+        nom: newDoctorForm.nom,
+        username: newDoctorForm.username,
+        password: newDoctorForm.password,
+        role_id: medecinRole.id,
+      });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setAddForm((f) => ({ ...f, doctor_id: newUser.id }));
+      setDoctorSearch(`${newUser.prenom} ${newUser.nom}`);
+      setDoctorMode("select");
+      setNewDoctorForm({ prenom: "", nom: "", username: "", password: "" });
+      toast({ title: "Medecin cree" });
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Erreur", description: err instanceof Error ? err.message : "Erreur inconnue" });
+    } finally {
+      setCreatingDoctor(false);
+    }
+  }, [newDoctorForm, rolesData, queryClient, toast]);
 
   const {
     data: scheduleData,
@@ -277,7 +327,7 @@ function AdminAgendaPage() {
         doctor_id: data.doctor_id || undefined,
         doctor_name: doctor
           ? `${doctor.prenom} ${doctor.nom}`
-          : undefined,
+          : doctorSearch || undefined,
         start_time: data.start_time,
         zone_ids:
           data.selected_zone_ids.length > 0
@@ -310,6 +360,9 @@ function AdminAgendaPage() {
       setPatientZones([]);
       setPatientMode("existing");
       setNewPatientPhone("");
+      setDoctorSearch("");
+      setDoctorMode("select");
+      setNewDoctorForm({ prenom: "", nom: "", username: "", password: "" });
       if (patientMode === "new") {
         queryClient.invalidateQueries({ queryKey: ["patients"] });
       }
@@ -605,7 +658,7 @@ function AdminAgendaPage() {
       </Card>
 
       {/* Add manual entry dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) { setPatientMode("existing"); setNewPatientPhone(""); } }}>
+      <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) { setPatientMode("existing"); setNewPatientPhone(""); setDoctorSearch(""); setDoctorMode("select"); setNewDoctorForm({ prenom: "", nom: "", username: "", password: "" }); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ajouter un rendez-vous</DialogTitle>
@@ -739,37 +792,126 @@ function AdminAgendaPage() {
                 </div>
               )}
             </div>
+            {/* Doctor creation form - shown above grid when creating */}
+            {doctorMode === "create" && (
+              <div className="space-y-3 border rounded-md p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Nouveau medecin</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setDoctorMode("select")}>
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="Prenom" value={newDoctorForm.prenom} onChange={(e) => setNewDoctorForm((f) => ({ ...f, prenom: e.target.value }))} />
+                  <Input placeholder="Nom" value={newDoctorForm.nom} onChange={(e) => setNewDoctorForm((f) => ({ ...f, nom: e.target.value }))} />
+                </div>
+                <Input placeholder="Email" type="email" value={newDoctorForm.username} onChange={(e) => setNewDoctorForm((f) => ({ ...f, username: e.target.value }))} />
+                <Input placeholder="Mot de passe" type="password" value={newDoctorForm.password} onChange={(e) => setNewDoctorForm((f) => ({ ...f, password: e.target.value }))} />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full"
+                  disabled={creatingDoctor || !newDoctorForm.prenom || !newDoctorForm.nom || !newDoctorForm.username || !newDoctorForm.password}
+                  onClick={handleCreateDoctor}
+                >
+                  {creatingDoctor ? "Creation..." : "Creer le medecin"}
+                </Button>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Medecin</Label>
-                <Select
-                  value={addForm.doctor_id}
-                  onValueChange={(v) =>
-                    setAddForm((f) => ({ ...f, doctor_id: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selectionner un medecin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {doctors.map((doctor) => (
-                      <SelectItem key={doctor.id} value={doctor.id}>
-                        {doctor.prenom} {doctor.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="relative">
+                  <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher un medecin..."
+                    value={doctorSearch}
+                    onChange={(e) => {
+                      setDoctorSearch(e.target.value);
+                      setShowDoctorResults(true);
+                      if (addForm.doctor_id) setAddForm((f) => ({ ...f, doctor_id: "" }));
+                    }}
+                    onFocus={() => setShowDoctorResults(true)}
+                    onBlur={() => setTimeout(() => setShowDoctorResults(false), 200)}
+                    className="pl-9"
+                  />
+                  {addForm.doctor_id && (
+                    <button
+                      type="button"
+                      onClick={clearSelectedDoctor}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  )}
+                  {showDoctorResults && !addForm.doctor_id && (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto">
+                      {filteredDoctors.length > 0 ? (
+                        filteredDoctors.map((d) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => selectDoctor(d)}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted text-sm"
+                          >
+                            <Stethoscope className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="font-medium">{d.prenom} {d.nom}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-3 text-sm text-muted-foreground text-center">Aucun medecin trouve</div>
+                      )}
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { setDoctorMode("create"); setShowDoctorResults(false); }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted text-sm border-t text-primary"
+                      >
+                        <Plus className="h-4 w-4 shrink-0" />
+                        <span className="font-medium">Creer un nouveau medecin</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {addForm.doctor_id && (
+                  <Badge variant="success" className="gap-1">
+                    <Check className="h-3 w-3" />
+                    {doctorSearch}
+                  </Badge>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Heure debut</Label>
-                <Input
-                  type="time"
-                  required
-                  value={addForm.start_time}
-                  onChange={(e) =>
-                    setAddForm((f) => ({ ...f, start_time: e.target.value }))
-                  }
-                />
+                <div className="flex items-center gap-1">
+                  <select
+                    className="flex h-10 w-[70px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={addForm.start_time?.split(":")[0] ?? ""}
+                    onChange={(e) => {
+                      const mm = addForm.start_time?.split(":")[1] ?? "00";
+                      setAddForm((f) => ({ ...f, start_time: `${e.target.value}:${mm}` }));
+                    }}
+                  >
+                    <option value="" disabled>HH</option>
+                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                  <span className="text-lg font-bold">:</span>
+                  <select
+                    className="flex h-10 w-[70px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={addForm.start_time?.split(":")[1] ?? ""}
+                    onChange={(e) => {
+                      const hh = addForm.start_time?.split(":")[0] ?? "08";
+                      setAddForm((f) => ({ ...f, start_time: `${hh}:${e.target.value}` }));
+                    }}
+                  >
+                    <option value="" disabled>MM</option>
+                    {["00", "15", "30", "45"].map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
             <div className="space-y-2">

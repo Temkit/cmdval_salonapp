@@ -149,7 +149,7 @@ function PractitionerHomePage() {
           });
           navigate({
             to: "/practitioner/pre-consultations/nouveau" as string,
-            search: { patient_id: entry.patient_id, queueEntryId: entry.id },
+            search: { queueEntryId: entry.id, patient_id: entry.patient_id } as Record<string, string>,
           });
         } else {
           // Pre-consultation exists — proceed to seance

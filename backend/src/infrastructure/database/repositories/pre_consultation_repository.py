@@ -101,6 +101,8 @@ class PreConsultationRepository:
                     PreConsultationZoneModel.zone
                 ),
                 selectinload(PreConsultationModel.patient),
+                selectinload(PreConsultationModel.creator),
+                selectinload(PreConsultationModel.validator),
             )
             .where(PreConsultationModel.patient_id == patient_id)
             .order_by(PreConsultationModel.created_at.desc())

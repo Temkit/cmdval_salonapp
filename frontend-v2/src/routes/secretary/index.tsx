@@ -406,7 +406,7 @@ function SecretaryQueuePage() {
                             <p className="text-xs text-muted-foreground">
                               {entry.heure || entry.time || ""}
                               {entry.checked_in_at &&
-                                ` - Arrive a ${new Date(entry.checked_in_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                                ` - Arrive a ${new Date(entry.checked_in_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", hour12: false })}`}
                               {entry.patient_telephone && ` · ${entry.patient_telephone}`}
                             </p>
                             {entry.zone_names && entry.zone_names.length > 0 && (

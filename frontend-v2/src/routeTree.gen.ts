@@ -37,7 +37,6 @@ import { Route as AdminSessionsIndexRouteImport } from './routes/admin/sessions/
 import { Route as AdminPreConsultationsIndexRouteImport } from './routes/admin/pre-consultations/index'
 import { Route as AdminPatientsIndexRouteImport } from './routes/admin/patients/index'
 import { Route as SecretarySessionsIdRouteImport } from './routes/secretary/sessions/$id'
-import { Route as SecretaryPreConsultationsNouveauRouteImport } from './routes/secretary/pre-consultations/nouveau'
 import { Route as SecretaryPreConsultationsIdRouteImport } from './routes/secretary/pre-consultations/$id'
 import { Route as SecretaryPatientsNouveauRouteImport } from './routes/secretary/patients/nouveau'
 import { Route as SecretaryPatientsIdRouteImport } from './routes/secretary/patients/$id'
@@ -46,7 +45,6 @@ import { Route as PractitionerSeancePatientIdRouteImport } from './routes/practi
 import { Route as PractitionerPreConsultationsNouveauRouteImport } from './routes/practitioner/pre-consultations/nouveau'
 import { Route as PractitionerPreConsultationsIdRouteImport } from './routes/practitioner/pre-consultations/$id'
 import { Route as AdminSessionsIdRouteImport } from './routes/admin/sessions/$id'
-import { Route as AdminPreConsultationsNouveauRouteImport } from './routes/admin/pre-consultations/nouveau'
 import { Route as AdminPreConsultationsIdRouteImport } from './routes/admin/pre-consultations/$id'
 import { Route as AdminPatientsNouveauRouteImport } from './routes/admin/patients/nouveau'
 import { Route as AdminPatientsIdRouteImport } from './routes/admin/patients/$id'
@@ -203,12 +201,6 @@ const SecretarySessionsIdRoute = SecretarySessionsIdRouteImport.update({
   path: '/sessions/$id',
   getParentRoute: () => SecretaryRoute,
 } as any)
-const SecretaryPreConsultationsNouveauRoute =
-  SecretaryPreConsultationsNouveauRouteImport.update({
-    id: '/pre-consultations/nouveau',
-    path: '/pre-consultations/nouveau',
-    getParentRoute: () => SecretaryRoute,
-  } as any)
 const SecretaryPreConsultationsIdRoute =
   SecretaryPreConsultationsIdRouteImport.update({
     id: '/pre-consultations/$id',
@@ -254,12 +246,6 @@ const AdminSessionsIdRoute = AdminSessionsIdRouteImport.update({
   path: '/sessions/$id',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminPreConsultationsNouveauRoute =
-  AdminPreConsultationsNouveauRouteImport.update({
-    id: '/pre-consultations/nouveau',
-    path: '/pre-consultations/nouveau',
-    getParentRoute: () => AdminRoute,
-  } as any)
 const AdminPreConsultationsIdRoute = AdminPreConsultationsIdRouteImport.update({
   id: '/pre-consultations/$id',
   path: '/pre-consultations/$id',
@@ -355,7 +341,6 @@ export interface FileRoutesByFullPath {
   '/admin/patients/$id': typeof AdminPatientsIdRoute
   '/admin/patients/nouveau': typeof AdminPatientsNouveauRoute
   '/admin/pre-consultations/$id': typeof AdminPreConsultationsIdRoute
-  '/admin/pre-consultations/nouveau': typeof AdminPreConsultationsNouveauRoute
   '/admin/sessions/$id': typeof AdminSessionsIdRoute
   '/practitioner/pre-consultations/$id': typeof PractitionerPreConsultationsIdRoute
   '/practitioner/pre-consultations/nouveau': typeof PractitionerPreConsultationsNouveauRoute
@@ -364,7 +349,6 @@ export interface FileRoutesByFullPath {
   '/secretary/patients/$id': typeof SecretaryPatientsIdRoute
   '/secretary/patients/nouveau': typeof SecretaryPatientsNouveauRoute
   '/secretary/pre-consultations/$id': typeof SecretaryPreConsultationsIdRoute
-  '/secretary/pre-consultations/nouveau': typeof SecretaryPreConsultationsNouveauRoute
   '/secretary/sessions/$id': typeof SecretarySessionsIdRoute
   '/admin/patients/': typeof AdminPatientsIndexRoute
   '/admin/pre-consultations/': typeof AdminPreConsultationsIndexRoute
@@ -404,7 +388,6 @@ export interface FileRoutesByTo {
   '/admin/patients/$id': typeof AdminPatientsIdRoute
   '/admin/patients/nouveau': typeof AdminPatientsNouveauRoute
   '/admin/pre-consultations/$id': typeof AdminPreConsultationsIdRoute
-  '/admin/pre-consultations/nouveau': typeof AdminPreConsultationsNouveauRoute
   '/admin/sessions/$id': typeof AdminSessionsIdRoute
   '/practitioner/pre-consultations/$id': typeof PractitionerPreConsultationsIdRoute
   '/practitioner/pre-consultations/nouveau': typeof PractitionerPreConsultationsNouveauRoute
@@ -413,7 +396,6 @@ export interface FileRoutesByTo {
   '/secretary/patients/$id': typeof SecretaryPatientsIdRoute
   '/secretary/patients/nouveau': typeof SecretaryPatientsNouveauRoute
   '/secretary/pre-consultations/$id': typeof SecretaryPreConsultationsIdRoute
-  '/secretary/pre-consultations/nouveau': typeof SecretaryPreConsultationsNouveauRoute
   '/secretary/sessions/$id': typeof SecretarySessionsIdRoute
   '/admin/patients': typeof AdminPatientsIndexRoute
   '/admin/pre-consultations': typeof AdminPreConsultationsIndexRoute
@@ -457,7 +439,6 @@ export interface FileRoutesById {
   '/admin/patients/$id': typeof AdminPatientsIdRoute
   '/admin/patients/nouveau': typeof AdminPatientsNouveauRoute
   '/admin/pre-consultations/$id': typeof AdminPreConsultationsIdRoute
-  '/admin/pre-consultations/nouveau': typeof AdminPreConsultationsNouveauRoute
   '/admin/sessions/$id': typeof AdminSessionsIdRoute
   '/practitioner/pre-consultations/$id': typeof PractitionerPreConsultationsIdRoute
   '/practitioner/pre-consultations/nouveau': typeof PractitionerPreConsultationsNouveauRoute
@@ -466,7 +447,6 @@ export interface FileRoutesById {
   '/secretary/patients/$id': typeof SecretaryPatientsIdRoute
   '/secretary/patients/nouveau': typeof SecretaryPatientsNouveauRoute
   '/secretary/pre-consultations/$id': typeof SecretaryPreConsultationsIdRoute
-  '/secretary/pre-consultations/nouveau': typeof SecretaryPreConsultationsNouveauRoute
   '/secretary/sessions/$id': typeof SecretarySessionsIdRoute
   '/admin/patients/': typeof AdminPatientsIndexRoute
   '/admin/pre-consultations/': typeof AdminPreConsultationsIndexRoute
@@ -511,7 +491,6 @@ export interface FileRouteTypes {
     | '/admin/patients/$id'
     | '/admin/patients/nouveau'
     | '/admin/pre-consultations/$id'
-    | '/admin/pre-consultations/nouveau'
     | '/admin/sessions/$id'
     | '/practitioner/pre-consultations/$id'
     | '/practitioner/pre-consultations/nouveau'
@@ -520,7 +499,6 @@ export interface FileRouteTypes {
     | '/secretary/patients/$id'
     | '/secretary/patients/nouveau'
     | '/secretary/pre-consultations/$id'
-    | '/secretary/pre-consultations/nouveau'
     | '/secretary/sessions/$id'
     | '/admin/patients/'
     | '/admin/pre-consultations/'
@@ -560,7 +538,6 @@ export interface FileRouteTypes {
     | '/admin/patients/$id'
     | '/admin/patients/nouveau'
     | '/admin/pre-consultations/$id'
-    | '/admin/pre-consultations/nouveau'
     | '/admin/sessions/$id'
     | '/practitioner/pre-consultations/$id'
     | '/practitioner/pre-consultations/nouveau'
@@ -569,7 +546,6 @@ export interface FileRouteTypes {
     | '/secretary/patients/$id'
     | '/secretary/patients/nouveau'
     | '/secretary/pre-consultations/$id'
-    | '/secretary/pre-consultations/nouveau'
     | '/secretary/sessions/$id'
     | '/admin/patients'
     | '/admin/pre-consultations'
@@ -612,7 +588,6 @@ export interface FileRouteTypes {
     | '/admin/patients/$id'
     | '/admin/patients/nouveau'
     | '/admin/pre-consultations/$id'
-    | '/admin/pre-consultations/nouveau'
     | '/admin/sessions/$id'
     | '/practitioner/pre-consultations/$id'
     | '/practitioner/pre-consultations/nouveau'
@@ -621,7 +596,6 @@ export interface FileRouteTypes {
     | '/secretary/patients/$id'
     | '/secretary/patients/nouveau'
     | '/secretary/pre-consultations/$id'
-    | '/secretary/pre-consultations/nouveau'
     | '/secretary/sessions/$id'
     | '/admin/patients/'
     | '/admin/pre-consultations/'
@@ -839,13 +813,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SecretarySessionsIdRouteImport
       parentRoute: typeof SecretaryRoute
     }
-    '/secretary/pre-consultations/nouveau': {
-      id: '/secretary/pre-consultations/nouveau'
-      path: '/pre-consultations/nouveau'
-      fullPath: '/secretary/pre-consultations/nouveau'
-      preLoaderRoute: typeof SecretaryPreConsultationsNouveauRouteImport
-      parentRoute: typeof SecretaryRoute
-    }
     '/secretary/pre-consultations/$id': {
       id: '/secretary/pre-consultations/$id'
       path: '/pre-consultations/$id'
@@ -900,13 +867,6 @@ declare module '@tanstack/react-router' {
       path: '/sessions/$id'
       fullPath: '/admin/sessions/$id'
       preLoaderRoute: typeof AdminSessionsIdRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/pre-consultations/nouveau': {
-      id: '/admin/pre-consultations/nouveau'
-      path: '/pre-consultations/nouveau'
-      fullPath: '/admin/pre-consultations/nouveau'
-      preLoaderRoute: typeof AdminPreConsultationsNouveauRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/pre-consultations/$id': {
@@ -1014,7 +974,6 @@ interface AdminRouteChildren {
   AdminPatientsIdRoute: typeof AdminPatientsIdRoute
   AdminPatientsNouveauRoute: typeof AdminPatientsNouveauRoute
   AdminPreConsultationsIdRoute: typeof AdminPreConsultationsIdRoute
-  AdminPreConsultationsNouveauRoute: typeof AdminPreConsultationsNouveauRoute
   AdminSessionsIdRoute: typeof AdminSessionsIdRoute
   AdminPatientsIndexRoute: typeof AdminPatientsIndexRoute
   AdminPreConsultationsIndexRoute: typeof AdminPreConsultationsIndexRoute
@@ -1039,7 +998,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPatientsIdRoute: AdminPatientsIdRoute,
   AdminPatientsNouveauRoute: AdminPatientsNouveauRoute,
   AdminPreConsultationsIdRoute: AdminPreConsultationsIdRoute,
-  AdminPreConsultationsNouveauRoute: AdminPreConsultationsNouveauRoute,
   AdminSessionsIdRoute: AdminSessionsIdRoute,
   AdminPatientsIndexRoute: AdminPatientsIndexRoute,
   AdminPreConsultationsIndexRoute: AdminPreConsultationsIndexRoute,
@@ -1088,7 +1046,6 @@ interface SecretaryRouteChildren {
   SecretaryPatientsIdRoute: typeof SecretaryPatientsIdRoute
   SecretaryPatientsNouveauRoute: typeof SecretaryPatientsNouveauRoute
   SecretaryPreConsultationsIdRoute: typeof SecretaryPreConsultationsIdRoute
-  SecretaryPreConsultationsNouveauRoute: typeof SecretaryPreConsultationsNouveauRoute
   SecretarySessionsIdRoute: typeof SecretarySessionsIdRoute
   SecretaryPatientsIndexRoute: typeof SecretaryPatientsIndexRoute
   SecretaryPreConsultationsIndexRoute: typeof SecretaryPreConsultationsIndexRoute
@@ -1103,7 +1060,6 @@ const SecretaryRouteChildren: SecretaryRouteChildren = {
   SecretaryPatientsIdRoute: SecretaryPatientsIdRoute,
   SecretaryPatientsNouveauRoute: SecretaryPatientsNouveauRoute,
   SecretaryPreConsultationsIdRoute: SecretaryPreConsultationsIdRoute,
-  SecretaryPreConsultationsNouveauRoute: SecretaryPreConsultationsNouveauRoute,
   SecretarySessionsIdRoute: SecretarySessionsIdRoute,
   SecretaryPatientsIndexRoute: SecretaryPatientsIndexRoute,
   SecretaryPreConsultationsIndexRoute: SecretaryPreConsultationsIndexRoute,
