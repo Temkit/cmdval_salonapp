@@ -15,7 +15,10 @@ class PackBase(AppBaseModel):
     description: str | None = None
     zone_ids: list[str] = Field(default_factory=list)
     duree_jours: int | None = Field(default=None, ge=1)
+    duree_mois: int | None = Field(default=None, ge=1)
     seances_per_zone: int = Field(default=6, ge=1, le=50)
+    zones_illimitees: bool = False
+    seances_illimitees: bool = False
 
 
 class PackCreate(PackBase):
@@ -32,7 +35,10 @@ class PackUpdate(AppBaseModel):
     description: str | None = None
     zone_ids: list[str] | None = None
     duree_jours: int | None = Field(default=None, ge=1)
+    duree_mois: int | None = Field(default=None, ge=1)
     seances_per_zone: int | None = Field(default=None, ge=1, le=50)
+    zones_illimitees: bool | None = None
+    seances_illimitees: bool | None = None
     is_active: bool | None = None
 
 
@@ -54,7 +60,7 @@ class PackListResponse(AppBaseModel):
 class PatientSubscriptionCreate(AppBaseModel):
     """Patient subscription creation schema."""
 
-    type: str = Field(pattern=r"^(gold|pack|seance)$")
+    type: str = Field(pattern=r"^(pack|seance)$")
     pack_id: str | None = None
     montant_paye: int = Field(default=0, ge=0)
     notes: str | None = None

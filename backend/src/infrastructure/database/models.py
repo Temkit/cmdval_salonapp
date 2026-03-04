@@ -451,7 +451,10 @@ class PackModel(Base):
     zone_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     prix: Mapped[int] = mapped_column(Integer, nullable=False)
     duree_jours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duree_mois: Mapped[int | None] = mapped_column(Integer, nullable=True)
     seances_per_zone: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
+    zones_illimitees: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    seances_illimitees: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: _utcnow())
     updated_at: Mapped[datetime] = mapped_column(
@@ -472,7 +475,7 @@ class PatientSubscriptionModel(Base):
         String(36), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False
     )
     pack_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("packs.id"), nullable=True)
-    type: Mapped[str] = mapped_column(String(20), nullable=False)  # gold, pack, seance
+    type: Mapped[str] = mapped_column(String(20), nullable=False)  # pack, seance
     date_debut: Mapped[date | None] = mapped_column(Date, nullable=True)
     date_fin: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

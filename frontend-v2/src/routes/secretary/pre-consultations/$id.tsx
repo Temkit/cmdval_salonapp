@@ -3,24 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
   Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/secretary/pre-consultations/$id")({
   component: SecretaryPreConsultationDetail,
 });
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "muted" | "warning" | "success" | "destructive"; icon: typeof Clock }> = {
-  in_progress: { label: "En cours", variant: "warning", icon: Clock },
-  completed: { label: "Terminee", variant: "success", icon: CheckCircle },
-  rejected: { label: "Rejetee", variant: "destructive", icon: XCircle },
 };
 
 function SecretaryPreConsultationDetail() {
@@ -57,7 +51,7 @@ function SecretaryPreConsultationDetail() {
     );
   }
 
-  const status = STATUS_CONFIG[pc.status] ?? STATUS_CONFIG.in_progress!;
+  const status = STATUS_CONFIG[pc.status] ?? { label: pc.status, variant: "muted" as const, icon: Clock };
   const eligibleZones = pc.zones?.filter((z) => z.is_eligible) ?? [];
   const ineligibleZones = pc.zones?.filter((z) => !z.is_eligible) ?? [];
 
@@ -226,22 +220,6 @@ function SecretaryPreConsultationDetail() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
           <CardContent><p className="text-sm">{pc.notes}</p></CardContent>
-        </Card>
-      )}
-
-      {/* Rejection reason */}
-      {pc.status === "rejected" && pc.rejection_reason && (
-        <Card className="border-destructive/30 bg-destructive/5">
-          <CardContent className="p-4">
-            <p className="text-sm font-medium text-destructive">Raison du rejet</p>
-            <p className="text-sm mt-1">{pc.rejection_reason}</p>
-            {pc.validated_at && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Rejete le {formatDate(pc.validated_at)}
-                {pc.validated_by_name && ` par ${pc.validated_by_name}`}
-              </p>
-            )}
-          </CardContent>
         </Card>
       )}
 

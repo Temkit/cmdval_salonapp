@@ -11,7 +11,7 @@ class PaiementCreate(AppBaseModel):
     """Paiement creation schema."""
 
     patient_id: str
-    montant: int = Field(ge=0)
+    montant: float = Field(ge=0)
     type: str = Field(pattern=r"^(encaissement|prise_en_charge|hors_carte)$")
     subscription_id: str | None = None
     session_id: str | None = None

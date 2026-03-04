@@ -14,6 +14,9 @@ import {
   Check,
   XCircle,
   Search,
+  Pencil,
+  Trash2,
+  Download,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -100,6 +103,17 @@ function SecretaryAgendaPage() {
   const [doctorMode, setDoctorMode] = useState<"select" | "create">("select");
   const [newDoctorForm, setNewDoctorForm] = useState({ prenom: "", nom: "", username: "", password: "" });
   const [creatingDoctor, setCreatingDoctor] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    doctor_id: "",
+    doctor_name: "",
+    start_time: "",
+    end_time: "",
+    duration_type: "",
+    selected_zone_ids: [] as string[],
+    notes: "",
+  });
 
   const dateStr = formatDateForApi(selectedDate);
   const isToday = dateStr === formatDateForApi(new Date());
@@ -283,7 +297,25 @@ function SecretaryAgendaPage() {
     mutationFn: (entryId: string) => api.markScheduleNoShow(entryId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["absences"] });
       toast({ title: "Patient marque absent" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message,
+      });
+    },
+  });
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const deleteMutation = useMutation({
+    mutationFn: (entryId: string) => api.deleteScheduleEntry(entryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
+      toast({ title: "Rendez-vous supprime" });
+      setDeleteConfirmId(null);
     },
     onError: (error: Error) => {
       toast({
@@ -378,10 +410,88 @@ function SecretaryAgendaPage() {
     },
   });
 
+  const editEntryMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingEntry) return;
+      const doctor = doctors.find((u) => u.id === editForm.doctor_id);
+      const selectedZones = zones.filter((z) => editForm.selected_zone_ids.includes(z.id));
+      const minutes = selectedZones.reduce((sum, z) => sum + (z.duree_minutes || 0), 0);
+      const durationStr = selectedZones.length > 0
+        ? `${selectedZones.map((z) => z.nom).join(", ")} (${minutes}min)`
+        : editForm.duration_type || undefined;
+      return api.updateScheduleEntry(editingEntry.id, {
+        doctor_id: editForm.doctor_id || null,
+        doctor_name: doctor ? `${doctor.prenom} ${doctor.nom}` : editForm.doctor_name || null,
+        zone_ids: editForm.selected_zone_ids.length > 0 ? editForm.selected_zone_ids : null,
+        duration_type: durationStr || null,
+        start_time: editForm.start_time || null,
+        end_time: editForm.end_time || null,
+        notes: editForm.notes || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedule", dateStr] });
+      toast({ title: "Rendez-vous modifie" });
+      setEditDialogOpen(false);
+      setEditingEntry(null);
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Erreur", description: error.message });
+    },
+  });
+
+  const openEditDialog = (entry: any) => {
+    setEditingEntry(entry);
+    setEditForm({
+      doctor_id: entry.doctor_id || "",
+      doctor_name: entry.doctor_name || "",
+      start_time: entry.start_time || "",
+      end_time: entry.end_time || "",
+      duration_type: entry.duration_type || "",
+      selected_zone_ids: entry.zone_ids || [],
+      notes: entry.notes || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const editTotalMinutes = useMemo(() => {
+    return zones
+      .filter((z) => editForm.selected_zone_ids.includes(z.id))
+      .reduce((sum, z) => sum + (z.duree_minutes || 0), 0);
+  }, [zones, editForm.selected_zone_ids]);
+
+  const toggleEditZone = (zoneId: string) => {
+    setEditForm((f) => ({
+      ...f,
+      selected_zone_ids: f.selected_zone_ids.includes(zoneId)
+        ? f.selected_zone_ids.filter((id) => id !== zoneId)
+        : [...f.selected_zone_ids, zoneId],
+    }));
+  };
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (val) {
       setSelectedDate(new Date(val + "T00:00:00"));
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await fetch(`/api/v1/schedule/export?target_date=${dateStr}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "agenda_export.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export telecharge" });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Erreur export", description: (err as Error).message });
     }
   };
 
@@ -444,6 +554,10 @@ function SecretaryAgendaPage() {
               className="hidden"
               onChange={handleFileUpload}
             />
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" />
+              Exporter
+            </Button>
             <Button
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
@@ -613,31 +727,73 @@ function SecretaryAgendaPage() {
                           </Badge>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          {entry.status === "expected" && hasPermission("schedule.manage") && (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                size="sm"
-                                onClick={() =>
-                                  checkInMutation.mutate(entry.id)
-                                }
-                                disabled={checkInMutation.isPending}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Check-in
-                              </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            {hasPermission("schedule.manage") && (
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() =>
-                                  noShowMutation.mutate(entry.id)
-                                }
-                                disabled={noShowMutation.isPending}
-                                title="Marquer absent"
+                                onClick={() => openEditDialog(entry)}
+                                title="Modifier"
                               >
-                                <XCircle className="h-4 w-4 text-destructive" />
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                            </div>
-                          )}
+                            )}
+                            {hasPermission("schedule.manage") && (
+                              deleteConfirmId === entry.id ? (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => deleteMutation.mutate(entry.id)}
+                                    disabled={deleteMutation.isPending}
+                                  >
+                                    Confirmer
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setDeleteConfirmId(null)}
+                                  >
+                                    Annuler
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setDeleteConfirmId(entry.id)}
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )
+                            )}
+                            {entry.status === "expected" && hasPermission("schedule.manage") && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    checkInMutation.mutate(entry.id)
+                                  }
+                                  disabled={checkInMutation.isPending}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Check-in
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    noShowMutation.mutate(entry.id)
+                                  }
+                                  disabled={noShowMutation.isPending}
+                                  title="Marquer absent"
+                                >
+                                  <XCircle className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -900,19 +1056,28 @@ function SecretaryAgendaPage() {
                     ))}
                   </select>
                   <span className="text-lg font-bold">:</span>
-                  <select
-                    className="flex h-10 w-[70px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    placeholder="MM"
+                    className="flex h-10 w-[70px] rounded-md border border-input bg-background px-3 py-2 text-sm text-center ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={addForm.start_time?.split(":")[1] ?? ""}
                     onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 2);
+                      const num = parseInt(val, 10);
+                      const mm = val === "" ? "" : (num > 59 ? "59" : val.padStart(2, "0"));
                       const hh = addForm.start_time?.split(":")[0] ?? "08";
-                      setAddForm((f) => ({ ...f, start_time: `${hh}:${e.target.value}` }));
+                      setAddForm((f) => ({ ...f, start_time: `${hh}:${mm}` }));
                     }}
-                  >
-                    <option value="" disabled>MM</option>
-                    {["00", "15", "30", "45"].map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
+                    onBlur={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      if (val && val.length === 1) {
+                        const hh = addForm.start_time?.split(":")[0] ?? "08";
+                        setAddForm((f) => ({ ...f, start_time: `${hh}:${val.padStart(2, "0")}` }));
+                      }
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -1052,6 +1217,70 @@ function SecretaryAgendaPage() {
               Compris
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit schedule entry dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le rendez-vous</DialogTitle>
+          </DialogHeader>
+          {editingEntry && (
+            <form onSubmit={(e) => { e.preventDefault(); editEntryMutation.mutate(); }} className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Patient: <strong>{editingEntry.patient_prenom} {editingEntry.patient_nom}</strong>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Praticien</Label>
+                <select
+                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background"
+                  value={editForm.doctor_id}
+                  onChange={(e) => setEditForm((f) => ({ ...f, doctor_id: e.target.value }))}
+                >
+                  <option value="">Non assigne</option>
+                  {doctors.map((d) => (
+                    <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Heure debut</Label>
+                  <Input type="time" value={editForm.start_time} onChange={(e) => setEditForm((f) => ({ ...f, start_time: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Heure fin</Label>
+                  <Input type="time" value={editForm.end_time} onChange={(e) => setEditForm((f) => ({ ...f, end_time: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Zones ({editTotalMinutes > 0 ? `${editTotalMinutes} min` : "aucune"})</Label>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                  {zones.map((z) => (
+                    <button key={z.id} type="button" onClick={() => toggleEditZone(z.id)}
+                      className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${editForm.selected_zone_ids.includes(z.id) ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}
+                    >{z.nom} ({z.duree_minutes}min)</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Input value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} />
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>Annuler</Button>
+                <Button type="submit" disabled={editEntryMutation.isPending}>
+                  {editEntryMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

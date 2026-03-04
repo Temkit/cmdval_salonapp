@@ -248,13 +248,16 @@ export interface Pack {
   zone_ids: string[];
   prix: number;
   duree_jours: number | null;
+  duree_mois: number | null;
   seances_per_zone: number;
+  zones_illimitees: boolean;
+  seances_illimitees: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export type SubscriptionType = "gold" | "pack" | "seance";
+export type SubscriptionType = "pack" | "seance";
 
 export interface PatientSubscription {
   id: string;
@@ -519,7 +522,10 @@ export interface CreatePackRequest {
   zone_ids: string[];
   prix: number;
   duree_jours?: number | null;
+  duree_mois?: number | null;
   seances_per_zone: number;
+  zones_illimitees?: boolean;
+  seances_illimitees?: boolean;
 }
 
 export interface UpdatePackRequest extends Partial<CreatePackRequest> {
@@ -600,7 +606,7 @@ export interface AddPreConsultationZoneRequest {
 
 export interface QuestionnaireResponseInput {
   question_id: string;
-  reponse: string | boolean | string[];
+  reponse: string | boolean | string[] | { value: boolean; comment: string };
 }
 
 

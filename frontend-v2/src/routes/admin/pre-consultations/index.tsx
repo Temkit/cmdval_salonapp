@@ -8,15 +8,15 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-  CheckCircle,
   Clock,
-  AlertCircle,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
@@ -30,15 +30,13 @@ const statusConfig: Record<
   {
     label: string;
     variant: "muted" | "info" | "warning" | "success" | "destructive";
-    icon: typeof CheckCircle;
+    icon: typeof Clock;
   }
 > = {
-  in_progress: { label: "En cours", variant: "info", icon: Clock },
-  completed: { label: "Terminee", variant: "success", icon: CheckCircle },
-  rejected: { label: "Rejetee", variant: "destructive", icon: AlertCircle },
 };
 
 function AdminPreConsultationsPage() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -66,10 +64,26 @@ function AdminPreConsultationsPage() {
 
   const statusFilters = [
     { value: "", label: "Toutes" },
-    { value: "in_progress", label: "En cours" },
-    { value: "completed", label: "Terminees" },
-    { value: "rejected", label: "Rejetees" },
   ];
+
+  const handleExport = async () => {
+    try {
+      const res = await fetch("/api/v1/pre-consultations/export", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pre-consultations_export.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export telecharge" });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Erreur export", description: (err as Error).message });
+    }
+  };
 
   return (
     <div className="page-container space-y-4 sm:space-y-6">
@@ -83,6 +97,10 @@ function AdminPreConsultationsPage() {
               : "Gerez les pre-consultations"}
           </p>
         </div>
+        <Button variant="outline" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-2" />
+          Exporter
+        </Button>
       </div>
 
       {/* Filters */}
@@ -164,7 +182,7 @@ function AdminPreConsultationsPage() {
       ) : data?.items?.length ? (
         <div className="space-y-3">
           {data.items.map((pc) => {
-            const status = statusConfig[pc.status] ?? { label: "En cours", variant: "info" as const, icon: Clock };
+            const status = statusConfig[pc.status] ?? { label: pc.status, variant: "muted" as const, icon: Clock };
             const StatusIcon = status.icon;
             return (
               <Link

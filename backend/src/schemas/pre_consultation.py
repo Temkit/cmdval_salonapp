@@ -262,12 +262,6 @@ class PreConsultationListResponse(AppBaseModel):
     updated_at: datetime
 
 
-class PreConsultationRejectRequest(AppBaseModel):
-    """Request schema for rejecting pre-consultation."""
-
-    reason: str = Field(min_length=1, max_length=1000)
-
-
 class PreConsultationPaginatedResponse(AppBaseModel):
     """Paginated response for pre-consultations."""
 

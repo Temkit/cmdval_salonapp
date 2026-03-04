@@ -8,9 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-  CheckCircle,
   Clock,
-  AlertCircle,
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,12 +28,9 @@ const statusConfig: Record<
   {
     label: string;
     variant: "muted" | "info" | "warning" | "success" | "destructive";
-    icon: typeof CheckCircle;
+    icon: typeof Clock;
   }
 > = {
-  in_progress: { label: "En cours", variant: "warning", icon: Clock },
-  completed: { label: "Terminee", variant: "success", icon: CheckCircle },
-  rejected: { label: "Rejetee", variant: "destructive", icon: AlertCircle },
 };
 
 function PractitionerPreConsultationsPage() {
@@ -66,8 +61,6 @@ function PractitionerPreConsultationsPage() {
 
   const statusFilters = [
     { value: "", label: "Toutes" },
-    { value: "in_progress", label: "En cours" },
-    { value: "completed", label: "Terminees" },
   ];
 
   return (

@@ -14,14 +14,17 @@ class Pack:
     description: str | None = None
     zone_ids: list[str] = field(default_factory=list)
     duree_jours: int | None = None
+    duree_mois: int | None = None
     seances_per_zone: int = 6
+    zones_illimitees: bool = False
+    seances_illimitees: bool = False
     is_active: bool = True
     id: str = field(default_factory=lambda: str(uuid4()))
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
 
-SUBSCRIPTION_TYPES = ["gold", "pack", "seance"]
+SUBSCRIPTION_TYPES = ["pack", "seance"]
 
 
 @dataclass
@@ -29,7 +32,7 @@ class PatientSubscription:
     """Patient subscription to a pack or payment plan."""
 
     patient_id: str
-    type: str  # gold, pack, seance
+    type: str  # pack, seance
     pack_id: str | None = None
     date_debut: date | None = None
     date_fin: date | None = None

@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, redirect } from "@tanstack/react-router"
 import { useAuthStore } from "@/stores/auth-store";
 import { useQueueEvents } from "@/hooks/use-queue-events";
 import { useState } from "react";
-import { Users, LogOut, DoorOpen, KeyRound, Search, Activity, FileText } from "lucide-react";
+import { Users, LogOut, DoorOpen, KeyRound, Search, Activity, FileText, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
@@ -26,6 +26,7 @@ export const Route = createFileRoute("/practitioner")({
 
 const practitionerNav: Array<{ to: string; label: string; icon: typeof Users; permission: string }> = [
   { to: "/practitioner", label: "File d'attente", icon: Users, permission: "queue.view" },
+  { to: "/practitioner/agenda", label: "Feuille de passage", icon: Calendar, permission: "schedule.view" },
   { to: "/practitioner/mes-patients", label: "Mes patients", icon: Search, permission: "patients.view" },
   { to: "/practitioner/mes-seances", label: "Mes seances", icon: Activity, permission: "sessions.view" },
   { to: "/practitioner/pre-consultations", label: "Pre-consult.", icon: FileText, permission: "pre_consultations.view" },

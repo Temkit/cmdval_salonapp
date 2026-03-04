@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from src.domain.entities.pre_consultation import PreConsultation, PreConsultationZone
 from src.domain.exceptions import NotFoundError, ValidationError
 from src.infrastructure.database.repositories import (
@@ -164,9 +162,9 @@ class PreConsultationService:
         """Delete pre-consultation."""
         pre_consultation = await self.get_by_id(pre_consultation_id)
 
-        # Only allow deletion in in_progress or rejected status
-        if pre_consultation.status not in ("in_progress", "rejected"):
-            raise ValidationError("Can only delete pre-consultations in in_progress or rejected status")
+        # Only allow deletion in in_progress status
+        if pre_consultation.status != "in_progress":
+            raise ValidationError("Can only delete pre-consultations in in_progress status")
 
         return await self.pre_consultation_repo.delete(pre_consultation_id)
 
@@ -224,55 +222,6 @@ class PreConsultationService:
             raise ValidationError("Can only modify zones in in_progress status")
 
         return await self.pre_consultation_repo.delete_zone(pre_consultation_id, zone_id)
-
-    async def complete(self, pre_consultation_id: str, completed_by: str) -> PreConsultation:
-        """Complete pre-consultation and activate patient."""
-        from src.domain.entities.patient import PATIENT_STATUS_ACTIF
-
-        pre_consultation = await self.get_by_id(pre_consultation_id)
-
-        if pre_consultation.status != "in_progress":
-            raise ValidationError("Can only complete pre-consultations in in_progress status")
-
-        # Update pre-consultation status
-        pre_consultation.status = "completed"
-        pre_consultation.validated_by = completed_by
-        pre_consultation.validated_at = datetime.now(UTC).replace(tzinfo=None)
-        result = await self.pre_consultation_repo.update(pre_consultation)
-
-        # Update patient status to active
-        patient = await self.patient_repo.find_by_id(pre_consultation.patient_id)
-        if patient:
-            patient.status = PATIENT_STATUS_ACTIF
-            await self.patient_repo.update(patient)
-
-        return result
-
-    async def reject(
-        self, pre_consultation_id: str, reason: str, rejected_by: str
-    ) -> PreConsultation:
-        """Reject pre-consultation and mark patient as ineligible."""
-        from src.domain.entities.patient import PATIENT_STATUS_INELIGIBLE
-
-        pre_consultation = await self.get_by_id(pre_consultation_id)
-
-        if pre_consultation.status != "in_progress":
-            raise ValidationError("Can only reject pre-consultations in in_progress status")
-
-        # Update pre-consultation status
-        pre_consultation.status = "rejected"
-        pre_consultation.rejection_reason = reason
-        pre_consultation.validated_by = rejected_by
-        pre_consultation.validated_at = datetime.now(UTC).replace(tzinfo=None)
-        result = await self.pre_consultation_repo.update(pre_consultation)
-
-        # Update patient status to ineligible
-        patient = await self.patient_repo.find_by_id(pre_consultation.patient_id)
-        if patient:
-            patient.status = PATIENT_STATUS_INELIGIBLE
-            await self.patient_repo.update(patient)
-
-        return result
 
     async def count_by_status(self, status: str) -> int:
         """Count pre-consultations by status."""

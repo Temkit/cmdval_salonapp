@@ -1,11 +1,14 @@
 """Schedule and waiting queue endpoints."""
 
 import asyncio
+import csv
+import io
 import json
 from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from src.api.v1.dependencies import CurrentUser, get_schedule_service, require_permission
@@ -23,6 +26,7 @@ from src.schemas.schedule import (
     QueueListResponse,
     ResolveConflictRequest,
     ScheduleEntryResponse,
+    ScheduleEntryUpdate,
     ScheduleListResponse,
     ScheduleUploadResponse,
 )
@@ -45,6 +49,7 @@ def _schedule_response(e, zone_warnings: list[str] | None = None) -> ScheduleEnt
         start_time=e.start_time,
         end_time=e.end_time,
         notes=e.notes,
+        zone_ids=e.zone_ids or [],
         status=e.status,
         created_at=e.created_at,
         zone_warnings=zone_warnings or [],
@@ -122,6 +127,9 @@ async def get_queue(
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
     doctor_id: str | None = None,
 ):
+    # Practitioners can only see their own queue
+    if current_user.get("role") == "Praticien":
+        doctor_id = current_user["id"]
     entries = await schedule_service.get_queue(doctor_id)
     enriched = await schedule_service.enrich_queue_entries(entries)
     return QueueListResponse(
@@ -263,21 +271,119 @@ async def get_absences(
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
     patient_id: str | None = Query(None, description="Filtrer par patient"),
 ):
-    """Get no-show/absence records."""
-    entries = await schedule_service.get_absences(patient_id)
+    """Get no-show/absence records (from both queue and schedule)."""
+    records = await schedule_service.get_absences(patient_id)
     absences = [
         AbsenceRecordResponse(
-            id=e.id,
-            patient_id=e.patient_id,
-            patient_name=e.patient_name,
-            date=e.checked_in_at.date() if e.checked_in_at else date.today(),
-            schedule_id=e.schedule_id,
-            doctor_name=e.doctor_name,
-            created_at=e.created_at,
+            id=r["id"],
+            patient_id=r.get("patient_id"),
+            patient_name=r["patient_name"],
+            date=r["date"],
+            schedule_id=r.get("schedule_id"),
+            doctor_name=r["doctor_name"],
+            created_at=r["created_at"],
         )
-        for e in entries
+        for r in records
     ]
     return AbsenceListResponse(absences=absences, total=len(absences))
+
+
+@router.get("/export")
+async def export_schedule_csv(
+    current_user: Annotated[dict, Depends(require_permission("schedule.view"))],
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+    target_date: date | None = None,
+):
+    """Export schedule entries as CSV."""
+    from_date = target_date or date.today()
+    entries = await schedule_service.get_schedule(from_date)
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Date", "Heure", "Patient", "Medecin", "Duree", "Zones", "Statut", "Notes"])
+    for e in entries:
+        writer.writerow([
+            e.date.strftime("%d/%m/%Y") if e.date else "",
+            e.start_time.strftime("%H:%M") if e.start_time else "",
+            f"{e.patient_prenom} {e.patient_nom}".strip(),
+            e.doctor_name or "",
+            e.duration_type or "",
+            ", ".join(e.zone_ids) if e.zone_ids else "",
+            e.status or "",
+            e.notes or "",
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=agenda_export.csv"},
+    )
+
+
+@router.get("/absences/export")
+async def export_absences_csv(
+    current_user: Annotated[dict, Depends(require_permission("schedule.view"))],
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+):
+    """Export absence records as CSV."""
+    records = await schedule_service.get_absences()
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Date", "Patient", "Medecin"])
+    for r in records:
+        writer.writerow([
+            r["date"].strftime("%d/%m/%Y") if hasattr(r["date"], "strftime") else str(r["date"]),
+            r["patient_name"],
+            r["doctor_name"] or "",
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=absences_export.csv"},
+    )
+
+
+@router.put("/{entry_id}", response_model=ScheduleEntryResponse)
+async def update_schedule_entry(
+    entry_id: str,
+    data: ScheduleEntryUpdate,
+    current_user: Annotated[dict, Depends(require_permission("schedule.manage"))],
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+):
+    """Update a schedule entry (doctor, zones, duration, times)."""
+    try:
+        entry = await schedule_service.update_schedule_entry(
+            entry_id=entry_id,
+            doctor_id=data.doctor_id,
+            doctor_name=data.doctor_name,
+            zone_ids=data.zone_ids,
+            duration_type=data.duration_type,
+            start_time=data.start_time,
+            end_time=data.end_time,
+            notes=data.notes,
+        )
+        return _schedule_response(entry)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_schedule_entry(
+    entry_id: str,
+    current_user: Annotated[dict, Depends(require_permission("schedule.manage"))],
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+):
+    """Delete a schedule entry."""
+    try:
+        await schedule_service.delete_schedule_entry(entry_id)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 @router.put("/{entry_id}/no-show", response_model=ScheduleEntryResponse)

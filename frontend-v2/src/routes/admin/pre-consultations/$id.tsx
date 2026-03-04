@@ -4,36 +4,21 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
   Clock,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/pre-consultations/$id")({
   component: AdminPreConsultationDetail,
 });
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "muted" | "warning" | "success" | "destructive"; icon: typeof Clock }> = {
-  in_progress: { label: "En cours", variant: "warning", icon: Clock },
-  completed: { label: "Terminee", variant: "success", icon: CheckCircle },
-  rejected: { label: "Rejetee", variant: "destructive", icon: XCircle },
 };
 
 function AdminPreConsultationDetail() {
@@ -42,24 +27,11 @@ function AdminPreConsultationDetail() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: pc, isLoading, isError, error } = useQuery({
     queryKey: ["pre-consultation", id],
     queryFn: () => api.getPreConsultation(id),
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: () => api.rejectPreConsultation(id, rejectReason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pre-consultation", id] });
-      queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
-      toast({ title: "Pre-consultation rejetee" });
-      setRejectOpen(false);
-    },
-    onError: (err: Error) => toast({ variant: "destructive", title: "Erreur", description: err.message }),
   });
 
   const deleteMutation = useMutation({
@@ -98,7 +70,7 @@ function AdminPreConsultationDetail() {
     );
   }
 
-  const status = STATUS_CONFIG[pc.status] ?? STATUS_CONFIG.in_progress!;
+  const status = STATUS_CONFIG[pc.status] ?? { label: pc.status, variant: "muted" as const, icon: Clock };
   const eligibleZones = pc.zones?.filter((z) => z.is_eligible) ?? [];
   const ineligibleZones = pc.zones?.filter((z) => !z.is_eligible) ?? [];
 
@@ -270,38 +242,14 @@ function AdminPreConsultationDetail() {
         </Card>
       )}
 
-      {/* Rejection reason */}
-      {pc.status === "rejected" && pc.rejection_reason && (
-        <Card className="border-destructive/30 bg-destructive/5">
-          <CardContent className="p-4">
-            <p className="text-sm font-medium text-destructive">Raison du rejet</p>
-            <p className="text-sm mt-1">{pc.rejection_reason}</p>
-            {pc.validated_at && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Rejete le {formatDate(pc.validated_at)}
-                {pc.validated_by_name && ` par ${pc.validated_by_name}`}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Actions */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-2">
-            {pc.status === "in_progress" && (
-              <>
-                <Button variant="destructive" size="sm" onClick={() => setRejectOpen(true)}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Refuser
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer
-                </Button>
-              </>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Supprimer
+            </Button>
             {pc.patient_id && (
               <Button asChild variant="outline" size="sm">
                 <Link to="/admin/patients/$id" params={{ id: pc.patient_id }}>
@@ -312,32 +260,6 @@ function AdminPreConsultationDetail() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Reject Dialog */}
-      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Refuser la pre-consultation</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Label>Raison du rejet</Label>
-            <Textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Expliquez la raison du rejet..."
-              rows={4}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectOpen(false)}>Annuler</Button>
-            <Button
-              variant="destructive"
-              onClick={() => rejectMutation.mutate()}
-              disabled={!rejectReason.trim() || rejectMutation.isPending}
-            >
-              {rejectMutation.isPending ? "Envoi..." : "Refuser"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Confirm */}
       <ConfirmDialog

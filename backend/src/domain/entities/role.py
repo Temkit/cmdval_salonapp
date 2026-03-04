@@ -30,7 +30,6 @@ class Permission(str, Enum):
     PRE_CONSULTATIONS_CREATE = "pre_consultations.create"
     PRE_CONSULTATIONS_EDIT = "pre_consultations.edit"
     PRE_CONSULTATIONS_DELETE = "pre_consultations.delete"
-    PRE_CONSULTATIONS_VALIDATE = "pre_consultations.validate"
 
     # Users
     USERS_VIEW = "users.view"

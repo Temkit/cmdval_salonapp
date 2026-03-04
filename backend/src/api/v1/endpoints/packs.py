@@ -11,6 +11,7 @@ from src.api.v1.dependencies import (
     require_permission,
 )
 from src.application.services.pack_service import PackService, SubscriptionService
+from src.domain.entities.pack import Pack
 from src.schemas.pack import (
     PackCreate,
     PackListResponse,
@@ -24,6 +25,24 @@ from src.schemas.pack import (
 router = APIRouter(prefix="/packs", tags=["packs"])
 
 
+def _pack_response(p: Pack) -> PackResponse:
+    return PackResponse(
+        id=p.id,
+        nom=p.nom,
+        prix=p.prix,
+        description=p.description,
+        zone_ids=p.zone_ids,
+        duree_jours=p.duree_jours,
+        duree_mois=p.duree_mois,
+        seances_per_zone=p.seances_per_zone,
+        zones_illimitees=p.zones_illimitees,
+        seances_illimitees=p.seances_illimitees,
+        is_active=p.is_active,
+        created_at=p.created_at,
+        updated_at=p.updated_at,
+    )
+
+
 @router.get("", response_model=PackListResponse)
 async def list_packs(
     current_user: Annotated[dict, Depends(require_permission("sessions.view"))],
@@ -32,23 +51,7 @@ async def list_packs(
 ):
     """List all packs."""
     packs = await pack_service.get_all_packs(include_inactive)
-    return PackListResponse(
-        packs=[
-            PackResponse(
-                id=p.id,
-                nom=p.nom,
-                prix=p.prix,
-                description=p.description,
-                zone_ids=p.zone_ids,
-                duree_jours=p.duree_jours,
-                seances_per_zone=p.seances_per_zone,
-                is_active=p.is_active,
-                created_at=p.created_at,
-                updated_at=p.updated_at,
-            )
-            for p in packs
-        ]
-    )
+    return PackListResponse(packs=[_pack_response(p) for p in packs])
 
 
 @router.post("", response_model=PackResponse, status_code=201)
@@ -64,20 +67,12 @@ async def create_pack(
         description=data.description,
         zone_ids=data.zone_ids,
         duree_jours=data.duree_jours,
+        duree_mois=data.duree_mois,
         seances_per_zone=data.seances_per_zone,
+        zones_illimitees=data.zones_illimitees,
+        seances_illimitees=data.seances_illimitees,
     )
-    return PackResponse(
-        id=pack.id,
-        nom=pack.nom,
-        prix=pack.prix,
-        description=pack.description,
-        zone_ids=pack.zone_ids,
-        duree_jours=pack.duree_jours,
-        seances_per_zone=pack.seances_per_zone,
-        is_active=pack.is_active,
-        created_at=pack.created_at,
-        updated_at=pack.updated_at,
-    )
+    return _pack_response(pack)
 
 
 @router.put("/{pack_id}", response_model=PackResponse)
@@ -89,18 +84,7 @@ async def update_pack(
 ):
     """Update a pack (admin only)."""
     pack = await pack_service.update_pack(pack_id, **data.model_dump(exclude_unset=True))
-    return PackResponse(
-        id=pack.id,
-        nom=pack.nom,
-        prix=pack.prix,
-        description=pack.description,
-        zone_ids=pack.zone_ids,
-        duree_jours=pack.duree_jours,
-        seances_per_zone=pack.seances_per_zone,
-        is_active=pack.is_active,
-        created_at=pack.created_at,
-        updated_at=pack.updated_at,
-    )
+    return _pack_response(pack)
 
 
 @router.delete("/{pack_id}")

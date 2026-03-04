@@ -3,7 +3,7 @@
 import json
 from datetime import UTC, date, datetime
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete as sa_delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.schedule import DailyScheduleEntry, WaitingQueueEntry
@@ -68,6 +68,24 @@ class ScheduleRepository:
             return self._to_entity(db)
         return None
 
+    async def update_entry(
+        self, entry_id: str, **fields
+    ) -> DailyScheduleEntry | None:
+        """Update specific fields on a schedule entry."""
+        result = await self.session.execute(
+            select(DailyScheduleModel).where(DailyScheduleModel.id == entry_id)
+        )
+        db = result.scalar_one_or_none()
+        if not db:
+            return None
+        for key, value in fields.items():
+            if key == "zone_ids":
+                db.zone_ids = json.dumps(value) if value else None
+            elif hasattr(db, key):
+                setattr(db, key, value)
+        await self.session.flush()
+        return self._to_entity(db)
+
     async def delete_by_date(self, target_date: date) -> int:
         """Delete all entries for a date (before re-upload)."""
         result = await self.session.execute(
@@ -79,6 +97,33 @@ class ScheduleRepository:
             await self.session.delete(entry)
         await self.session.flush()
         return count
+
+    async def delete_entry(self, entry_id: str) -> bool:
+        """Delete a single schedule entry by ID, including linked queue entries."""
+        result = await self.session.execute(
+            select(DailyScheduleModel).where(DailyScheduleModel.id == entry_id)
+        )
+        db = result.scalar_one_or_none()
+        if not db:
+            return False
+        # Delete linked waiting queue entries first (FK constraint) using bulk DELETE
+        await self.session.execute(
+            sa_delete(WaitingQueueModel).where(WaitingQueueModel.schedule_id == entry_id)
+        )
+        await self.session.execute(
+            sa_delete(DailyScheduleModel).where(DailyScheduleModel.id == entry_id)
+        )
+        await self.session.flush()
+        return True
+
+    async def find_no_shows(self, patient_id: str | None = None) -> list[DailyScheduleEntry]:
+        """Find schedule entries with no_show status."""
+        query = select(DailyScheduleModel).where(DailyScheduleModel.status == "no_show")
+        if patient_id:
+            query = query.where(DailyScheduleModel.patient_id == patient_id)
+        query = query.order_by(DailyScheduleModel.date.desc())
+        result = await self.session.execute(query)
+        return [self._to_entity(s) for s in result.scalars()]
 
     def _to_entity(self, model: DailyScheduleModel) -> DailyScheduleEntry:
         zone_ids = None
@@ -150,25 +195,26 @@ class WaitingQueueRepository:
         return self._to_entity(db) if db else None
 
     async def find_active(self, doctor_id: str | None = None) -> list[WaitingQueueEntry]:
+        today_start = datetime.combine(date.today(), datetime.min.time())
         query = select(WaitingQueueModel).where(
-            WaitingQueueModel.status.in_(["waiting", "in_treatment", "done", "left"])
+            WaitingQueueModel.status.in_(["waiting", "in_treatment", "done", "left"]),
+            WaitingQueueModel.checked_in_at >= today_start,
         )
         if doctor_id:
-            query = query.where(
-                or_(
-                    WaitingQueueModel.doctor_id == doctor_id,
-                    WaitingQueueModel.doctor_id.is_(None),
-                )
-            )
+            query = query.where(WaitingQueueModel.doctor_id == doctor_id)
         query = query.order_by(WaitingQueueModel.position)
         result = await self.session.execute(query)
         return [self._to_entity(q) for q in result.scalars()]
 
     async def find_display(self) -> list[WaitingQueueEntry]:
-        """Get queue for public display (waiting only, minimal info)."""
+        """Get queue for public display (waiting only, minimal info, today only)."""
+        today_start = datetime.combine(date.today(), datetime.min.time())
         result = await self.session.execute(
             select(WaitingQueueModel)
-            .where(WaitingQueueModel.status == "waiting")
+            .where(
+                WaitingQueueModel.status == "waiting",
+                WaitingQueueModel.checked_in_at >= today_start,
+            )
             .order_by(WaitingQueueModel.position)
         )
         return [self._to_entity(q) for q in result.scalars()]

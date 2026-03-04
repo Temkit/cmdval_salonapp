@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { UserX, AlertTriangle, Calendar, Search } from "lucide-react";
+import { UserX, AlertTriangle, Calendar, Search, Download } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
@@ -15,11 +16,13 @@ export const Route = createFileRoute("/admin/absences")({
 });
 
 function AdminAbsencesPage() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["absences"],
     queryFn: () => api.getAbsences(),
+    refetchInterval: 30000,
   });
 
   const absences = data?.absences || [];
@@ -40,13 +43,38 @@ function AdminAbsencesPage() {
 
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch("/api/v1/schedule/absences/export", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "absences_export.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export telecharge" });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Erreur export", description: (err as Error).message });
+    }
+  };
+
   return (
     <div className="page-container space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="heading-2">Absences</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {data?.total !== undefined && `${data.total} absence(s) au total`}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="heading-2">Absences</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {data?.total !== undefined && `${data.total} absence(s) au total`}
+          </p>
+        </div>
+        <Button variant="outline" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-2" />
+          Exporter
+        </Button>
       </div>
 
       {/* Search */}

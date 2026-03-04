@@ -84,11 +84,9 @@ function SecretaryPatientDetailPage() {
     sexe: "" as string,
     telephone: "",
     email: "",
-    adresse: "",
     commune: "",
     wilaya: "",
     notes: "",
-    phototype: "" as string,
   });
 
   const { data: patient, isLoading, isError, error } = useQuery({
@@ -188,7 +186,7 @@ function SecretaryPatientDetailPage() {
     mutationFn: async () => {
       const montant = subForm.payFull && selectedPack ? selectedPack.prix : parseFloat(subForm.montant_paye) || 0;
       const sub = await api.createSubscription(id, {
-        type: subForm.type as "gold" | "pack" | "seance",
+        type: subForm.type as "pack" | "seance",
         pack_id: subForm.pack_id || null,
         montant_paye: montant,
       });
@@ -243,11 +241,9 @@ function SecretaryPatientDetailPage() {
       sexe: patient.sexe || "",
       telephone: patient.telephone || "",
       email: patient.email || "",
-      adresse: patient.adresse || "",
       commune: patient.commune || "",
       wilaya: patient.wilaya || "",
       notes: patient.notes || "",
-      phototype: patient.phototype || "",
     });
     setEditOpen(true);
   };
@@ -261,11 +257,9 @@ function SecretaryPatientDetailPage() {
         sexe: (editForm.sexe as "M" | "F") || undefined,
         telephone: editForm.telephone || undefined,
         email: editForm.email || undefined,
-        adresse: editForm.adresse || undefined,
         commune: editForm.commune || undefined,
         wilaya: editForm.wilaya || undefined,
         notes: editForm.notes || undefined,
-        phototype: editForm.phototype || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient", id] });
@@ -374,6 +368,18 @@ function SecretaryPatientDetailPage() {
                 {patient.phototype && <Badge variant="outline">Phototype {patient.phototype}</Badge>}
                 {patient.code_carte && <Badge variant="outline" className="gap-1"><CreditCard className="h-3 w-3" />{patient.code_carte}</Badge>}
               </div>
+              {/* Active subscriptions summary */}
+              {(subscriptionsData?.subscriptions?.filter((s) => s.is_active) ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {(subscriptionsData?.subscriptions ?? []).filter((s) => s.is_active).map((sub) => (
+                    <Badge key={sub.id} variant={sub.days_remaining != null && sub.days_remaining <= 7 ? "destructive" : sub.days_remaining != null && sub.days_remaining <= 30 ? "warning" : "info"} size="sm" className="gap-1">
+                      <CreditCard className="h-3 w-3" />
+                      {sub.pack_nom || sub.type}
+                      {sub.days_remaining != null && ` (${sub.days_remaining}j)`}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -403,16 +409,14 @@ function SecretaryPatientDetailPage() {
                 {patient.telephone && <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.telephone}</span></div>}
                 {patient.email && <div className="flex items-center gap-3"><Mail className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.email}</span></div>}
                 {patient.date_naissance && <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{formatDate(patient.date_naissance)}</span></div>}
-                {patient.adresse && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.adresse}</span></div>}
                 {(patient.commune || patient.wilaya) && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{[patient.commune, patient.wilaya].filter(Boolean).join(", ")}</span></div>}
                 {patient.created_at && <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground" /><span className="text-sm">Inscrit le {formatDate(patient.created_at)}</span></div>}
-                {!patient.telephone && !patient.email && !patient.date_naissance && !patient.adresse && <p className="text-sm text-muted-foreground">Aucune coordonnee renseignee</p>}
+                {!patient.telephone && !patient.email && !patient.date_naissance && <p className="text-sm text-muted-foreground">Aucune coordonnee renseignee</p>}
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Informations medicales</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                {patient.phototype && <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /><span className="text-sm">Phototype {patient.phototype}</span></div>}
                 {patient.sexe && <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{patient.sexe === "F" ? "Femme" : "Homme"}</span></div>}
                 {patient.notes && <div><p className="text-xs font-medium text-muted-foreground mb-1">Notes</p><p className="text-sm">{patient.notes}</p></div>}
                 {preConsultation && (
@@ -428,7 +432,7 @@ function SecretaryPatientDetailPage() {
                     </Link>
                   </div>
                 )}
-                {!patient.phototype && !patient.sexe && !patient.notes && !preConsultation && <p className="text-sm text-muted-foreground">Aucune information medicale</p>}
+                {!patient.sexe && !patient.notes && !preConsultation && <p className="text-sm text-muted-foreground">Aucune information medicale</p>}
               </CardContent>
             </Card>
 
@@ -478,10 +482,20 @@ function SecretaryPatientDetailPage() {
                             </div>
                           )}
                           {sub.date_debut && (
-                            <p className="text-xs text-muted-foreground">
-                              {formatDate(sub.date_debut)}{sub.date_fin && ` - ${formatDate(sub.date_fin)}`}
-                              {sub.days_remaining != null && sub.days_remaining > 0 && ` (${sub.days_remaining}j restants)`}
-                            </p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(sub.date_debut)}{sub.date_fin && ` - ${formatDate(sub.date_fin)}`}
+                              </p>
+                              {sub.days_remaining != null && sub.is_active && (
+                                <Badge
+                                  variant={sub.days_remaining <= 0 ? "destructive" : sub.days_remaining <= 7 ? "destructive" : sub.days_remaining <= 30 ? "warning" : "success"}
+                                  size="sm"
+                                >
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {sub.days_remaining <= 0 ? "Expire" : `${sub.days_remaining}j restants`}
+                                </Badge>
+                              )}
+                            </div>
                           )}
                         </div>
                       );
@@ -785,7 +799,6 @@ function SecretaryPatientDetailPage() {
               <Select value={subForm.type} onValueChange={(v) => setSubForm((f) => ({ ...f, type: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gold">Gold</SelectItem>
                   <SelectItem value="pack">Pack</SelectItem>
                   <SelectItem value="seance">Seance</SelectItem>
                 </SelectContent>
@@ -925,10 +938,6 @@ function SecretaryPatientDetailPage() {
                 <Input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Adresse</Label>
-              <Input value={editForm.adresse} onChange={(e) => setEditForm((f) => ({ ...f, adresse: e.target.value }))} />
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Commune</Label>
@@ -938,20 +947,6 @@ function SecretaryPatientDetailPage() {
                 <Label>Wilaya</Label>
                 <Input value={editForm.wilaya} onChange={(e) => setEditForm((f) => ({ ...f, wilaya: e.target.value }))} />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Phototype</Label>
-              <Select value={editForm.phototype} onValueChange={(v) => setEditForm((f) => ({ ...f, phototype: v }))}>
-                <SelectTrigger><SelectValue placeholder="Phototype" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="I">I</SelectItem>
-                  <SelectItem value="II">II</SelectItem>
-                  <SelectItem value="III">III</SelectItem>
-                  <SelectItem value="IV">IV</SelectItem>
-                  <SelectItem value="V">V</SelectItem>
-                  <SelectItem value="VI">VI</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>

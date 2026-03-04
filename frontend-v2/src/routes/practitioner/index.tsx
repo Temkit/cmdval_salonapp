@@ -79,7 +79,7 @@ function ActiveSessionBanner({ session, onNavigate }: { session: { patientName: 
             <p className="font-semibold text-base mt-0.5">{session.patientName}</p>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="secondary" size="sm">{session.zoneName}</Badge>
-              <Badge variant="outline" size="sm">{session.sessionNumber}/{session.totalSessions}</Badge>
+              <Badge variant="outline" size="sm">Seance {session.sessionNumber}</Badge>
               {session.isPaused && <Badge variant="warning" size="sm">PAUSE</Badge>}
             </div>
           </div>
@@ -186,10 +186,13 @@ function PractitionerHomePage() {
       toast({ title: "Patient marque absent" });
     },
     onError: (err: Error) => {
+      const msg = err.message?.includes("deja ete traite") || err.message?.includes("déjà été traité")
+        ? "Ce patient a deja ete traite ou marque absent"
+        : err.message;
       toast({
         variant: "destructive",
-        title: "Erreur",
-        description: err.message,
+        title: "Impossible de marquer absent",
+        description: msg,
       });
     },
   });
@@ -267,15 +270,6 @@ function PractitionerHomePage() {
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Terminer
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => noShowMutation.mutate(entry.id)}
-                    disabled={noShowMutation.isPending}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Absent
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -347,17 +341,19 @@ function PractitionerHomePage() {
                 {callMutation.isPending ? "Appel..." : "Appeler"}
               </Button>
 
-              {/* No-show button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={() => noShowMutation.mutate(nextPatient.id)}
-                disabled={noShowMutation.isPending}
-              >
-                <XCircle className="h-4 w-4 mr-1" />
-                Marquer absent
-              </Button>
+              {/* No-show button — only for waiting patients */}
+              {nextPatient.status === "waiting" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => noShowMutation.mutate(nextPatient.id)}
+                  disabled={noShowMutation.isPending}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Marquer absent
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -23,6 +23,7 @@ from httpx import AsyncClient
 
 # Default to localhost if not specified
 BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost")
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "admin123")
 
 
 @pytest.fixture(scope="session")
@@ -54,7 +55,7 @@ async def get_admin_token() -> str:
         async with AsyncClient(base_url=BASE_URL, timeout=30.0) as temp:
             response = await temp.post("/api/v1/auth/login", json={
                 "username": "admin",
-                "password": "admin123"
+                "password": ADMIN_PASSWORD,
             })
             assert response.status_code == 200, f"Admin login failed: {response.text}"
             _admin_token = response.cookies.get("session_token")
@@ -99,7 +100,7 @@ async def secretary_client(admin_client: AsyncClient) -> AsyncGenerator[AsyncCli
         # Create unique secretary user - use 'email' not 'username'
         email = f"test_secretary_{uuid4().hex[:8]}@test.com"
         await admin_client.post("/api/v1/users", json={
-            "email": email,  # Use 'email' not 'username'
+            "username": email,
             "password": "test123",
             "nom": "Test",
             "prenom": "Secretary",
@@ -146,7 +147,7 @@ async def practitioner_client(admin_client: AsyncClient) -> AsyncGenerator[Async
         # Create unique practitioner user - use 'email' not 'username'
         email = f"test_practitioner_{uuid4().hex[:8]}@test.com"
         await admin_client.post("/api/v1/users", json={
-            "email": email,  # Use 'email' not 'username'
+            "username": email,
             "password": "test123",
             "nom": "Test",
             "prenom": "Practitioner",

@@ -22,7 +22,10 @@ class PackRepository:
             zone_ids=pack.zone_ids,
             prix=pack.prix,
             duree_jours=pack.duree_jours,
+            duree_mois=pack.duree_mois,
             seances_per_zone=pack.seances_per_zone,
+            zones_illimitees=pack.zones_illimitees,
+            seances_illimitees=pack.seances_illimitees,
             is_active=pack.is_active,
         )
         self.session.add(db_pack)
@@ -51,7 +54,10 @@ class PackRepository:
         db_pack.zone_ids = pack.zone_ids
         db_pack.prix = pack.prix
         db_pack.duree_jours = pack.duree_jours
+        db_pack.duree_mois = pack.duree_mois
         db_pack.seances_per_zone = pack.seances_per_zone
+        db_pack.zones_illimitees = pack.zones_illimitees
+        db_pack.seances_illimitees = pack.seances_illimitees
         db_pack.is_active = pack.is_active
         await self.session.flush()
         return self._to_entity(db_pack)
@@ -73,7 +79,10 @@ class PackRepository:
             zone_ids=model.zone_ids or [],
             prix=model.prix,
             duree_jours=model.duree_jours,
+            duree_mois=model.duree_mois,
             seances_per_zone=model.seances_per_zone,
+            zones_illimitees=model.zones_illimitees,
+            seances_illimitees=model.seances_illimitees,
             is_active=model.is_active,
             created_at=model.created_at,
             updated_at=model.updated_at,

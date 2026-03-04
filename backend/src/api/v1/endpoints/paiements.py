@@ -1,10 +1,13 @@
 """Paiement endpoints."""
 
+import csv
+import io
 from datetime import datetime
 from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 
 from src.api.v1.dependencies import CurrentUser, get_db, get_paiement_service, require_permission
@@ -51,7 +54,7 @@ async def create_paiement(
     """Record a payment."""
     paiement = await paiement_service.create_paiement(
         patient_id=data.patient_id,
-        montant=data.montant,
+        montant=int(round(data.montant)),
         type=data.type,
         created_by=current_user.get("id"),
         subscription_id=data.subscription_id,
@@ -89,6 +92,39 @@ async def list_paiements(
         page=page,
         size=size,
         pages=(total + size - 1) // size if total > 0 else 0,
+    )
+
+
+@router.get("/export")
+async def export_paiements(
+    current_user: Annotated[dict, Depends(require_permission("payments.view"))],
+    paiement_service: Annotated[PaiementService, Depends(get_paiement_service)],
+    type: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+):
+    """Export payments as CSV."""
+    paiements, _ = await paiement_service.list_paiements(
+        type=type, date_from=date_from, date_to=date_to, page=1, size=10000,
+    )
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Date", "Patient", "Montant (DA)", "Type", "Mode", "Reference", "Notes"])
+    for p in paiements:
+        writer.writerow([
+            p.date_paiement.strftime("%d/%m/%Y %H:%M") if p.date_paiement else "",
+            f"{p.patient_prenom or ''} {p.patient_nom or ''}".strip(),
+            p.montant,
+            p.type,
+            p.mode_paiement or "",
+            p.reference or "",
+            p.notes or "",
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=paiements.csv"},
     )
 
 

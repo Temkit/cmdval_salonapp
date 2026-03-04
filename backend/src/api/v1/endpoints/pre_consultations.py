@@ -22,7 +22,6 @@ from src.schemas.pre_consultation import (
     PreConsultationCreate,
     PreConsultationListResponse,
     PreConsultationPaginatedResponse,
-    PreConsultationRejectRequest,
     PreConsultationResponse,
     PreConsultationUpdate,
     PreConsultationZoneCreate,
@@ -45,7 +44,7 @@ async def list_pre_consultations(
     ],
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    status_filter: Literal["in_progress", "completed", "rejected"] | None = Query(None, alias="status"),
+    status_filter: Literal["in_progress"] | None = Query(None, alias="status"),
     search: str | None = Query(None),
 ):
     """List pre-consultations with pagination and filters."""
@@ -90,7 +89,7 @@ async def export_pre_consultations_csv(
     pre_consultation_service: Annotated[
         PreConsultationService, Depends(get_pre_consultation_service)
     ],
-    status_filter: Literal["in_progress", "completed", "rejected"] | None = Query(None, alias="status"),
+    status_filter: Literal["in_progress"] | None = Query(None, alias="status"),
     search: str | None = Query(None),
 ):
     """Export pre-consultations as CSV."""
@@ -265,7 +264,7 @@ async def delete_pre_consultation(
         PreConsultationService, Depends(get_pre_consultation_service)
     ],
 ):
-    """Delete pre-consultation (only in draft/rejected status)."""
+    """Delete pre-consultation."""
     try:
         await pre_consultation_service.delete(pre_consultation_id)
         return MessageResponse(message="Pre-consultation supprimee")
@@ -390,63 +389,6 @@ async def delete_zone(
             detail=str(e),
         )
 
-
-# Workflow endpoints
-@router.post("/{pre_consultation_id}/complete", response_model=PreConsultationResponse)
-async def complete_pre_consultation(
-    pre_consultation_id: str,
-    current_user: CurrentUser,
-    _: Annotated[dict, Depends(require_permission("pre_consultations.validate"))],
-    pre_consultation_service: Annotated[
-        PreConsultationService, Depends(get_pre_consultation_service)
-    ],
-):
-    """Complete pre-consultation (doctor action)."""
-    try:
-        pre_consultation = await pre_consultation_service.complete(
-            pre_consultation_id, completed_by=current_user["id"]
-        )
-        return _to_response(pre_consultation)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
-
-@router.post("/{pre_consultation_id}/reject", response_model=PreConsultationResponse)
-async def reject_pre_consultation(
-    pre_consultation_id: str,
-    request: PreConsultationRejectRequest,
-    current_user: CurrentUser,
-    _: Annotated[dict, Depends(require_permission("pre_consultations.validate"))],
-    pre_consultation_service: Annotated[
-        PreConsultationService, Depends(get_pre_consultation_service)
-    ],
-):
-    """Reject pre-consultation (doctor action)."""
-    try:
-        pre_consultation = await pre_consultation_service.reject(
-            pre_consultation_id,
-            reason=request.reason,
-            rejected_by=current_user["id"],
-        )
-        return _to_response(pre_consultation)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
 
 
 

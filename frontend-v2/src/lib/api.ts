@@ -706,26 +706,6 @@ export const api = {
     return handleResponse<MessageResponse>(response);
   },
 
-  async completePreConsultation(id: string) {
-    const response = await wrapFetch(
-      `${API_BASE}/pre-consultations/${id}/complete`,
-      { method: "POST" },
-    );
-    return handleResponse<PreConsultation>(response);
-  },
-
-  async rejectPreConsultation(id: string, reason: string) {
-    const response = await wrapFetch(
-      `${API_BASE}/pre-consultations/${id}/reject`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      },
-    );
-    return handleResponse<PreConsultation>(response);
-  },
-
   async getPendingPreConsultationsCount() {
     const response = await wrapFetch(
       `${API_BASE}/pre-consultations/stats/pending-count`,
@@ -986,6 +966,23 @@ export const api = {
     return handleResponse<ScheduleResponse>(response);
   },
 
+  async updateScheduleEntry(entryId: string, data: {
+    doctor_id?: string | null;
+    doctor_name?: string | null;
+    zone_ids?: string[] | null;
+    duration_type?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    notes?: string | null;
+  }) {
+    const response = await wrapFetch(`${API_BASE}/schedule/${entryId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<DailyScheduleEntry>(response);
+  },
+
   async checkInPatient(entryId: string) {
     const response = await wrapFetch(
       `${API_BASE}/schedule/${entryId}/check-in`,
@@ -1041,6 +1038,17 @@ export const api = {
       { method: "PUT" },
     );
     return handleResponse<WaitingQueueEntry>(response);
+  },
+
+  async deleteScheduleEntry(entryId: string) {
+    const response = await wrapFetch(
+      `${API_BASE}/schedule/${entryId}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ detail: "Erreur" }));
+      throw new Error(err.detail || "Erreur suppression");
+    }
   },
 
   async markScheduleNoShow(entryId: string) {

@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Plus,
   DollarSign,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,7 @@ function SecretaryPaiementsPage() {
     mode_paiement: "especes",
     reference: "",
     notes: "",
+    subscription_id: "",
   });
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -62,6 +64,39 @@ function SecretaryPaiementsPage() {
     enabled: patientSearch.length >= 2,
   });
 
+  const { data: patientSubscriptions } = useQuery({
+    queryKey: ["patient-subscriptions", addForm.patient_id],
+    queryFn: () => api.getPatientSubscriptions(addForm.patient_id),
+    enabled: !!addForm.patient_id,
+  });
+
+  const activeSubscriptions = (patientSubscriptions?.subscriptions ?? []).filter(
+    (s: any) => s.status === "active"
+  );
+
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (typeFilter) params.set("type", typeFilter);
+      if (dateFrom) params.set("date_from", dateFrom);
+      if (dateTo) params.set("date_to", dateTo);
+      const res = await fetch(`/api/v1/paiements/export?${params}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "paiements.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export telecharge" });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Erreur export", description: (err as Error).message });
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: () =>
       api.createPaiement({
@@ -71,6 +106,7 @@ function SecretaryPaiementsPage() {
         mode_paiement: addForm.mode_paiement as any,
         reference: addForm.reference || undefined,
         notes: addForm.notes || undefined,
+        subscription_id: addForm.subscription_id || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["paiements"] });
@@ -83,6 +119,7 @@ function SecretaryPaiementsPage() {
         mode_paiement: "especes",
         reference: "",
         notes: "",
+        subscription_id: "",
       });
       setPatientSearch("");
     },
@@ -127,10 +164,16 @@ function SecretaryPaiementsPage() {
             Historique et suivi des paiements
           </p>
         </div>
-        <Button onClick={() => setAddDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nouveau paiement
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Exporter
+          </Button>
+          <Button onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau paiement
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -313,13 +356,56 @@ function SecretaryPaiementsPage() {
               ) : null}
             </div>
 
+            {/* Subscription selector */}
+            {addForm.patient_id && activeSubscriptions.length > 0 && (
+              <div className="space-y-2">
+                <Label>Abonnement (optionnel)</Label>
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setAddForm((f) => ({ ...f, subscription_id: "", montant: "" }))}
+                    className={`w-full text-left px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      !addForm.subscription_id ? "border-primary bg-primary/5" : "hover:bg-muted"
+                    }`}
+                  >
+                    Sans abonnement
+                  </button>
+                  {activeSubscriptions.map((sub: any) => (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => {
+                        setAddForm((f) => ({
+                          ...f,
+                          subscription_id: sub.id,
+                          montant: sub.pack_prix ? String(sub.pack_prix - (sub.montant_paye || 0)) : f.montant,
+                        }));
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-lg border transition-colors ${
+                        addForm.subscription_id === sub.id ? "border-primary bg-primary/5" : "hover:bg-muted"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span>{sub.pack_nom || sub.type}</span>
+                        {sub.pack_prix && (
+                          <span className="text-xs text-muted-foreground">
+                            {sub.montant_paye || 0}/{sub.pack_prix} DA
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Montant (DA)</Label>
               <Input
                 type="number"
                 required
                 min="0"
-                step="0.01"
+                step="1"
                 value={addForm.montant}
                 onChange={(e) =>
                   setAddForm((f) => ({ ...f, montant: e.target.value }))

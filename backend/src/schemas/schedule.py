@@ -37,6 +37,7 @@ class ScheduleEntryResponse(AppBaseModel):
     start_time: dt.time
     end_time: dt.time | None = None
     notes: str | None = None
+    zone_ids: list[str] = []
     status: str
     created_at: dt.datetime
     zone_warnings: list[str] = []
@@ -140,6 +141,18 @@ class AbsenceListResponse(AppBaseModel):
 
     absences: list[AbsenceRecordResponse]
     total: int
+
+
+class ScheduleEntryUpdate(AppBaseModel):
+    """Schema for updating a schedule entry."""
+
+    doctor_id: str | None = None
+    doctor_name: str | None = None
+    zone_ids: list[str] | None = None
+    duration_type: str | None = None
+    start_time: dt.time | None = None
+    end_time: dt.time | None = None
+    notes: str | None = None
 
 
 class ResolveConflictRequest(AppBaseModel):

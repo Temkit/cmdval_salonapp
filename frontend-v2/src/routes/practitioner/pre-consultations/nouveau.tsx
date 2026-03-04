@@ -124,7 +124,8 @@ function PractitionerPreConsultationNouveau() {
   const [notes, setNotes] = useState("");
 
   // Step 7 - Questionnaire
-  const [questionnaireResponses, setQuestionnaireResponses] = useState<Record<string, string | boolean | string[]>>({});
+  // Boolean responses can be: boolean (legacy) or { value: boolean, comment: string }
+  const [questionnaireResponses, setQuestionnaireResponses] = useState<Record<string, string | boolean | string[] | { value: boolean; comment: string }>>({});
 
   // Fetch existing pre-consultation for edit mode
   const { data: editData } = useQuery({
@@ -344,6 +345,10 @@ function PractitionerPreConsultationNouveau() {
           const response = questionnaireResponses[q.id];
           if (response === undefined || response === "" || response === null) return false;
           if (Array.isArray(response) && response.length === 0) return false;
+          // For boolean with comment object, check the value field
+          if (typeof response === "object" && !Array.isArray(response) && "value" in response) {
+            return response.value === true || response.value === false;
+          }
           return true;
         });
       }
@@ -870,26 +875,44 @@ function PractitionerPreConsultationNouveau() {
                     {question.obligatoire && <span className="text-destructive">*</span>}
                   </Label>
 
-                  {question.type_reponse === "boolean" && (
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={questionnaireResponses[question.id] === true ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setQuestionnaireResponses((prev) => ({ ...prev, [question.id]: true }))}
-                      >
-                        Oui
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={questionnaireResponses[question.id] === false ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setQuestionnaireResponses((prev) => ({ ...prev, [question.id]: false }))}
-                      >
-                        Non
-                      </Button>
-                    </div>
-                  )}
+                  {question.type_reponse === "boolean" && (() => {
+                    const resp = questionnaireResponses[question.id];
+                    const boolVal = typeof resp === "object" && resp !== null && !Array.isArray(resp) && "value" in resp ? resp.value : resp;
+                    const commentVal = typeof resp === "object" && resp !== null && !Array.isArray(resp) && "comment" in resp ? resp.comment : "";
+                    const setBool = (val: boolean) => {
+                      setQuestionnaireResponses((prev) => {
+                        const existing = prev[question.id];
+                        const prevComment = typeof existing === "object" && existing !== null && !Array.isArray(existing) && "comment" in existing ? existing.comment : "";
+                        return { ...prev, [question.id]: prevComment ? { value: val, comment: prevComment } : val };
+                      });
+                    };
+                    const setComment = (text: string) => {
+                      setQuestionnaireResponses((prev) => {
+                        const existing = prev[question.id];
+                        const prevVal = typeof existing === "object" && existing !== null && !Array.isArray(existing) && "value" in existing ? existing.value : existing;
+                        if (!text && (prevVal === true || prevVal === false)) return { ...prev, [question.id]: prevVal };
+                        return { ...prev, [question.id]: { value: prevVal === true || prevVal === false ? prevVal : true, comment: text } };
+                      });
+                    };
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Button type="button" variant={boolVal === true ? "default" : "outline"} size="sm" onClick={() => setBool(true)}>
+                            Oui
+                          </Button>
+                          <Button type="button" variant={boolVal === false ? "default" : "outline"} size="sm" onClick={() => setBool(false)}>
+                            Non
+                          </Button>
+                        </div>
+                        <Input
+                          value={commentVal}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Precisions (optionnel)..."
+                          className="text-sm"
+                        />
+                      </div>
+                    );
+                  })()}
 
                   {question.type_reponse === "text" && (
                     <Textarea

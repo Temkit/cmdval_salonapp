@@ -1,6 +1,7 @@
 """Pack and subscription services."""
 
 from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
 
 from src.domain.entities.pack import Pack, PatientSubscription
 from src.domain.exceptions import NotFoundError
@@ -24,7 +25,10 @@ class PackService:
         description: str | None = None,
         zone_ids: list[str] | None = None,
         duree_jours: int | None = None,
+        duree_mois: int | None = None,
         seances_per_zone: int = 6,
+        zones_illimitees: bool = False,
+        seances_illimitees: bool = False,
     ) -> Pack:
         pack = Pack(
             nom=nom,
@@ -32,7 +36,10 @@ class PackService:
             description=description,
             zone_ids=zone_ids or [],
             duree_jours=duree_jours,
+            duree_mois=duree_mois,
             seances_per_zone=seances_per_zone,
+            zones_illimitees=zones_illimitees,
+            seances_illimitees=seances_illimitees,
         )
         return await self.pack_repo.create(pack)
 
@@ -90,7 +97,9 @@ class SubscriptionService:
             pack = await self.pack_repo.find_by_id(pack_id)
             if not pack:
                 raise NotFoundError(f"Pack {pack_id} non trouvé")
-            if pack.duree_jours:
+            if pack.duree_mois:
+                date_fin = date_debut + relativedelta(months=pack.duree_mois)
+            elif pack.duree_jours:
                 date_fin = date_debut + timedelta(days=pack.duree_jours)
 
         subscription = PatientSubscription(

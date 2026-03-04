@@ -26,10 +26,8 @@ function AdminPatientNouveauPage() {
     date_naissance: "",
     sexe: "" as "" | "M" | "F",
     email: "",
-    adresse: "",
     commune: "",
     wilaya: "",
-    phototype: "",
     notes: "",
   });
 
@@ -43,10 +41,8 @@ function AdminPatientNouveauPage() {
         date_naissance: form.date_naissance || undefined,
         sexe: form.sexe || undefined,
         email: form.email || undefined,
-        adresse: form.adresse || undefined,
         commune: form.commune || undefined,
         wilaya: form.wilaya || undefined,
-        phototype: form.phototype || undefined,
         notes: form.notes || undefined,
       }),
     onSuccess: (patient) => {
@@ -155,43 +151,13 @@ function AdminPatientNouveauPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => update("email", e.target.value)}
-                  placeholder="email@exemple.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Phototype</Label>
-                <Select
-                  value={form.phototype}
-                  onValueChange={(v) => update("phototype", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selectionner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="I">I - Tres clair</SelectItem>
-                    <SelectItem value="II">II - Clair</SelectItem>
-                    <SelectItem value="III">III - Moyen</SelectItem>
-                    <SelectItem value="IV">IV - Mat</SelectItem>
-                    <SelectItem value="V">V - Fonce</SelectItem>
-                    <SelectItem value="VI">VI - Tres fonce</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div className="space-y-2">
-              <Label>Adresse</Label>
+              <Label>Email</Label>
               <Input
-                value={form.adresse}
-                onChange={(e) => update("adresse", e.target.value)}
-                placeholder="Adresse complete"
+                type="email"
+                value={form.email}
+                onChange={(e) => update("email", e.target.value)}
+                placeholder="email@exemple.com"
               />
             </div>
 

@@ -60,6 +60,7 @@ function ActiveSeancePage() {
     popNextZone,
     startSession,
     clearPendingZones,
+    clearSession,
   } = useSessionStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +69,7 @@ function ActiveSeancePage() {
   const [showSideEffectForm, setShowSideEffectForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [sideEffectDesc, setSideEffectDesc] = useState("");
   const [sideEffectSeverity, setSideEffectSeverity] = useState<SideEffect["severity"]>("mild");
   const [noteText, setNoteText] = useState("");
@@ -258,6 +260,16 @@ function ActiveSeancePage() {
     }
   };
 
+  const canCancel = session && !session.notes && session.photos.length === 0 && session.sideEffects.length === 0;
+
+  const handleCancelSession = () => {
+    clearSession(praticienId);
+    clearPendingZones(praticienId);
+    queryClient.invalidateQueries({ queryKey: ["queue"] });
+    toast({ title: "Seance annulee" });
+    navigate({ to: "/practitioner" as string } as Parameters<typeof navigate>[0]);
+  };
+
   // No active session — redirect
   if (!session) {
     return (
@@ -292,7 +304,7 @@ function ActiveSeancePage() {
         <div className="flex items-center gap-2 mb-6">
           <Badge variant="secondary">{session.zoneName}</Badge>
           <Badge variant="outline" size="sm">
-            {session.sessionNumber}/{session.totalSessions}
+            Seance {session.sessionNumber}
           </Badge>
         </div>
 
@@ -569,6 +581,44 @@ function ActiveSeancePage() {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Cancel session (only if no work done yet) */}
+          {canCancel && !showCancelConfirm && !showEndConfirm && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowCancelConfirm(true)}
+            >
+              <X className="h-4 w-4 mr-1.5" />
+              Annuler la seance
+            </Button>
+          )}
+
+          {showCancelConfirm && (
+            <Card className="border-amber-500/50">
+              <CardContent className="p-3 space-y-3">
+                <p className="text-sm font-medium text-center">
+                  Annuler cette seance ? Aucune donnee ne sera sauvegardee.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowCancelConfirm(false)}
+                  >
+                    Non
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={handleCancelSession}
+                  >
+                    Oui, annuler
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* End session */}

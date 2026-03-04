@@ -140,6 +140,7 @@ function AdminQueuePage() {
     mutationFn: (entryId: string) => api.markNoShow(entryId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
+      queryClient.invalidateQueries({ queryKey: ["absences"] });
       toast({ title: "Patient marque absent" });
     },
     onError: (error: Error) => {

@@ -39,7 +39,9 @@ function AdminPacksPage() {
     description: "",
     prix: "",
     seances_per_zone: "6",
-    duree_jours: "",
+    duree_mois: "",
+    zones_illimitees: false,
+    seances_illimitees: false,
     zone_ids: [] as string[],
   });
 
@@ -60,8 +62,10 @@ function AdminPacksPage() {
         description: form.description || null,
         prix: parseFloat(form.prix),
         seances_per_zone: parseInt(form.seances_per_zone),
-        duree_jours: form.duree_jours ? parseInt(form.duree_jours) : null,
+        duree_mois: form.duree_mois ? parseInt(form.duree_mois) : null,
         zone_ids: form.zone_ids,
+        zones_illimitees: form.zones_illimitees,
+        seances_illimitees: form.seances_illimitees,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["packs"] });
@@ -80,8 +84,10 @@ function AdminPacksPage() {
         description: form.description || null,
         prix: parseFloat(form.prix),
         seances_per_zone: parseInt(form.seances_per_zone),
-        duree_jours: form.duree_jours ? parseInt(form.duree_jours) : null,
+        duree_mois: form.duree_mois ? parseInt(form.duree_mois) : null,
         zone_ids: form.zone_ids,
+        zones_illimitees: form.zones_illimitees,
+        seances_illimitees: form.seances_illimitees,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["packs"] });
@@ -112,7 +118,9 @@ function AdminPacksPage() {
       description: "",
       prix: "",
       seances_per_zone: "6",
-      duree_jours: "",
+      duree_mois: "",
+      zones_illimitees: false,
+      seances_illimitees: false,
       zone_ids: [],
     });
   };
@@ -124,7 +132,9 @@ function AdminPacksPage() {
       description: pack.description ?? "",
       prix: pack.prix.toString(),
       seances_per_zone: pack.seances_per_zone.toString(),
-      duree_jours: pack.duree_jours?.toString() ?? "",
+      duree_mois: pack.duree_mois?.toString() ?? "",
+      zones_illimitees: pack.zones_illimitees ?? false,
+      seances_illimitees: pack.seances_illimitees ?? false,
       zone_ids: pack.zone_ids,
     });
     setDialogOpen(true);
@@ -197,8 +207,8 @@ function AdminPacksPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {pack.prix} DA · {pack.seances_per_zone} seances/zone · {pack.zone_ids.length} zones
-                      {pack.duree_jours != null && ` · ${pack.duree_jours} jours`}
+                      {pack.prix} DA · {pack.seances_illimitees ? "Seances illimitees" : `${pack.seances_per_zone} seances/zone`} · {pack.zones_illimitees ? "Zones illimitees" : `${pack.zone_ids.length} zones`}
+                      {pack.duree_mois != null && ` · ${pack.duree_mois} mois`}
                     </p>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -256,7 +266,7 @@ function AdminPacksPage() {
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Prix (DA)</Label>
                 <Input
@@ -267,44 +277,68 @@ function AdminPacksPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Seances/zone</Label>
+                <Label>Duree (mois)</Label>
                 <Input
                   type="number"
-                  required
-                  min="1"
-                  value={form.seances_per_zone}
-                  onChange={(e) => setForm((f) => ({ ...f, seances_per_zone: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Duree (jours)</Label>
-                <Input
-                  type="number"
-                  value={form.duree_jours}
-                  onChange={(e) => setForm((f) => ({ ...f, duree_jours: e.target.value }))}
+                  value={form.duree_mois}
+                  onChange={(e) => setForm((f) => ({ ...f, duree_mois: e.target.value }))}
                   placeholder="Illimite"
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Zones incluses ({form.zone_ids.length})</Label>
-              <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto border rounded-lg p-2">
-                {zones.map((zone) => (
-                  <button
-                    key={zone.id}
-                    type="button"
-                    onClick={() => toggleZone(zone.id)}
-                    className={`text-left px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      form.zone_ids.includes(zone.id)
-                        ? "border-primary bg-primary/5"
-                        : "hover:bg-muted"
-                    }`}
-                  >
-                    {zone.nom}
-                  </button>
-                ))}
-              </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.seances_illimitees}
+                  onChange={(e) => setForm((f) => ({ ...f, seances_illimitees: e.target.checked }))}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <span className="text-sm">Seances illimitees</span>
+              </label>
+              {!form.seances_illimitees && (
+                <div className="space-y-2">
+                  <Label>Seances/zone</Label>
+                  <Input
+                    type="number"
+                    required
+                    min="1"
+                    value={form.seances_per_zone}
+                    onChange={(e) => setForm((f) => ({ ...f, seances_per_zone: e.target.value }))}
+                  />
+                </div>
+              )}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.zones_illimitees}
+                  onChange={(e) => setForm((f) => ({ ...f, zones_illimitees: e.target.checked }))}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <span className="text-sm">Zones illimitees</span>
+              </label>
             </div>
+            {!form.zones_illimitees && (
+              <div className="space-y-2">
+                <Label>Zones incluses ({form.zone_ids.length})</Label>
+                <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto border rounded-lg p-2">
+                  {zones.map((zone) => (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      onClick={() => toggleZone(zone.id)}
+                      className={`text-left px-3 py-2 text-sm rounded-lg border transition-colors ${
+                        form.zone_ids.includes(zone.id)
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted"
+                      }`}
+                    >
+                      {zone.nom}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>
                 Annuler

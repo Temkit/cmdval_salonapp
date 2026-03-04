@@ -319,6 +319,58 @@ class ScheduleService:
         result._zone_warnings = zone_warnings  # type: ignore[attr-defined]
         return result
 
+    async def update_schedule_entry(
+        self,
+        entry_id: str,
+        doctor_id: str | None = None,
+        doctor_name: str | None = None,
+        zone_ids: list[str] | None = None,
+        duration_type: str | None = None,
+        start_time: time | None = None,
+        end_time: time | None = None,
+        notes: str | None = None,
+    ) -> DailyScheduleEntry:
+        """Update a schedule entry."""
+        entry = await self.schedule_repo.find_by_id(entry_id)
+        if not entry:
+            raise NotFoundError(f"Entree planning {entry_id} non trouvee")
+
+        fields: dict = {}
+        if doctor_id is not None:
+            fields["doctor_id"] = doctor_id
+        if doctor_name is not None:
+            fields["doctor_name"] = doctor_name
+        if zone_ids is not None:
+            fields["zone_ids"] = zone_ids
+            # Auto-create PatientZones if patient is set
+            if entry.patient_id and zone_ids:
+                await self._ensure_patient_zones(entry.patient_id, zone_ids)
+        if duration_type is not None:
+            fields["duration_type"] = duration_type
+        if start_time is not None:
+            fields["start_time"] = start_time
+        if end_time is not None:
+            fields["end_time"] = end_time
+        if notes is not None:
+            fields["notes"] = notes
+
+        if not fields:
+            return entry
+
+        result = await self.schedule_repo.update_entry(entry_id, **fields)
+        if not result:
+            raise NotFoundError(f"Entree planning {entry_id} non trouvee")
+        return result
+
+    async def delete_schedule_entry(self, entry_id: str) -> None:
+        """Delete a schedule entry."""
+        entry = await self.schedule_repo.find_by_id(entry_id)
+        if not entry:
+            raise NotFoundError(f"Entree planning {entry_id} non trouvee")
+        deleted = await self.schedule_repo.delete_entry(entry_id)
+        if not deleted:
+            raise NotFoundError(f"Entree planning {entry_id} non trouvee")
+
     async def get_schedule(self, target_date: date) -> list[DailyScheduleEntry]:
         return await self.schedule_repo.find_by_date(target_date)
 
@@ -551,8 +603,8 @@ class ScheduleService:
         entry = await self.queue_repo.find_by_id(entry_id)
         if not entry:
             raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
-        if entry.status != "waiting":
-            raise ValueError("Seuls les patients en attente peuvent être marqués absents")
+        if entry.status in ("done", "no_show", "left"):
+            raise ValueError("Ce patient a deja ete traite")
         result = await self.queue_repo.update_status(entry_id, "no_show")
         if not result:
             raise NotFoundError(f"Entrée file d'attente {entry_id} non trouvée")
@@ -583,9 +635,44 @@ class ScheduleService:
             raise NotFoundError(f"Entrée planning {entry_id} non trouvée")
         return result
 
-    async def get_absences(self, patient_id: str | None = None) -> list[WaitingQueueEntry]:
-        """Get no-show entries, optionally filtered by patient."""
-        return await self.queue_repo.find_no_shows(patient_id)
+    async def get_absences(self, patient_id: str | None = None) -> list[dict]:
+        """Get no-show entries from both queue and schedule, optionally filtered by patient."""
+        # 1. Queue-based no-shows
+        queue_absences = await self.queue_repo.find_no_shows(patient_id)
+        results: list[dict] = []
+        seen_schedule_ids: set[str] = set()
+        for q in queue_absences:
+            results.append({
+                "source": "queue",
+                "id": q.id,
+                "patient_id": q.patient_id,
+                "patient_name": q.patient_name,
+                "date": q.checked_in_at.date() if q.checked_in_at else date.today(),
+                "schedule_id": q.schedule_id,
+                "doctor_name": q.doctor_name,
+                "created_at": q.created_at,
+            })
+            if q.schedule_id:
+                seen_schedule_ids.add(q.schedule_id)
+
+        # 2. Schedule-only no-shows (marked absent without check-in)
+        schedule_absences = await self.schedule_repo.find_no_shows(patient_id)
+        for s in schedule_absences:
+            if s.id not in seen_schedule_ids:
+                results.append({
+                    "source": "schedule",
+                    "id": s.id,
+                    "patient_id": s.patient_id,
+                    "patient_name": f"{s.patient_prenom} {s.patient_nom}",
+                    "date": s.date,
+                    "schedule_id": s.id,
+                    "doctor_name": s.doctor_name,
+                    "created_at": s.created_at,
+                })
+
+        # Sort by date descending
+        results.sort(key=lambda x: x["created_at"], reverse=True)
+        return results
 
     async def enrich_queue_entries(
         self, entries: list[WaitingQueueEntry]

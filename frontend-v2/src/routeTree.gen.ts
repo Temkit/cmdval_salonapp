@@ -24,6 +24,7 @@ import { Route as SecretaryAbsencesRouteImport } from './routes/secretary/absenc
 import { Route as PractitionerSelectBoxRouteImport } from './routes/practitioner/select-box'
 import { Route as PractitionerMesSeancesRouteImport } from './routes/practitioner/mes-seances'
 import { Route as PractitionerMesPatientsRouteImport } from './routes/practitioner/mes-patients'
+import { Route as PractitionerAgendaRouteImport } from './routes/practitioner/agenda'
 import { Route as PractitionerActiveRouteImport } from './routes/practitioner/active'
 import { Route as AdminQueueRouteImport } from './routes/admin/queue'
 import { Route as AdminPaiementsRouteImport } from './routes/admin/paiements'
@@ -131,6 +132,11 @@ const PractitionerMesSeancesRoute = PractitionerMesSeancesRouteImport.update({
 const PractitionerMesPatientsRoute = PractitionerMesPatientsRouteImport.update({
   id: '/mes-patients',
   path: '/mes-patients',
+  getParentRoute: () => PractitionerRoute,
+} as any)
+const PractitionerAgendaRoute = PractitionerAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
   getParentRoute: () => PractitionerRoute,
 } as any)
 const PractitionerActiveRoute = PractitionerActiveRouteImport.update({
@@ -320,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/practitioner/active': typeof PractitionerActiveRoute
+  '/practitioner/agenda': typeof PractitionerAgendaRoute
   '/practitioner/mes-patients': typeof PractitionerMesPatientsRoute
   '/practitioner/mes-seances': typeof PractitionerMesSeancesRoute
   '/practitioner/select-box': typeof PractitionerSelectBoxRoute
@@ -367,6 +374,7 @@ export interface FileRoutesByTo {
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/practitioner/active': typeof PractitionerActiveRoute
+  '/practitioner/agenda': typeof PractitionerAgendaRoute
   '/practitioner/mes-patients': typeof PractitionerMesPatientsRoute
   '/practitioner/mes-seances': typeof PractitionerMesSeancesRoute
   '/practitioner/select-box': typeof PractitionerSelectBoxRoute
@@ -418,6 +426,7 @@ export interface FileRoutesById {
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/queue': typeof AdminQueueRoute
   '/practitioner/active': typeof PractitionerActiveRoute
+  '/practitioner/agenda': typeof PractitionerAgendaRoute
   '/practitioner/mes-patients': typeof PractitionerMesPatientsRoute
   '/practitioner/mes-seances': typeof PractitionerMesSeancesRoute
   '/practitioner/select-box': typeof PractitionerSelectBoxRoute
@@ -470,6 +479,7 @@ export interface FileRouteTypes {
     | '/admin/paiements'
     | '/admin/queue'
     | '/practitioner/active'
+    | '/practitioner/agenda'
     | '/practitioner/mes-patients'
     | '/practitioner/mes-seances'
     | '/practitioner/select-box'
@@ -517,6 +527,7 @@ export interface FileRouteTypes {
     | '/admin/paiements'
     | '/admin/queue'
     | '/practitioner/active'
+    | '/practitioner/agenda'
     | '/practitioner/mes-patients'
     | '/practitioner/mes-seances'
     | '/practitioner/select-box'
@@ -567,6 +578,7 @@ export interface FileRouteTypes {
     | '/admin/paiements'
     | '/admin/queue'
     | '/practitioner/active'
+    | '/practitioner/agenda'
     | '/practitioner/mes-patients'
     | '/practitioner/mes-seances'
     | '/practitioner/select-box'
@@ -720,6 +732,13 @@ declare module '@tanstack/react-router' {
       path: '/mes-patients'
       fullPath: '/practitioner/mes-patients'
       preLoaderRoute: typeof PractitionerMesPatientsRouteImport
+      parentRoute: typeof PractitionerRoute
+    }
+    '/practitioner/agenda': {
+      id: '/practitioner/agenda'
+      path: '/agenda'
+      fullPath: '/practitioner/agenda'
+      preLoaderRoute: typeof PractitionerAgendaRouteImport
       parentRoute: typeof PractitionerRoute
     }
     '/practitioner/active': {
@@ -1008,6 +1027,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface PractitionerRouteChildren {
   PractitionerActiveRoute: typeof PractitionerActiveRoute
+  PractitionerAgendaRoute: typeof PractitionerAgendaRoute
   PractitionerMesPatientsRoute: typeof PractitionerMesPatientsRoute
   PractitionerMesSeancesRoute: typeof PractitionerMesSeancesRoute
   PractitionerSelectBoxRoute: typeof PractitionerSelectBoxRoute
@@ -1021,6 +1041,7 @@ interface PractitionerRouteChildren {
 
 const PractitionerRouteChildren: PractitionerRouteChildren = {
   PractitionerActiveRoute: PractitionerActiveRoute,
+  PractitionerAgendaRoute: PractitionerAgendaRoute,
   PractitionerMesPatientsRoute: PractitionerMesPatientsRoute,
   PractitionerMesSeancesRoute: PractitionerMesSeancesRoute,
   PractitionerSelectBoxRoute: PractitionerSelectBoxRoute,

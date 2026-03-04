@@ -74,7 +74,6 @@ const PERMISSION_GROUPS: {
       { value: "pre_consultations.create", label: "Creer" },
       { value: "pre_consultations.edit", label: "Modifier" },
       { value: "pre_consultations.delete", label: "Supprimer" },
-      { value: "pre_consultations.validate", label: "Valider" },
     ],
   },
   {
