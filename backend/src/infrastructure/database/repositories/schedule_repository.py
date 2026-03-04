@@ -197,7 +197,7 @@ class WaitingQueueRepository:
     async def find_active(self, doctor_id: str | None = None) -> list[WaitingQueueEntry]:
         today_start = datetime.combine(date.today(), datetime.min.time())
         query = select(WaitingQueueModel).where(
-            WaitingQueueModel.status.in_(["waiting", "in_treatment", "done", "left"]),
+            WaitingQueueModel.status.in_(["waiting", "in_treatment"]),
             WaitingQueueModel.checked_in_at >= today_start,
         )
         if doctor_id:
