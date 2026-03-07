@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -14,6 +14,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuthStore } from "@/stores/auth-store";
 import { useSessionStore, type PendingZone } from "@/stores/session-store";
 import { useToast } from "@/hooks/use-toast";
@@ -50,11 +58,59 @@ function SeanceWizardPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuthStore();
-  const { startSession, setPendingZones } = useSessionStore();
+  const { startSession, setPendingZones, clearPendingCall } = useSessionStore();
 
   const [step, setStep] = useState(1);
   const [zones, setZones] = useState<ZoneSelection[]>([]);
   const [paramsLoaded, setParamsLoaded] = useState(false);
+  const DRAFT_KEY = `seance-draft-${patientId}`;
+  const draftZonesRef = useRef<Array<{
+    zoneId: string; selected: boolean; typeLaser: string; spotSize: string;
+    fluence: string; pulseDurationMs: string; frequencyHz: string;
+  }> | null>(null);
+  const draftRestored = useRef(false);
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (draftRestored.current) return;
+    draftRestored.current = true;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.step) setStep(d.step);
+      if (d.zoneSelections) {
+        draftZonesRef.current = d.zoneSelections;
+      }
+    } catch {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }, [DRAFT_KEY]);
+
+  // Save draft on changes (debounced)
+  const saveDraft = useCallback(() => {
+    if (zones.length === 0) return;
+    const zoneSelections = zones.map((z) => ({
+      zoneId: z.patientZone.id,
+      selected: z.selected,
+      typeLaser: z.typeLaser,
+      spotSize: z.spotSize,
+      fluence: z.fluence,
+      pulseDurationMs: z.pulseDurationMs,
+      frequencyHz: z.frequencyHz,
+    }));
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, zoneSelections }));
+  }, [step, zones, DRAFT_KEY]);
+
+  useEffect(() => {
+    const timer = setTimeout(saveDraft, 300);
+    return () => clearTimeout(timer);
+  }, [saveDraft]);
+
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem(DRAFT_KEY);
+    draftZonesRef.current = null;
+  }, [DRAFT_KEY]);
 
   // Fetch patient details
   const { data: patient, isLoading: patientLoading } = useQuery({
@@ -69,21 +125,29 @@ function SeanceWizardPage() {
     enabled: !!patient,
   });
 
-  // Initialize zone selections when patient loads
+  // Initialize zone selections when patient loads, merging with draft if available
   useEffect(() => {
     if (patient?.zones && zones.length === 0) {
+      const draft = draftZonesRef.current;
       const zoneSelections: ZoneSelection[] = patient.zones
         .filter((z) => z.seances_restantes > 0)
-        .map((z) => ({
-          patientZone: z,
-          selected: false,
-          typeLaser: "Alexandrite",
-          spotSize: "18",
-          fluence: "",
-          pulseDurationMs: "",
-          frequencyHz: "",
-        }));
+        .map((z) => {
+          const saved = draft?.find((d) => d.zoneId === z.id);
+          return {
+            patientZone: z,
+            selected: saved?.selected ?? false,
+            typeLaser: saved?.typeLaser ?? "Alexandrite",
+            spotSize: saved?.spotSize ?? "18",
+            fluence: saved?.fluence ?? "",
+            pulseDurationMs: saved?.pulseDurationMs ?? "",
+            frequencyHz: saved?.frequencyHz ?? "",
+          };
+        });
       setZones(zoneSelections);
+      if (draft) {
+        setParamsLoaded(true); // skip auto-loading last params since draft has them
+        draftZonesRef.current = null;
+      }
     }
   }, [patient, zones.length]);
 
@@ -122,6 +186,14 @@ function SeanceWizardPage() {
   const selectedZones = zones.filter((z) => z.selected);
   const alerts = alertsData?.alerts ?? [];
   const errorAlerts = alerts.filter((a) => a.severity === "error");
+
+  // Block navigation when form has progress
+  const hasFormProgress = selectedZones.length > 0 || step > 1;
+  const blocker = useBlocker({
+    shouldBlockFn: () => hasFormProgress,
+    enableBeforeUnload: () => hasFormProgress,
+    withResolver: true,
+  });
 
   const toggleZone = (zoneId: string) => {
     setZones((prev) =>
@@ -184,6 +256,9 @@ function SeanceWizardPage() {
       sideEffects: [],
       queueEntryId,
     });
+
+    clearPendingCall(user.id);
+    clearDraft();
 
     toast({ title: "Seance demarree" });
     navigate({ to: "/practitioner/active" as string } as Parameters<typeof navigate>[0]);
@@ -596,6 +671,28 @@ function SeanceWizardPage() {
             Demarrer la seance
           </Button>
         </div>
+      )}
+
+      {/* Navigation blocker dialog */}
+      {blocker.status === "blocked" && (
+        <Dialog open onOpenChange={() => blocker.reset()}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Quitter la seance ?</DialogTitle>
+              <DialogDescription>
+                Vous avez des zones selectionnees. Si vous quittez maintenant, votre progression sera perdue.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => blocker.reset()}>
+                Rester
+              </Button>
+              <Button variant="destructive" onClick={() => blocker.proceed()}>
+                Quitter
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

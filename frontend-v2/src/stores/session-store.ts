@@ -26,6 +26,14 @@ export interface PendingZone {
   frequencyHz?: string;
 }
 
+export interface PendingCall {
+  patientId: string;
+  patientName: string;
+  queueEntryId: string;
+  calledAt: number;
+  needsPreConsult: boolean;
+}
+
 export interface ActiveSession {
   praticienId: string;
   praticienName: string;
@@ -58,6 +66,10 @@ interface SessionState {
   _hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
   activeSessions: Record<string, ActiveSession>;
+  pendingCalls: Record<string, PendingCall>;
+  setPendingCall: (praticienId: string, call: PendingCall) => void;
+  clearPendingCall: (praticienId: string) => void;
+  getPendingCall: (praticienId: string) => PendingCall | null;
   pendingZones: Record<string, PendingZone[]>;
   setPendingZones: (praticienId: string, zones: PendingZone[]) => void;
   popNextZone: (praticienId: string) => PendingZone | null;
@@ -100,6 +112,25 @@ export const useSessionStore = create<SessionState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
 
       activeSessions: {},
+      pendingCalls: {},
+
+      setPendingCall: (praticienId, call) => {
+        set((state) => ({
+          pendingCalls: { ...state.pendingCalls, [praticienId]: call },
+        }));
+      },
+
+      clearPendingCall: (praticienId) => {
+        set((state) => {
+          const { [praticienId]: _, ...rest } = state.pendingCalls;
+          return { pendingCalls: rest };
+        });
+      },
+
+      getPendingCall: (praticienId) => {
+        return get().pendingCalls[praticienId] || null;
+      },
+
       pendingZones: {},
 
       setPendingZones: (praticienId, zones) => {

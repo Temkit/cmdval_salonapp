@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { createFileRoute, Link, useNavigate, useBlocker } from "@tanstack/react-router";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -15,7 +15,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthStore } from "@/stores/auth-store";
+import { useSessionStore } from "@/stores/session-store";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Patient, QuestionnaireResponseInput } from "@/types";
@@ -78,6 +88,8 @@ function PractitionerPreConsultationNouveau() {
   const isEditMode = !!editId;
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuthStore();
+  const { clearPendingCall } = useSessionStore();
   const [step, setStep] = useState(isEditMode || patientIdParam ? 1 : 0);
   const [editLoaded, setEditLoaded] = useState(false);
   const [patientParamLoaded, setPatientParamLoaded] = useState(false);
@@ -126,6 +138,88 @@ function PractitionerPreConsultationNouveau() {
   // Step 7 - Questionnaire
   // Boolean responses can be: boolean (legacy) or { value: boolean, comment: string }
   const [questionnaireResponses, setQuestionnaireResponses] = useState<Record<string, string | boolean | string[] | { value: boolean; comment: string }>>({});
+
+  // --- Draft persistence (localStorage) ---
+  const DRAFT_KEY = "preconsult-draft";
+  const draftRestored = useRef(false);
+
+  // Restore draft on mount (new forms only)
+  useEffect(() => {
+    if (isEditMode || patientIdParam || draftRestored.current) return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.step != null) setStep(d.step);
+      if (d.selectedPatient) setSelectedPatient(d.selectedPatient);
+      if (d.sexe) setSexe(d.sexe);
+      if (d.dateNaissance) setDateNaissance(d.dateNaissance);
+      if (d.maritalStatus) setMaritalStatus(d.maritalStatus);
+      if (d.phototype) setPhototype(d.phototype);
+      if (d.isPregnant != null) setIsPregnant(d.isPregnant);
+      if (d.isBreastfeeding != null) setIsBreastfeeding(d.isBreastfeeding);
+      if (d.pregnancyPlanning != null) setPregnancyPlanning(d.pregnancyPlanning);
+      if (d.hasPreviousLaser != null) setHasPreviousLaser(d.hasPreviousLaser);
+      if (d.clarityII != null) setClarityII(d.clarityII);
+      if (d.laserSessions) setLaserSessions(d.laserSessions);
+      if (d.laserBrand) setLaserBrand(d.laserBrand);
+      if (d.lastLaserDate) setLastLaserDate(d.lastLaserDate);
+      if (d.medicalHistory) setMedicalHistory(d.medicalHistory);
+      if (d.dermaConditions) setDermaConditions(d.dermaConditions);
+      if (d.hasCurrentTreatments != null) setHasCurrentTreatments(d.hasCurrentTreatments);
+      if (d.treatmentDetails) setTreatmentDetails(d.treatmentDetails);
+      if (d.recentPeeling != null) setRecentPeeling(d.recentPeeling);
+      if (d.recentPeelingDate) setRecentPeelingDate(d.recentPeelingDate);
+      if (d.peelingZone) setPeelingZone(d.peelingZone);
+      if (d.hairMethods) setHairMethods(d.hairMethods);
+      if (d.formZones?.length > 0) setFormZones(d.formZones);
+      if (d.notes) setNotes(d.notes);
+      if (d.questionnaireResponses) setQuestionnaireResponses(d.questionnaireResponses);
+      toast({ title: "Brouillon restaure", description: "Votre progression precedente a ete restauree." });
+    } catch {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+    draftRestored.current = true;
+  }, []);
+
+  // Save draft on state changes (debounced)
+  const saveDraft = useCallback(() => {
+    if (isEditMode) return;
+    const draft = {
+      step, selectedPatient, sexe, dateNaissance, maritalStatus, phototype,
+      isPregnant, isBreastfeeding, pregnancyPlanning,
+      hasPreviousLaser, clarityII, laserSessions, laserBrand, lastLaserDate,
+      medicalHistory, dermaConditions, hasCurrentTreatments, treatmentDetails,
+      recentPeeling, recentPeelingDate, peelingZone,
+      hairMethods, formZones, notes, questionnaireResponses,
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }, [
+    step, selectedPatient, sexe, dateNaissance, maritalStatus, phototype,
+    isPregnant, isBreastfeeding, pregnancyPlanning,
+    hasPreviousLaser, clarityII, laserSessions, laserBrand, lastLaserDate,
+    medicalHistory, dermaConditions, hasCurrentTreatments, treatmentDetails,
+    recentPeeling, recentPeelingDate, peelingZone,
+    hairMethods, formZones, notes, questionnaireResponses, isEditMode,
+  ]);
+
+  useEffect(() => {
+    if (!draftRestored.current && !isEditMode && !patientIdParam) return;
+    const timer = setTimeout(saveDraft, 500);
+    return () => clearTimeout(timer);
+  }, [saveDraft]);
+
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem(DRAFT_KEY);
+  }, []);
+
+  // Block navigation when form has progress
+  const hasFormProgress = step > 0 || !!selectedPatient || !!dateNaissance;
+  const blocker = useBlocker({
+    shouldBlockFn: () => hasFormProgress,
+    enableBeforeUnload: () => hasFormProgress,
+    withResolver: true,
+  });
 
   // Fetch existing pre-consultation for edit mode
   const { data: editData } = useQuery({
@@ -291,6 +385,8 @@ function PractitionerPreConsultationNouveau() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pre-consultations"] });
       queryClient.invalidateQueries({ queryKey: ["pre-consultation", editId] });
+      if (user) clearPendingCall(user.id);
+      clearDraft();
       toast({ title: isEditMode ? "Pre-consultation mise a jour" : "Pre-consultation creee" });
       // Continue to seance if coming from queue, otherwise go to list
       if (selectedPatient?.id && queueEntryId) {
@@ -1006,6 +1102,28 @@ function PractitionerPreConsultationNouveau() {
           </Button>
         )}
       </div>
+
+      {/* Navigation blocker dialog */}
+      {blocker.status === "blocked" && (
+        <Dialog open onOpenChange={() => blocker.reset()}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Quitter la pre-consultation ?</DialogTitle>
+              <DialogDescription>
+                Vous avez des donnees non enregistrees. Si vous quittez maintenant, votre progression sera perdue.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => blocker.reset()}>
+                Rester
+              </Button>
+              <Button variant="destructive" onClick={() => blocker.proceed()}>
+                Quitter
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

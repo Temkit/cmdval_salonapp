@@ -113,7 +113,7 @@ function PractitionerHomePage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuthStore();
-  const { getSession } = useSessionStore();
+  const { getSession, getPendingCall, setPendingCall, clearPendingCall } = useSessionStore();
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
   // Check for active session — redirect to timer
@@ -143,6 +143,15 @@ function PractitionerHomePage() {
       try {
         const preConsult = await api.getPatientPreConsultation(entry.patient_id);
         if (!preConsult) {
+          if (user) {
+            setPendingCall(user.id, {
+              patientId: entry.patient_id,
+              patientName: entry.patient_name,
+              queueEntryId: entry.id,
+              calledAt: Date.now(),
+              needsPreConsult: true,
+            });
+          }
           toast({
             title: "Pre-consultation requise",
             description: "Veuillez creer une pre-consultation pour ce patient.",
@@ -153,6 +162,15 @@ function PractitionerHomePage() {
           });
         } else {
           // Pre-consultation exists — proceed to seance
+          if (user) {
+            setPendingCall(user.id, {
+              patientId: entry.patient_id,
+              patientName: entry.patient_name,
+              queueEntryId: entry.id,
+              calledAt: Date.now(),
+              needsPreConsult: false,
+            });
+          }
           toast({ title: "Patient appele" });
           navigate({
             to: "/practitioner/seance/$patientId",
@@ -162,6 +180,15 @@ function PractitionerHomePage() {
         }
       } catch {
         // If pre-consultation check fails, proceed to seance anyway
+        if (user) {
+          setPendingCall(user.id, {
+            patientId: entry.patient_id,
+            patientName: entry.patient_name,
+            queueEntryId: entry.id,
+            calledAt: Date.now(),
+            needsPreConsult: false,
+          });
+        }
         toast({ title: "Patient appele" });
         navigate({
           to: "/practitioner/seance/$patientId",
@@ -215,11 +242,14 @@ function PractitionerHomePage() {
   const entries = data?.entries ?? [];
   const waitingEntries = entries.filter((e) => e.status === "waiting");
   const inTreatmentEntries = entries.filter((e) => e.status === "in_treatment");
-  // Exclude the patient currently active in Zustand (already shown in banner)
-  const staleInTreatment = inTreatmentEntries.filter(
-    (e) => !activeSession || e.patient_id !== activeSession.patientId,
-  );
   const nextPatient: WaitingQueueEntry | undefined = waitingEntries[0];
+  const pendingCall = user ? getPendingCall(user.id) : null;
+  // Exclude patients already shown in active session banner or pending call banner
+  const staleInTreatment = inTreatmentEntries.filter(
+    (e) =>
+      (!activeSession || e.patient_id !== activeSession.patientId) &&
+      (!pendingCall || e.id !== pendingCall.queueEntryId),
+  );
 
   const goToActive = () =>
     navigate({ to: "/practitioner/active" as string } as Parameters<typeof navigate>[0]);
@@ -229,6 +259,57 @@ function PractitionerHomePage() {
       {/* Active session banner — live timer with quick actions */}
       {activeSession && (
         <ActiveSessionBanner session={activeSession} onNavigate={goToActive} />
+      )}
+
+      {/* Pending call banner — patient called but form not finished */}
+      {!activeSession && pendingCall && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                <Phone className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">{pendingCall.patientName}</p>
+                <p className="text-xs text-muted-foreground">Patient appele — formulaire non termine</p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  if (pendingCall.needsPreConsult) {
+                    navigate({
+                      to: "/practitioner/pre-consultations/nouveau" as string,
+                      search: { queueEntryId: pendingCall.queueEntryId, patient_id: pendingCall.patientId } as Record<string, string>,
+                    });
+                  } else {
+                    navigate({
+                      to: "/practitioner/seance/$patientId",
+                      params: { patientId: pendingCall.patientId },
+                      search: { queueEntryId: pendingCall.queueEntryId },
+                    });
+                  }
+                }}
+              >
+                <Play className="h-4 w-4 mr-1" />
+                Reprendre
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  clearPendingCall(user!.id);
+                  completeMutation.mutate(pendingCall.queueEntryId);
+                }}
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                Annuler
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* In-treatment entries not matching the active Zustand session */}
@@ -260,10 +341,35 @@ function PractitionerHomePage() {
                   </div>
                 </div>
                 <div className="flex gap-2 mt-3">
+                  {entry.patient_id && (
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        if (user) {
+                          setPendingCall(user.id, {
+                            patientId: entry.patient_id!,
+                            patientName: entry.patient_name,
+                            queueEntryId: entry.id,
+                            calledAt: Date.now(),
+                            needsPreConsult: false,
+                          });
+                        }
+                        navigate({
+                          to: "/practitioner/seance/$patientId",
+                          params: { patientId: entry.patient_id! },
+                          search: { queueEntryId: entry.id },
+                        });
+                      }}
+                    >
+                      <Play className="h-4 w-4 mr-1" />
+                      Reprendre
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className={entry.patient_id ? "" : "flex-1"}
                     onClick={() => completeMutation.mutate(entry.id)}
                     disabled={completeMutation.isPending}
                   >
