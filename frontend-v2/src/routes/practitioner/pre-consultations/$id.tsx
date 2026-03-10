@@ -20,6 +20,11 @@ export const Route = createFileRoute("/practitioner/pre-consultations/$id")({
 });
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "muted" | "warning" | "success" | "destructive"; icon: typeof Clock }> = {
+  draft: { label: "Brouillon", variant: "muted", icon: Clock },
+  in_progress: { label: "En cours", variant: "warning", icon: Clock },
+  completed: { label: "Terminee", variant: "success", icon: Clock },
+  validated: { label: "Validee", variant: "success", icon: Clock },
+  "en attente de validation": { label: "En attente", variant: "warning", icon: Clock },
 };
 
 function PractitionerPreConsultationDetail() {

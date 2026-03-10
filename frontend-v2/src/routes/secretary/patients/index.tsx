@@ -11,7 +11,6 @@ import {
   Phone,
   CreditCard,
   AlertTriangle,
-  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,30 +31,6 @@ function SecretaryPatientsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
-  const [exporting, setExporting] = useState(false);
-
-  const handleExportCSV = async () => {
-    setExporting(true);
-    try {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.set("q", debouncedSearch);
-      const response = await fetch(`/api/v1/patients/export?${params}`, {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Export echoue");
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "patients_export.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      // silent fail
-    } finally {
-      setExporting(false);
-    }
-  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -87,25 +62,14 @@ function SecretaryPatientsPage() {
               : "Gerez vos patients"}
           </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={exporting}
-          >
-            <Download className="h-4 w-4 mr-1.5" />
-            {exporting ? "Export..." : "Exporter CSV"}
+        {hasPermission("patients.create") && (
+          <Button asChild>
+            <Link to="/secretary/patients/nouveau">
+              <Plus className="h-5 w-5 mr-2" />
+              Nouveau patient
+            </Link>
           </Button>
-          {hasPermission("patients.create") && (
-            <Button asChild className="flex-1 sm:flex-initial">
-              <Link to="/secretary/patients/nouveau">
-                <Plus className="h-5 w-5 mr-2" />
-                Nouveau patient
-              </Link>
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Search bar */}

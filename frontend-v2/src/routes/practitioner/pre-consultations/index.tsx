@@ -31,6 +31,11 @@ const statusConfig: Record<
     icon: typeof Clock;
   }
 > = {
+  draft: { label: "Brouillon", variant: "muted", icon: FileText },
+  in_progress: { label: "En cours", variant: "info", icon: Clock },
+  completed: { label: "Terminee", variant: "success", icon: FileText },
+  validated: { label: "Validee", variant: "success", icon: FileText },
+  "en attente de validation": { label: "En attente", variant: "warning", icon: Clock },
 };
 
 function PractitionerPreConsultationsPage() {

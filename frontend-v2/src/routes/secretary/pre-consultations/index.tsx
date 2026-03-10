@@ -9,14 +9,12 @@ import {
   ChevronRight,
   AlertTriangle,
   Clock,
-  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
@@ -35,7 +33,6 @@ const statusConfig: Record<
 };
 
 function SecretaryPreConsultationsPage() {
-  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -65,25 +62,6 @@ function SecretaryPreConsultationsPage() {
     { value: "", label: "Toutes" },
   ];
 
-  const handleExport = async () => {
-    try {
-      const res = await fetch("/api/v1/pre-consultations/export", {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Export failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "pre-consultations_export.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: "Export telecharge" });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Erreur export", description: (err as Error).message });
-    }
-  };
-
   return (
     <div className="page-container space-y-4 sm:space-y-6">
       {/* Header */}
@@ -96,10 +74,6 @@ function SecretaryPreConsultationsPage() {
               : "Gerez les pre-consultations"}
           </p>
         </div>
-        <Button variant="outline" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" />
-          Exporter
-        </Button>
       </div>
 
       {/* Filters */}

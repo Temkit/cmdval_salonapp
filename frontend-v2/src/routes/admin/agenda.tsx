@@ -1065,15 +1065,17 @@ function AdminAgendaPage() {
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, "").slice(0, 2);
                       const num = parseInt(val, 10);
-                      const mm = val === "" ? "" : (num > 59 ? "59" : val.padStart(2, "0"));
+                      const mm = val === "" ? "" : (num > 59 ? "59" : val);
                       const hh = addForm.start_time?.split(":")[0] ?? "08";
                       setAddForm((f) => ({ ...f, start_time: `${hh}:${mm}` }));
                     }}
                     onBlur={(e) => {
                       const val = e.target.value.replace(/\D/g, "");
-                      if (val && val.length === 1) {
+                      if (val) {
+                        const num = parseInt(val, 10);
+                        const mm = num > 59 ? "59" : val.padStart(2, "0");
                         const hh = addForm.start_time?.split(":")[0] ?? "08";
-                        setAddForm((f) => ({ ...f, start_time: `${hh}:${val.padStart(2, "0")}` }));
+                        setAddForm((f) => ({ ...f, start_time: `${hh}:${mm}` }));
                       }
                     }}
                   />
@@ -1083,9 +1085,9 @@ function AdminAgendaPage() {
             <div className="space-y-2">
               <Label>
                 Zones a traiter
-                {totalMinutes > 0 && (
+                {addForm.selected_zone_ids.length > 0 && (
                   <span className="text-muted-foreground font-normal ml-2">
-                    ({totalMinutes} min)
+                    ({addForm.selected_zone_ids.length} selectionnee{addForm.selected_zone_ids.length > 1 ? "s" : ""}{totalMinutes > 0 ? `, ${totalMinutes} min` : ""})
                   </span>
                 )}
               </Label>

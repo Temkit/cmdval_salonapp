@@ -90,7 +90,24 @@ async def upload_schedule(
 ):
     """Upload daily schedule Excel file."""
     content = await file.read()
-    result = await schedule_service.upload_schedule(content, uploaded_by=current_user.get("id"))
+    try:
+        result = await schedule_service.upload_schedule(content, uploaded_by=current_user.get("id"))
+    except Exception as e:
+        error_msg = str(e)
+        if "openpyxl" in error_msg.lower() or "zip" in error_msg.lower() or "xml" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Le fichier n'est pas un fichier Excel valide (.xlsx). Verifiez le format du fichier.",
+            )
+        if "Fichier Excel vide" in error_msg or "ValidationError" in type(e).__name__:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg,
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur lors de l'import du planning : {error_msg}",
+        )
     entries = result["entries"]
     phone_conflicts = result.get("phone_conflicts", [])
     target_date = entries[0].date if entries else None
@@ -113,6 +130,10 @@ async def get_today_schedule(
     schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
 ):
     entries = await schedule_service.get_today_schedule()
+    # Practitioners only see their own patients
+    if current_user.get("role") == "Praticien":
+        doctor_id = current_user["id"]
+        entries = [e for e in entries if e.doctor_id == doctor_id]
     return ScheduleListResponse(
         entries=[_schedule_response(e) for e in entries],
         date=date.today(),
@@ -297,17 +318,28 @@ async def export_schedule_csv(
     """Export schedule entries as CSV."""
     from_date = target_date or date.today()
     entries = await schedule_service.get_schedule(from_date)
+
+    # Resolve zone IDs to names
+    zone_name_cache: dict[str, str] = {}
+    if schedule_service.zone_def_repo:
+        for e in entries:
+            for zid in (e.zone_ids or []):
+                if zid not in zone_name_cache:
+                    zone = await schedule_service.zone_def_repo.find_by_id(zid)
+                    zone_name_cache[zid] = zone.nom if zone else zid
+
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
     writer.writerow(["Date", "Heure", "Patient", "Medecin", "Duree", "Zones", "Statut", "Notes"])
     for e in entries:
+        zone_names = [zone_name_cache.get(zid, zid) for zid in (e.zone_ids or [])]
         writer.writerow([
             e.date.strftime("%d/%m/%Y") if e.date else "",
             e.start_time.strftime("%H:%M") if e.start_time else "",
             f"{e.patient_prenom} {e.patient_nom}".strip(),
             e.doctor_name or "",
             e.duration_type or "",
-            ", ".join(e.zone_ids) if e.zone_ids else "",
+            ", ".join(zone_names) if zone_names else "",
             e.status or "",
             e.notes or "",
         ])

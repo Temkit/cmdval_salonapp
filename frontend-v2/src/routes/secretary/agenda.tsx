@@ -16,7 +16,6 @@ import {
   Search,
   Pencil,
   Trash2,
-  Download,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -476,25 +475,6 @@ function SecretaryAgendaPage() {
     }
   };
 
-  const handleExport = async () => {
-    try {
-      const res = await fetch(`/api/v1/schedule/export?target_date=${dateStr}`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Export failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "agenda_export.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: "Export telecharge" });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Erreur export", description: (err as Error).message });
-    }
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -554,10 +534,6 @@ function SecretaryAgendaPage() {
               className="hidden"
               onChange={handleFileUpload}
             />
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Exporter
-            </Button>
             <Button
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
@@ -1066,15 +1042,17 @@ function SecretaryAgendaPage() {
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, "").slice(0, 2);
                       const num = parseInt(val, 10);
-                      const mm = val === "" ? "" : (num > 59 ? "59" : val.padStart(2, "0"));
+                      const mm = val === "" ? "" : (num > 59 ? "59" : val);
                       const hh = addForm.start_time?.split(":")[0] ?? "08";
                       setAddForm((f) => ({ ...f, start_time: `${hh}:${mm}` }));
                     }}
                     onBlur={(e) => {
                       const val = e.target.value.replace(/\D/g, "");
-                      if (val && val.length === 1) {
+                      if (val) {
+                        const num = parseInt(val, 10);
+                        const mm = num > 59 ? "59" : val.padStart(2, "0");
                         const hh = addForm.start_time?.split(":")[0] ?? "08";
-                        setAddForm((f) => ({ ...f, start_time: `${hh}:${val.padStart(2, "0")}` }));
+                        setAddForm((f) => ({ ...f, start_time: `${hh}:${mm}` }));
                       }
                     }}
                   />
@@ -1084,9 +1062,9 @@ function SecretaryAgendaPage() {
             <div className="space-y-2">
               <Label>
                 Zones a traiter
-                {totalMinutes > 0 && (
+                {addForm.selected_zone_ids.length > 0 && (
                   <span className="text-muted-foreground font-normal ml-2">
-                    ({totalMinutes} min)
+                    ({addForm.selected_zone_ids.length} selectionnee{addForm.selected_zone_ids.length > 1 ? "s" : ""}{totalMinutes > 0 ? `, ${totalMinutes} min` : ""})
                   </span>
                 )}
               </Label>

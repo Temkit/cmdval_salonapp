@@ -114,6 +114,8 @@ export interface Session {
   zone_nom: string;
   praticien_id: string;
   praticien_nom: string;
+  patient_nom?: string;
+  patient_prenom?: string;
   date_seance: string;
   type_laser: string;
   parametres: Record<string, string | number | null>;

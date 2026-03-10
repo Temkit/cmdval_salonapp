@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Plus,
   DollarSign,
-  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,29 +72,6 @@ function SecretaryPaiementsPage() {
   const activeSubscriptions = (patientSubscriptions?.subscriptions ?? []).filter(
     (s: any) => s.status === "active"
   );
-
-  const handleExport = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (typeFilter) params.set("type", typeFilter);
-      if (dateFrom) params.set("date_from", dateFrom);
-      if (dateTo) params.set("date_to", dateTo);
-      const res = await fetch(`/api/v1/paiements/export?${params}`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Export failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "paiements.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: "Export telecharge" });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Erreur export", description: (err as Error).message });
-    }
-  };
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -164,16 +140,10 @@ function SecretaryPaiementsPage() {
             Historique et suivi des paiements
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Exporter
-          </Button>
-          <Button onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau paiement
-          </Button>
-        </div>
+        <Button onClick={() => setAddDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nouveau paiement
+        </Button>
       </div>
 
       {/* Filters */}
@@ -355,6 +325,16 @@ function SecretaryPaiementsPage() {
                 </div>
               ) : null}
             </div>
+
+            {/* Active subscription warning */}
+            {addForm.patient_id && activeSubscriptions.length > 0 && addForm.type_paiement === "encaissement" && !addForm.subscription_id && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Ce patient a un abonnement actif. Verifiez s'il ne s'agit pas d'une seance incluse dans l'abonnement.
+                </p>
+              </div>
+            )}
 
             {/* Subscription selector */}
             {addForm.patient_id && activeSubscriptions.length > 0 && (

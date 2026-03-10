@@ -61,6 +61,8 @@ async def list_patient_sessions(
                     zone_nom=s.zone_nom,
                     praticien_id=s.praticien_id,
                     praticien_nom=s.praticien_nom,
+                    patient_nom=s.patient_nom,
+                    patient_prenom=s.patient_prenom,
                     date_seance=s.date_seance,
                     type_laser=s.type_laser,
                     parametres=s.parametres,
@@ -169,6 +171,8 @@ async def create_session(
             zone_nom=session.zone_nom,
             praticien_id=session.praticien_id,
             praticien_nom=session.praticien_nom,
+            patient_nom=session.patient_nom,
+            patient_prenom=session.patient_prenom,
             date_seance=session.date_seance,
             type_laser=session.type_laser,
             parametres=session.parametres,
@@ -227,7 +231,7 @@ async def export_sessions_csv(
     for s in sessions:
         writer.writerow([
             str(s.date_seance) if s.date_seance else "",
-            "",  # patient name not on session entity
+            f"{s.patient_prenom} {s.patient_nom}".strip() if (s.patient_prenom or s.patient_nom) else "",
             s.zone_nom or "",
             s.praticien_nom or "",
             s.type_laser or "",
@@ -386,6 +390,8 @@ async def update_session_notes(
             zone_nom=session.zone_nom,
             praticien_id=session.praticien_id,
             praticien_nom=session.praticien_nom,
+            patient_nom=session.patient_nom,
+            patient_prenom=session.patient_prenom,
             date_seance=session.date_seance,
             type_laser=session.type_laser,
             parametres=session.parametres,

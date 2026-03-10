@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Calendar, Clock, User } from "lucide-react";
+import { Activity, Calendar, Clock, User, Search, X } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatDate } from "@/lib/utils";
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/practitioner/mes-seances")({
 function MesSeancesPage() {
   const { user } = useAuthStore();
   const [page, setPage] = useState(1);
+  const [patientFilter, setPatientFilter] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["my-sessions", user?.id, page],
@@ -25,7 +27,13 @@ function MesSeancesPage() {
     enabled: !!user?.id,
   });
 
-  const sessions = data?.sessions || [];
+  const allSessions = data?.sessions || [];
+  const sessions = patientFilter
+    ? allSessions.filter((s) => {
+        const name = `${s.patient_prenom || ""} ${s.patient_nom || ""}`.toLowerCase();
+        return name.includes(patientFilter.toLowerCase());
+      })
+    : allSessions;
   const totalPages = data?.pages || 0;
 
   return (
@@ -35,6 +43,25 @@ function MesSeancesPage() {
         <p className="text-sm text-muted-foreground mt-1">
           {data?.total !== undefined && `${data.total} seance(s) au total`}
         </p>
+      </div>
+
+      {/* Patient search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Filtrer par nom de patient..."
+          value={patientFilter}
+          onChange={(e) => setPatientFilter(e.target.value)}
+          className="pl-9"
+        />
+        {patientFilter && (
+          <button
+            onClick={() => setPatientFilter("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded hover:bg-muted transition-colors"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
       </div>
 
       <Card>

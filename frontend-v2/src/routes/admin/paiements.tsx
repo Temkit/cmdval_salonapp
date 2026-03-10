@@ -356,6 +356,16 @@ function AdminPaiementsPage() {
               ) : null}
             </div>
 
+            {/* Active subscription warning */}
+            {addForm.patient_id && activeSubscriptions.length > 0 && addForm.type_paiement === "encaissement" && !addForm.subscription_id && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Ce patient a un abonnement actif. Verifiez s'il ne s'agit pas d'une seance incluse dans l'abonnement.
+                </p>
+              </div>
+            )}
+
             {/* Subscription selector */}
             {addForm.patient_id && activeSubscriptions.length > 0 && (
               <div className="space-y-2">

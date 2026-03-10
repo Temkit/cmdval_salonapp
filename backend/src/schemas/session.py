@@ -52,6 +52,8 @@ class SessionResponse(AppBaseModel):
     zone_nom: str
     praticien_id: str
     praticien_nom: str
+    patient_nom: str = ""
+    patient_prenom: str = ""
     date_seance: datetime
     type_laser: str
     parametres: dict[str, Any]
